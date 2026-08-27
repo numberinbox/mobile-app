@@ -11,7 +11,7 @@ pipeline {
     environment {
         FLUTTER_VERSION = '3.38.9'
         FIREBASE_PROJECT_ID = 'twake-195010'
-        RESULTS_BUCKET="twake-195010.firebasestorage.app"
+        RESULTS_BUCKET="flutter-test-results"
     }
 
     stages {
