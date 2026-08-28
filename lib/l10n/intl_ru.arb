@@ -5936,6 +5936,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "driveAttachmentAddedSuccessfully": "Файлы прикреплены из Drive.",
+  "@driveAttachmentAddedSuccessfully": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "driveAttachmentTransferFailed": "Не удалось прикрепить файлы из Drive.",
   "@driveAttachmentTransferFailed": {
     "type": "text",

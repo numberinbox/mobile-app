@@ -5918,6 +5918,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "driveAttachmentAddedSuccessfully": "Fichiers ajoutés depuis Drive.",
+  "@driveAttachmentAddedSuccessfully": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "driveAttachmentTransferFailed": "Échec de l'ajout des fichiers depuis Drive.",
   "@driveAttachmentTransferFailed": {
     "type": "text",

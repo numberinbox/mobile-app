@@ -3308,14 +3308,22 @@
   "unexpectedError": "Тодорхойгүй алдаа: {errorMessage}",
   "@unexpectedError": {
     "type": "text",
-    "placeholders_order": ["errorMessage"],
-    "placeholders": {"errorMessage": {}}
+    "placeholders_order": [
+      "errorMessage"
+    ],
+    "placeholders": {
+      "errorMessage": {}
+    }
   },
   "handshakeException": "Клиент дэх гарын холбооны алдаа: {errorMessage}",
   "@handshakeException": {
     "type": "text",
-    "placeholders_order": ["errorMessage"],
-    "placeholders": {"errorMessage": {}}
+    "placeholders_order": [
+      "errorMessage"
+    ],
+    "placeholders": {
+      "errorMessage": {}
+    }
   },
   "reply_to_email_address_prefix": "Хариу илгээх хаяг",
   "@reply_to_email_address_prefix": {
@@ -3326,14 +3334,24 @@
   "message_confirmation_dialog_allow_subaddressing": "Та \"{nameMailbox}\" хавтасруу дараах замаар хүн бүрт шууд имэйл илгээхийг зөвшөөрөх гэж байна:",
   "@message_confirmation_dialog_allow_subaddressing": {
     "type": "text",
-    "placeholders_order": ["nameMailbox"],
-    "placeholders": {"nameMailbox": {}}
+    "placeholders_order": [
+      "nameMailbox"
+    ],
+    "placeholders": {
+      "nameMailbox": {}
+    }
   },
   "message_confirmation_dialog_allow_subaddressing_mobile": "Та \"{nameMailbox}\" хавтасруу <{address}> хаягаар хүн бүрт шууд имэйл илгээхийг зөвшөөрөх гэж байна",
   "@message_confirmation_dialog_allow_subaddressing_mobile": {
     "type": "text",
-    "placeholders_order": ["nameMailbox", "address"],
-    "placeholders": {"nameMailbox": {}, "address": {}}
+    "placeholders_order": [
+      "nameMailbox",
+      "address"
+    ],
+    "placeholders": {
+      "nameMailbox": {},
+      "address": {}
+    }
   },
   "renameFolderFailure": "Хавтасны нэр өөрчлөхөд алдаа гарлаа",
   "@renameFolderFailure": {
@@ -3494,8 +3512,12 @@
   "toastMessageMarkAsReadFolderAllFailure": "\"{folderName}\" хавтасыг уншсан гэж тэмдэглэж чадсангүй",
   "@toastMessageMarkAsReadFolderAllFailure": {
     "type": "text",
-    "placeholders_order": ["folderName"],
-    "placeholders": {"folderName": {}}
+    "placeholders_order": [
+      "folderName"
+    ],
+    "placeholders": {
+      "folderName": {}
+    }
   },
   "sending": "Илгээж байна",
   "@sending": {
@@ -3698,8 +3720,12 @@
   "mailUnsubscribedMessage": "Та {senderName}-с бүртгэлийн захиалгаа цуцаллаа",
   "@mailUnsubscribedMessage": {
     "type": "text",
-    "placeholders_order": ["senderName"],
-    "placeholders": {"senderName": {}}
+    "placeholders_order": [
+      "senderName"
+    ],
+    "placeholders": {
+      "senderName": {}
+    }
   },
   "cannotCompressInlineImage": "Зургийг шахаж чадсангүй",
   "@cannotCompressInlineImage": {
@@ -3734,8 +3760,12 @@
   "recoverDeletedMessagesBannerContent": "Та өнгөрсөн {period} хугацаанд устгасан мессежүүдийг сэргээх боломжтой",
   "@recoverDeletedMessagesBannerContent": {
     "type": "text",
-    "placeholders_order": ["period"],
-    "placeholders": {"period": {}}
+    "placeholders_order": [
+      "period"
+    ],
+    "placeholders": {
+      "period": {}
+    }
   },
   "deletionDate": "Устгасан огноо",
   "@deletionDate": {
@@ -4496,8 +4526,12 @@
   "invalidArguments": "Буруу аргументууд: \"{description}\"",
   "@invalidArguments": {
     "type": "text",
-    "placeholders_order": ["description"],
-    "placeholders": {"description": {}}
+    "placeholders_order": [
+      "description"
+    ],
+    "placeholders": {
+      "description": {}
+    }
   },
   "exportTraceLog": "Дагалдах мөр экспортлох",
   "@exportTraceLog": {
@@ -4520,8 +4554,12 @@
   "exportTraceLogSuccess": "Дагалдах мөрүүд \"{path}\" дээр амжилттай экспортлогдлоо",
   "@exportTraceLogSuccess": {
     "type": "text",
-    "placeholders_order": ["path"],
-    "placeholders": {"path": {}}
+    "placeholders_order": [
+      "path"
+    ],
+    "placeholders": {
+      "path": {}
+    }
   },
   "noLogsHaveBeenRecordedYet": "Одоог хүртэл ямар нэгэн мөр бүртгэгдсэнгүй.",
   "@noLogsHaveBeenRecordedYet": {
@@ -4610,8 +4648,12 @@
   "countMessageInSpam": "{count} мессеж спамд байна",
   "@countMessageInSpam": {
     "type": "text",
-    "placeholders_order": ["count"],
-    "placeholders": {"count": {}}
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "view": "Харах",
   "@view": {
@@ -4622,8 +4664,12 @@
   "daysAgo": "{days,plural, =0{}=1{ (1 өдрийн өмнө)}other{ ({days} өдрийн өмнө)}}",
   "@daysAgo": {
     "type": "text",
-    "placeholders_order": ["days"],
-    "placeholders": {"days": {}}
+    "placeholders_order": [
+      "days"
+    ],
+    "placeholders": {
+      "days": {}
+    }
   },
   "copy": "Хуулах",
   "@copy": {
@@ -4658,8 +4704,12 @@
   "dialogRecoverDeletedMessagesDescription": "Та сүүлийн {period} хоногийн дотор устгасан мессежүүдийг сэргээх боломжтой. Сэргээгдсэн имэйлүүд сэргэлтийн хавтаст буцана.",
   "@dialogRecoverDeletedMessagesDescription": {
     "type": "text",
-    "placeholders_order": ["period"],
-    "placeholders": {"period": {}}
+    "placeholders_order": [
+      "period"
+    ],
+    "placeholders": {
+      "period": {}
+    }
   },
   "enterName": "Нэр оруулах",
   "@enterName": {
@@ -4736,8 +4786,12 @@
   "quotaAvailableLabel": "{count} боломжтой байна",
   "@quotaAvailableLabel": {
     "type": "text",
-    "placeholders_order": ["count"],
-    "placeholders": {"count": {}}
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "paywallUrlNotAvailable": "Paywall url боломжгүй байна",
   "@paywallUrlNotAvailable": {
@@ -4844,8 +4898,14 @@
   "ruleFilterConditionPreviewMessage": "{conditionCombinerName} нөхцлүүдийн: {conditionValue}",
   "@ruleFilterConditionPreviewMessage": {
     "type": "text",
-    "placeholders_order": ["conditionCombinerName", "conditionValue"],
-    "placeholders": {"conditionCombinerName": {}, "conditionValue": {}}
+    "placeholders_order": [
+      "conditionCombinerName",
+      "conditionValue"
+    ],
+    "placeholders": {
+      "conditionCombinerName": {},
+      "conditionValue": {}
+    }
   },
   "actions": "Үйлдлүүд",
   "@actions": {
@@ -4862,8 +4922,12 @@
   "subtitleDisplayTheFolderNameLocationInFolderCreationModal": "Шинэ хавтас {folderName} дотор үүсгэгдэнэ",
   "@subtitleDisplayTheFolderNameLocationInFolderCreationModal": {
     "type": "text",
-    "placeholders_order": ["folderName"],
-    "placeholders": {"folderName": {}}
+    "placeholders_order": [
+      "folderName"
+    ],
+    "placeholders": {
+      "folderName": {}
+    }
   },
   "folderName": "Хавтасны нэр",
   "@folderName": {
@@ -4904,8 +4968,12 @@
   "attachmentReminderModalMessage": "Та мессеждээ {keyword} гэж бичсэн боловч хавсралт нэмсэнгүй. Ямар ч байсан илгээх үү?",
   "@attachmentReminderModalMessage": {
     "type": "text",
-    "placeholders_order": ["keyword"],
-    "placeholders": {"keyword": {}}
+    "placeholders_order": [
+      "keyword"
+    ],
+    "placeholders": {
+      "keyword": {}
+    }
   },
   "spamReports": "Спам тайлан",
   "@spamReports": {
@@ -4928,14 +4996,22 @@
   "showMoreAttachmentButton": "+{count} дэлгэх",
   "@showMoreAttachmentButton": {
     "type": "text",
-    "placeholders_order": ["count"],
-    "placeholders": {"count": {}}
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "hideAttachmentButton": "{count} нуух",
   "@hideAttachmentButton": {
     "type": "text",
-    "placeholders_order": ["count"],
-    "placeholders": {"count": {}}
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "defaultIdentitySetupSuccessful": "Үндсэн таних мэдээлэл амжилттай тохируулагдлаа",
   "@defaultIdentitySetupSuccessful": {
@@ -4964,14 +5040,22 @@
   "storageUsedMessage": "{limit}-ийн ашиглагдсан",
   "@storageUsedMessage": {
     "type": "text",
-    "placeholders_order": ["limit"],
-    "placeholders": {"limit": {}}
+    "placeholders_order": [
+      "limit"
+    ],
+    "placeholders": {
+      "limit": {}
+    }
   },
   "storageAvailableMessage": "Боломжтой: {count}",
   "@storageAvailableMessage": {
     "type": "text",
-    "placeholders_order": ["count"],
-    "placeholders": {"count": {}}
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "mailHasBeenStarred": "Имэйлд одтой тэмдэглэгдлээ",
   "@mailHasBeenStarred": {
@@ -5228,8 +5312,12 @@
   "createLabelSuccessfullyMessage": "Та {labelName} шошгыг амжилттай үүсгэлээ",
   "@createLabelSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "createNewLabelFailure": "Шинэ шошго үүсгэхэд алдаа гарлаа",
   "@createNewLabelFailure": {
@@ -5273,6 +5361,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "driveAttachmentAddedSuccessfully": "Драйваас файлуудыг хавсаргалаа.",
+  "@driveAttachmentAddedSuccessfully": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "labelAs": "Шошго болгох",
   "@labelAs": {
     "type": "text",
@@ -5282,14 +5376,22 @@
   "addLabelToEmailSuccessfullyMessage": "\"{labelName}\" шошго имэйлд нэмэгдлээ",
   "@addLabelToEmailSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "addLabelToEmailFailureMessage": "\"{labelName}\" шошгыг имэйлд нэмж чадсангүй",
   "@addLabelToEmailFailureMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "addLabel": "Шошго нэмэх",
   "@addLabel": {
@@ -5300,14 +5402,22 @@
   "addLabelToThreadSuccessfullyMessage": "\"{labelName}\" шошго утасны бүх имэйлд нэмэгдлээ",
   "@addLabelToThreadSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "addLabelToThreadFailureMessage": "\"{labelName}\" шошгыг утасны бүх имэйлд нэмж чадсангүй",
   "@addLabelToThreadFailureMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "youDoNotHaveAnyEmailTaggedWithThis": "Энэ шошготой имэйл байхгүй байна.",
   "@youDoNotHaveAnyEmailTaggedWithThis": {
@@ -5336,8 +5446,12 @@
   "editLabelSuccessfullyMessage": "Та {labelName} шошгыг амжилттай заслаа",
   "@editLabelSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "editLabelFailure": "Шошго засахад алдаа гарлаа",
   "@editLabelFailure": {
@@ -5348,26 +5462,42 @@
   "removeLabelFromEmailSuccessfullyMessage": "\"{labelName}\" шошго имэйлээс хасагдлаа",
   "@removeLabelFromEmailSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "removeLabelFromEmailFailureMessage": "\"{labelName}\" шошгыг имэйлээс хасаж чадсангүй",
   "@removeLabelFromEmailFailureMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "removeLabelFromThreadSuccessfullyMessage": "\"{labelName}\" шошго утасны бүх имэйлээс хасагдлаа",
   "@removeLabelFromThreadSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "removeLabelFromThreadFailureMessage": "\"{labelName}\" шошгыг утасны бүх имэйлээс хасаж чадсангүй",
   "@removeLabelFromThreadFailureMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "deleteLabel": "Шошго устгах",
   "@deleteLabel": {
@@ -5378,14 +5508,22 @@
   "areYouSureYouWantToDeleteTheLabel": "Та \"{labelName}\" шошгыг устгахдаа итгэлтэй байна уу?",
   "@areYouSureYouWantToDeleteTheLabel": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "deleteLabelSuccessfullyMessage": "Та {labelName} шошгыг амжилттай устгалаа",
   "@deleteLabelSuccessfullyMessage": {
     "type": "text",
-    "placeholders_order": ["labelName"],
-    "placeholders": {"labelName": {}}
+    "placeholders_order": [
+      "labelName"
+    ],
+    "placeholders": {
+      "labelName": {}
+    }
   },
   "deleteALabelFailure": "Шошго устгахад алдаа гарлаа",
   "@deleteALabelFailure": {

@@ -5924,6 +5924,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "driveAttachmentAddedSuccessfully": "Đã đính kèm tệp từ Drive.",
+  "@driveAttachmentAddedSuccessfully": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "driveAttachmentTransferFailed": "Không thể đính kèm tệp từ Drive.",
   "@driveAttachmentTransferFailed": {
     "type": "text",
