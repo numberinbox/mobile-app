@@ -232,7 +232,7 @@ class UploadController extends BaseController {
 
   /// Resolves a drive-transfer chip to succeed with its attachment.
   void resolveDriveTransferSuccess(UploadTaskId taskId, Attachment attachment) {
-    _uploadingStateFiles.updateElementByUploadTaskId(
+    final found = _uploadingStateFiles.updateElementByUploadTaskId(
       taskId,
       (state) => state?.copyWith(
         uploadingProgress: 100,
@@ -240,13 +240,24 @@ class UploadController extends BaseController {
         attachment: attachment,
       ),
     );
+    if (!found) {
+      logWarning(
+        'UploadController::resolveDriveTransferSuccess: taskId not found in state list',
+      );
+    }
     _refreshListUploadAttachmentState();
   }
 
   /// Resolves a drive-transfer chip to failed by removing it, matching the
   /// plain-upload failure path.
   void resolveDriveTransferFailure(UploadTaskId taskId) {
-    deleteFileUploaded(taskId);
+    final found = _uploadingStateFiles.deleteElementByUploadTaskId(taskId);
+    if (!found) {
+      logWarning(
+        'UploadController::resolveDriveTransferFailure: taskId not found in state list',
+      );
+    }
+    _refreshListUploadAttachmentState();
     _showToastMessageWhenUploadAttachmentsFailure(
       ErrorAttachmentUploadState(uploadId: taskId),
     );
@@ -322,8 +333,6 @@ class UploadController extends BaseController {
   }
 
   void _showToastMessageWhenUploadAttachmentsFailure(ErrorAttachmentUploadState failure) {
-    // The chip is removed on failure, so the log is the only durable trace.
-    logError('UploadController::_showToastMessageWhenUploadAttachmentsFailure: upload ${failure.uploadId} failed');
     if (currentContext != null && currentOverlayContext != null) {
       appToast.showToastErrorMessage(
         currentOverlayContext!,
@@ -331,7 +340,9 @@ class UploadController extends BaseController {
         leadingSVGIconColor: Colors.white,
         leadingSVGIcon: imagePaths.icAttachment);
     } else {
-      logError('UploadController::_showToastMessageWhenUploadAttachmentsFailure: no context to show failure for ${failure.uploadId}');
+      logWarning(
+        'UploadController::_showToastMessageWhenUploadAttachmentsFailure: no context to show failure',
+      );
     }
   }
 

@@ -7,6 +7,7 @@ import 'package:dio/dio.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:model/email/attachment.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/concurrency_gate.dart';
+import 'package:tmail_ui_user/features/upload/domain/exceptions/upload_exception.dart';
 import 'package:tmail_ui_user/features/upload/domain/model/upload_task_id.dart';
 import 'package:tmail_ui_user/features/upload/domain/repository/upload_from_url_request.dart';
 import 'package:tmail_ui_user/features/upload/domain/state/upload_drive_document_from_url_state.dart';
@@ -126,6 +127,15 @@ class DriveAttachmentTransferRunner {
     final downloadLink = task.doc.downloadLink;
     // Guarded here too: the runner is injectable, so it can't trust its caller's gate.
     if (downloadLink == null || downloadLink.toString().trim().isEmpty) {
+      logError(
+        'DriveAttachmentTransferRunner::_runOne: downloadLink is missing',
+        exception: const DriveDownloadLinkMissingException(),
+        stackTrace: StackTrace.current,
+        extras: {
+          'taskId': taskId.id,
+          'mimeType': task.doc.mimeType,
+        },
+      );
       request.onFailure(taskId);
       return;
     }
@@ -139,8 +149,18 @@ class DriveAttachmentTransferRunner {
         mimeType: task.doc.mimeType ?? Constant.octetStreamMimeType,
         cancelToken: task.placeholder.cancelToken,
       ));
-    } catch (_) {
+    } catch (e, s) {
       // uploadFromUrl must resolve every task; a thrown error still counts as failure.
+      logError(
+        'DriveAttachmentTransferRunner::_runOne: uploadFromUrl threw',
+        exception: e,
+        stackTrace: s,
+        // File name stays out: extras reach Sentry.
+        extras: {
+          'taskId': taskId.id,
+          'mimeType': task.doc.mimeType,
+        },
+      );
       request.onFailure(taskId);
       return;
     }
@@ -154,6 +174,7 @@ class DriveAttachmentTransferRunner {
       (failure) {
         // a user-cancelled transfer is not a failure; the chip is already gone.
         if (failure is UploadDriveDocumentFromUrlCancelled) return;
+        // not reported here: the interactor is the single funnel for upload failures.
         request.onFailure(taskId);
       },
       (success) => success is UploadDriveDocumentFromUrlSuccess

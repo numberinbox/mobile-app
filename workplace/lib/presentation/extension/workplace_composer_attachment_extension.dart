@@ -2,7 +2,6 @@ import 'package:core/presentation/extensions/composer_attachment_plugin.dart';
 import 'package:core/presentation/extensions/composer_toolbar_button_style.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/state/failure.dart';
-import 'package:core/utils/app_logger.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:workplace/data/datasource_impl/workplace_datasource_impl.dart';
@@ -78,9 +77,7 @@ class WorkplaceComposerAttachmentExtension implements ComposerAttachmentPlugin {
     )) {
       either.fold(
         (failure) {
-          logWarning(
-            'WorkplaceComposerAttachmentExtension::_exchangeAccessToken failed: $failure',
-          );
+          // reported by DriveIntentMessageHandlerMixin._failWith, the single funnel.
           throw failure is FeatureFailure ? failure.exception : WorkplaceExchangeTokenException();
         },
         (success) {
@@ -117,9 +114,7 @@ class WorkplaceComposerAttachmentExtension implements ComposerAttachmentPlugin {
     )) {
       either.fold(
         (failure) {
-          logWarning(
-            'WorkplaceComposerAttachmentExtension::_createIntent failed: $failure',
-          );
+          // reported by DriveIntentMessageHandlerMixin._failWith, the single funnel.
           throw failure is FeatureFailure ? failure.exception : WorkplaceCreateIntentException();
         },
         (success) {

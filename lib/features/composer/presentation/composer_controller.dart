@@ -120,6 +120,7 @@ import 'package:tmail_ui_user/features/network_connection/presentation/network_c
   if (dart.library.html) 'package:tmail_ui_user/features/network_connection/presentation/web_network_connection_controller.dart';
 import 'package:tmail_ui_user/features/server_settings/domain/usecases/get_server_setting_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/exceptions/pick_file_exception.dart';
+import 'package:tmail_ui_user/features/upload/domain/exceptions/upload_exception.dart';
 import 'package:tmail_ui_user/features/upload/domain/extensions/file_info_extension.dart';
 import 'package:tmail_ui_user/features/upload/domain/extensions/list_file_upload_extension.dart';
 import 'package:tmail_ui_user/features/upload/domain/model/upload_task_id.dart';
@@ -1040,8 +1041,13 @@ class ComposerController extends BaseController
         transferDriveDocuments: (docs) => _transferDriveDocuments(docs),
         appLocalizations: currentContext != null ? AppLocalizations.of(currentContext!) : null,
       );
-    } catch (e) {
-      logWarning('ComposerController::handleDrivePickResult:Exception = $e');
+    } catch (e, s) {
+      logError(
+        'ComposerController::handleDrivePickResult failed',
+        exception: e,
+        stackTrace: s,
+        extras: {'docCount': result.length},
+      );
       // A throw here can strand waiting chips, so the failure must be visible.
       getBinding<ToastManager>()?.showMessageFailure(DrivePickFailure(
         e,
@@ -1062,7 +1068,12 @@ class ComposerController extends BaseController
   Future<DriveTransferOutcome> _transferDriveDocuments(List<DriveDocument> docs) async {
     final jmapUrl = dynamicUrlInterceptors.jmapUrl;
     if (jmapUrl == null || jmapUrl.isEmpty) {
-      logWarning('ComposerController::_transferDriveDocuments: jmapUrl is unavailable');
+      logError(
+        'ComposerController::_transferDriveDocuments: jmapUrl is unavailable',
+        exception: const UploadFromUrlEndpointUnavailableException('jmapUrl is unavailable'),
+        stackTrace: StackTrace.current,
+        extras: {'docCount': docs.length},
+      );
       return DriveAttachmentTransferRunner.notStartedOutcome;
     }
     final session = mailboxDashBoardController.sessionCurrent;
@@ -1072,7 +1083,16 @@ class ComposerController extends BaseController
       jmapUrl: jmapUrl,
     );
     if (uploadUri == null || accountId == null) {
-      logWarning('ComposerController::_transferDriveDocuments: upload-from-url endpoint is unavailable');
+      logError(
+        'ComposerController::_transferDriveDocuments: upload-from-url endpoint is unavailable',
+        exception: const UploadFromUrlEndpointUnavailableException('upload-from-url uri could not be resolved'),
+        stackTrace: StackTrace.current,
+        // Account id stays out: extras reach Sentry.
+        extras: {
+          'docCount': docs.length,
+          'hasSession': session != null,
+        },
+      );
       return DriveAttachmentTransferRunner.notStartedOutcome;
     }
 
