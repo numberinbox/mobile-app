@@ -1,6 +1,6 @@
 pipeline {
     agent {
-        label 'mobile'
+        label 'flutter-web'
     }
 
     tools {
