@@ -1,3 +1,16 @@
+## [0.36.0] - 2026-08-28
+### Added
+- #4678 Deep sidebar tree navigation for mailboxes, no more horizontal scrolling
+- #4728 Attach files from Twake Drive in the composer
+
+### Fixed
+- #4472 Fix draft save failure dialog
+- #4678 Fix duplicate mailbox sidebar IDs, spacing, and icon behavior
+- HOTFIX Support Android API 36
+
+### Changed
+- Translate vi, ru, fr, mn
+
 ## [0.35.1] - 2026-08-21
 ### Fixed
 - (fix) Mobile search result not updated
