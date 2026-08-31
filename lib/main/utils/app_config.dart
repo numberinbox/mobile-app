@@ -13,12 +13,13 @@ class AppConfig {
 
   static const String appDashboardConfigurationPath = "configurations/app_dashboard.json";
   static const String attachmentKeywordsConfigurationPath = "configurations/attachment_keywords.json";
-  static const String iOSKeychainSharingGroupId = 'KUT463DS29.com.linagora.ios.teammail.shared';
-  static const String iOSKeychainSharingService = 'com.linagora.ios.teammail.sessions';
+  static const String iOSKeychainSharingGroupId = 'KUT463DS29.com.numberinbox.ios.shared';
+  static const String iOSKeychainSharingService = 'com.numberinbox.ios.sessions';
   static const String saasPlatform = 'saas';
-  static const String linagoraPrivacyUrl = 'https://github.com/linagora/tmail-flutter/blob/master/privacy.md';
-  static const String saasRegistrationUrl = 'https://sign-up.twake.app';
-  static const String saasJmapServerUrl = 'https://jmap.twake.app';
+  static const String linagoraPrivacyUrl = 'https://numberinbox.com/privacy';
+  static const String privacyUrl = linagoraPrivacyUrl;
+  static const String saasRegistrationUrl = 'https://sign-up.numberinbox.com';
+  static const String saasJmapServerUrl = 'https://jmap.numberinbox.com';
 
   static String get baseUrl => dotenv.get('SERVER_URL', fallback: '');
   static String get domainRedirectUrl => dotenv.get('DOMAIN_REDIRECT_URL', fallback: '');

@@ -1,11 +1,11 @@
 {
-    "name": "Twake Mail - JMAP Email Client",
-    "short_name": "Twake Mail",
+    "name": "NumberInbox - JMAP Email Client",
+    "short_name": "NumberInbox",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "Twake Mail - JMAP Email Client",
+    "description": "NumberInbox - JMAP Email Client",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

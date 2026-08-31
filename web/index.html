@@ -18,19 +18,19 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Twake Mail">
+  <meta name="description" content="NumberInbox">
 
   <!-- iOS meta tags & icons -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Twake Mail">
+  <meta name="apple-mobile-web-app-title" content="NumberInbox">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/svg" href="favicon.svg"/>
 
-  <title>Twake Mail</title>
+  <title>NumberInbox</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" type="text/css" href="splash/style.css">
   <link rel="stylesheet" type="text/css" href="worker_service/style.css">
@@ -50,7 +50,7 @@
 <body>
 
     <dotlottie-player class="center" src="/splash/lottie-tmail.json" background="transparent" speed="1" style="width: 176px; height: 176px" direction="1" playmode="forward" autoplay=""></dotlottie-player>
-    <img src="splash/img/icon_twp.png" alt="Twake Workplace logo" class="bottom-image">
+    <img src="splash/img/icon_twp.png" alt="NumberInbox logo" class="bottom-image">
 
     <div class="smart-banner">
         <button class="button close" onClick="closeSmartBanner()">
@@ -71,7 +71,7 @@
                 <div class="banner-description" id="banner-description-id"></div>
             </span>
             <span style="flex: 1"></span>
-            <span class="open-button" id="open-button-id" onClick="openTwakeMailApp()"></span>
+            <span class="open-button" id="open-button-id" onClick="openNumberInboxApp()"></span>
         </div>
     </div>
 
@@ -94,7 +94,7 @@
               return registration.unregister();
             }));
           } catch (error) {
-            console.log('[Twake Mail] Error unregistering service worker: ', error);
+            console.log('[NumberInbox] Error unregistering service worker: ', error);
           }
           _flutter.loader.load({
             onEntrypointLoaded: async function(engineInitializer) {

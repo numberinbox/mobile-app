@@ -11,7 +11,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -683,7 +683,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -833,7 +833,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -2401,13 +2401,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "textQuotasRunningOutOfStorageContent": "A breve non potrai più inviare email in Twake Mail. Pulisci il tuo spazio di archiviazione o aggiornalo per ottenere tutte le funzionalità di Twake Mail.",
+  "textQuotasRunningOutOfStorageContent": "A breve non potrai più inviare email in NumberInbox. Pulisci il tuo spazio di archiviazione o aggiornalo per ottenere tutte le funzionalità di NumberInbox.",
   "@textQuotasRunningOutOfStorageContent": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "textQuotasRunOutOfStorageContent": "Ora non puoi temporaneamente inviare o ricevere e-mail.  Libera o aggiorna il tuo spazio di archiviazione per ottenere tutte le funzionalità di Twake Mail.",
+  "textQuotasRunOutOfStorageContent": "Ora non puoi temporaneamente inviare o ricevere e-mail.  Libera o aggiorna il tuo spazio di archiviazione per ottenere tutte le funzionalità di NumberInbox.",
   "@textQuotasRunOutOfStorageContent": {
     "type": "text",
     "placeholders_order": [],
@@ -2473,7 +2473,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],

@@ -6,7 +6,7 @@ import 'package:core/utils/logging/log_record.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:universal_html/html.dart' as html;
 
-const _appLogName = '[TwakeMail]';
+const _appLogName = '[NumberInbox]';
 
 /// Writes log records to the console.
 ///

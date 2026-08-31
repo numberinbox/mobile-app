@@ -1,3 +1,3 @@
 class AppConstants {
-  static const appId = 'com.linagora.android.teammail';
+  static const appId = 'com.numberinbox.app';
 }

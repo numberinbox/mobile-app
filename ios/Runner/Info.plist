@@ -9,7 +9,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Twake Mail</string>
+		<string>NumberInbox</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -17,7 +17,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>Twake Mail</string>
+		<string>NumberInbox</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -32,8 +32,8 @@
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>ShareMedia-$(PRODUCT_BUNDLE_IDENTIFIER)</string>
-					<string>teammail.mobile</string>
-					<string>twakemail.mobile</string>
+					<string>numberinbox.mobile</string>
+					<string>numberinbox.mobile</string>
 					<string>mailto</string>
 				</array>
 			</dict>

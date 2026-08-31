@@ -1213,8 +1213,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "உங்கள் தொலைபேசியில் ஒரு புதிய செய்தி வரும்போது உங்களுக்குத் தெரிவிக்க டூ மெயில் அனுமதிக்கிறது",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "உங்கள் தொலைபேசியில் ஒரு புதிய செய்தி வரும்போது உங்களுக்குத் தெரிவிக்க டூ மெயில் அனுமதிக்கிறது",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -1633,7 +1633,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "அஞ்சல் அனுப்பவும்",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -3081,8 +3081,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "டூக் ஐடியை உருவாக்கவும்",
-  "@createTwakeId": {
+  "createNumberInboxId": "டூக் ஐடியை உருவாக்கவும்",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -3663,8 +3663,8 @@
       "count": {}
     }
   },
-  "createTwakeIdFailed": "ஐடியை உருவாக்கு ஐடி தோல்வியுற்றது. மீண்டும் சரிபார்க்கவும்.",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "ஐடியை உருவாக்கு ஐடி தோல்வியுற்றது. மீண்டும் சரிபார்க்கவும்.",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

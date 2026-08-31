@@ -42,7 +42,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.linagora.android.teammail"
+        applicationId "com.numberinbox.app"
         minSdkVersion flutterMinSdkVersion.toInteger()
         targetSdkVersion 36
         versionCode flutterVersionCode.toInteger()
@@ -86,7 +86,7 @@ android {
         execution "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
-    namespace "com.linagora.android.tmail"
+    namespace "com.numberinbox.app"
 }
 
 flutter {

@@ -11,7 +11,7 @@ class AndroidSelectionHandlesManager implements SelectionHandlesController {
 
   @visibleForTesting
   static const String channelName =
-      'com.linagora.android.tmail/android_selection_handles';
+      'com.numberinbox.app/android_selection_handles';
   @visibleForTesting
   static const String suspendMethod = 'suspend';
   @visibleForTesting

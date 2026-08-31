@@ -25,7 +25,7 @@ class AppLocalizations {
   }
 
   String get login_text_slogan {
-    return Intl.message('Twake Mail',
+    return Intl.message('NumberInbox',
         name: 'login_text_slogan');
   }
 
@@ -882,7 +882,7 @@ class AppLocalizations {
 
   String get app_name {
     return Intl.message(
-        'Twake Mail',
+        'NumberInbox',
         name: 'app_name');
   }
 
@@ -1051,7 +1051,7 @@ class AppLocalizations {
 
   String get page_name {
     return Intl.message(
-        'Twake Mail',
+        'NumberInbox',
         name: 'page_name');
   }
 
@@ -1645,7 +1645,7 @@ class AppLocalizations {
 
   String get languageSubtitle {
     return Intl.message(
-        'Set the language you use on Twake Mail.',
+        'Set the language you use on NumberInbox.',
         name: 'languageSubtitle');
   }
 
@@ -2726,7 +2726,7 @@ class AppLocalizations {
 
   String get appTitlePushNotification {
     return Intl.message(
-      'Twake Mail',
+      'NumberInbox',
       name: 'appTitlePushNotification');
   }
 
@@ -3849,7 +3849,7 @@ class AppLocalizations {
 
   String get bannerProgressingRecoveryMessage {
     return Intl.message(
-      'The recovery is in progress. You can continue using Twake Mail',
+      'The recovery is in progress. You can continue using NumberInbox',
       name: 'bannerProgressingRecoveryMessage',
     );
   }
@@ -4174,7 +4174,7 @@ class AppLocalizations {
 
   String get allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone {
     return Intl.message(
-      'Allows Twake Mail to notify you when a new message arrives on your phone',
+      'Allows NumberInbox to notify you when a new message arrives on your phone',
       name: 'allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone',
     );
   }
@@ -4333,7 +4333,7 @@ class AppLocalizations {
 
   String get createTwakeId {
     return Intl.message(
-      'Create Twake ID',
+      'Create NumberInbox ID',
       name: 'createTwakeId',
     );
   }
@@ -4354,7 +4354,7 @@ class AppLocalizations {
 
   String get createTwakeIdFailed {
     return Intl.message(
-      'Create Twake Id failed. Please check again.',
+      'Create NumberInbox Id failed. Please check again.',
       name: 'createTwakeIdFailed',
     );
   }
@@ -4979,14 +4979,14 @@ class AppLocalizations {
 
   String get quotaBannerWarningSubtitleWithPremium {
     return Intl.message(
-      'To keep sending messages and enjoying all Twake Mail features, please consider cleaning up or upgrading your storage.',
+      'To keep sending messages and enjoying all NumberInbox features, please consider cleaning up or upgrading your storage.',
       name: 'quotaBannerWarningSubtitleWithPremium',
     );
   }
 
   String get quotaBannerWarningSubtitleWithoutPremium {
     return Intl.message(
-      'To keep sending messages and enjoying all Twake Mail features, please consider cleaning up.',
+      'To keep sending messages and enjoying all NumberInbox features, please consider cleaning up.',
       name: 'quotaBannerWarningSubtitleWithoutPremium',
     );
   }
@@ -5444,7 +5444,7 @@ class AppLocalizations {
 
   String get manageYourTwakeAccount {
     return Intl.message(
-      'Manage your Twake account',
+      'Manage your NumberInbox account',
       name: 'manageYourTwakeAccount',
     );
   }
@@ -5606,7 +5606,7 @@ class AppLocalizations {
 
   String get driveAttachmentSettingExplanation {
     return Intl.message(
-      'Show or hide the Twake Drive attachment button in the composer',
+      'Show or hide the NumberInbox Drive attachment button in the composer',
       name: 'driveAttachmentSettingExplanation',
     );
   }

@@ -52,9 +52,9 @@ class MobileAppGridRobot implements AbstractAppGridRobot {
     await $.platformAutomator.mobile.waitUntilVisible(
       MobileSelector(
         android: AndroidSelector(
-          applicationPackage: 'com.linagora.android.teammail',
+          applicationPackage: 'com.numberinbox.app',
         ),
-        ios: IOSSelector(identifier: 'com.linagora.ios.teammail'),
+        ios: IOSSelector(identifier: 'com.numberinbox.app'),
       ),
     );
   }

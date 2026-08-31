@@ -6,7 +6,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -672,7 +672,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -856,7 +856,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -2344,7 +2344,7 @@
       "softLimit": {}
     }
   },
-  "textQuotasRunOutOfStorageContent": "Теперь вы временно не можете отправлять или получать письма. Пожалуйста, освободите хранилище или обновите подписку, чтобы получить доступ ко всем функциям Twake Mail.",
+  "textQuotasRunOutOfStorageContent": "Теперь вы временно не можете отправлять или получать письма. Пожалуйста, освободите хранилище или обновите подписку, чтобы получить доступ ко всем функциям NumberInbox.",
   "@textQuotasRunOutOfStorageContent": {
     "type": "text",
     "placeholders_order": [],
@@ -2408,7 +2408,7 @@
       "progress": {}
     }
   },
-  "textQuotasRunningOutOfStorageContent": "Скоро вы потеряете возможность отправлять письма в Twake Mail. Пожалуйста, очистите хранилище или обновите подписку, чтобы получить все функции Twake Mail.",
+  "textQuotasRunningOutOfStorageContent": "Скоро вы потеряете возможность отправлять письма в NumberInbox. Пожалуйста, очистите хранилище или обновите подписку, чтобы получить все функции NumberInbox.",
   "@textQuotasRunningOutOfStorageContent": {
     "type": "text",
     "placeholders_order": [],
@@ -2468,7 +2468,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -3466,7 +3466,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Выберите язык Twake Mail.",
+  "languageSubtitle": "Выберите язык NumberInbox.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -3798,7 +3798,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "Мы уже занимаемся восстановлением. Вы можете продолжать использовать Twake Mail",
+  "bannerProgressingRecoveryMessage": "Мы уже занимаемся восстановлением. Вы можете продолжать использовать NumberInbox",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -4066,7 +4066,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "Перейдите в настройки устройства и разрешите Twake Mail присылать уведомления",
+  "pleaseAllowNotifications": "Перейдите в настройки устройства и разрешите NumberInbox присылать уведомления",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],
@@ -4078,8 +4078,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Позволяет Twake Mail уведомлять вас о поступлении нового сообщения",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Позволяет NumberInbox уведомлять вас о поступлении нового сообщения",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4276,14 +4276,14 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "Создать Twake ID",
-  "@createTwakeId": {
+  "createNumberInboxId": "Создать NumberInbox ID",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "Не удалось создать Twake ID. Попробуйте еще раз.",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "Не удалось создать NumberInbox ID. Попробуйте еще раз.",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5042,13 +5042,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithPremium": "Чтобы продолжить отправлять сообщения и пользоваться всеми функциями Twake Mail, освободите место или обновите план.",
+  "quotaBannerWarningSubtitleWithPremium": "Чтобы продолжить отправлять сообщения и пользоваться всеми функциями NumberInbox, освободите место или обновите план.",
   "@quotaBannerWarningSubtitleWithPremium": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithoutPremium": "Чтобы продолжить отправлять сообщения и пользоваться всеми функциями Twake Mail, освободите место на диске.",
+  "quotaBannerWarningSubtitleWithoutPremium": "Чтобы продолжить отправлять сообщения и пользоваться всеми функциями NumberInbox, освободите место на диске.",
   "@quotaBannerWarningSubtitleWithoutPremium": {
     "type": "text",
     "placeholders_order": [],
@@ -5462,8 +5462,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "manageYourTwakeAccount": "Управляйте учетной записью Twake",
-  "@manageYourTwakeAccount": {
+  "manageYourNumberInboxAccount": "Управляйте учетной записью NumberInbox",
+  "@manageYourNumberInboxAccount": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5924,7 +5924,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "driveAttachmentSettingExplanation": "Показать или скрыть кнопку вложения Twake Drive в редакторе письма",
+  "driveAttachmentSettingExplanation": "Показать или скрыть кнопку вложения NumberInbox Drive в редакторе письма",
   "@driveAttachmentSettingExplanation": {
     "type": "text",
     "placeholders_order": [],

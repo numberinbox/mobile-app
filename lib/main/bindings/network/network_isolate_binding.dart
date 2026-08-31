@@ -1,7 +1,9 @@
 import 'package:core/core.dart';
+import 'package:dio/io.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
+import 'package:tmail_ui_user/main/bindings/network/network_bindings.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/http/http_client.dart';
 import 'package:tmail_ui_user/features/email/data/local/html_analyzer.dart';
@@ -38,7 +40,13 @@ class NetworkIsolateBindings extends Bindings {
   }
 
   void _bindingDio() {
-    Get.put(Dio(Get.find<BaseOptions>()), tag: BindingTag.isolateTag);
+    final dio = Dio(Get.find<BaseOptions>());
+    if (BuildUtils.isDebugMode) {
+      NetworkBindings.configureDebugDio(dio);
+    } else {
+      NetworkBindings.configureProductionDio(dio);
+    }
+    Get.put(dio, tag: BindingTag.isolateTag);
     Get.put(DioClient(
       Get.find<Dio>(tag: BindingTag.isolateTag)),
       tag: BindingTag.isolateTag);

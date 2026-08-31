@@ -1018,7 +1018,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1036,10 +1036,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1160,7 +1160,7 @@
 			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1178,10 +1178,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
@@ -1194,7 +1194,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1212,10 +1212,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.distribution.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.linagora.ios.teammail";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.numberinbox.app";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -1226,7 +1226,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 07753111B751BFDB3187FE6F /* Pods-TeamMailShareExtension.debug.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1254,10 +1254,10 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TeamMailShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.NumberInboxShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.share.ext.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail.TeamMailShareExtension";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app.TeamMailShareExtension";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1272,7 +1272,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BC08294F5AE09BF8CC592AD1 /* Pods-TeamMailShareExtension.release.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1299,10 +1299,10 @@
 				);
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TeamMailShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.NumberInboxShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.share.ext.distribution.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.linagora.ios.teammail.TeamMailShareExtension";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.numberinbox.app.TeamMailShareExtension";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
@@ -1315,7 +1315,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1FB76FA91BBCB2BF7B08705B /* Pods-TeamMailShareExtension.profile.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1342,10 +1342,10 @@
 				);
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TeamMailShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.NumberInboxShareExtension;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.share.ext.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail.TeamMailShareExtension";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app.TeamMailShareExtension";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_ENABLE_EXPLICIT_MODULES = NO;
@@ -1379,7 +1379,7 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1417,7 +1417,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1453,7 +1453,7 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailTests;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1469,7 +1469,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5E35AF242935B79C2DCACB65 /* Pods-TwakeMailNSE.debug.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -1500,10 +1500,10 @@
 				MARKETING_VERSION = 1.0;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailNSE;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailNSE;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.nse.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail.TwakeMailNSE";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app.TwakeMailNSE";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -1517,7 +1517,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 6B7C6E49525344DE515F7373 /* Pods-TwakeMailNSE.release.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -1547,10 +1547,10 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailNSE;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailNSE;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.nse.distribution.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.linagora.ios.teammail.TwakeMailNSE";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match AppStore com.numberinbox.app.TwakeMailNSE";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -1562,7 +1562,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AF31502A83CA492E27C36A7B /* Pods-TwakeMailNSE.profile.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.linagora.teammail;
+				APP_GROUP_ID = group.com.numberinbox.teammail;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -1592,10 +1592,10 @@
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
 				MTL_FAST_MATH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.linagora.ios.teammail.TwakeMailNSE;
+				PRODUCT_BUNDLE_IDENTIFIER = com.numberinbox.app.TwakeMailNSE;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = tmail.nse.development.profile;
-				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.linagora.ios.teammail.TwakeMailNSE";
+				"PROVISIONING_PROFILE_SPECIFIER[sdk=iphoneos*]" = "match Development com.numberinbox.app.TwakeMailNSE";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

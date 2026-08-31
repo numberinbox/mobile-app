@@ -1,10 +1,10 @@
-git_url("git@github.com:linagora/apple-certificates.git")
+git_url("git@github.com:numberinbox/apple-certificates.git")
 
 storage_mode("git")
 
 type("development") # The default type, can be: appstore, adhoc, enterprise or development
 
-app_identifier(["com.linagora.ios.teammail", "com.linagora.ios.teammail.TeamMailShareExtension", "com.linagora.ios.teammail.TwakeMailNSE"])
+app_identifier(["com.numberinbox.app", "com.numberinbox.app.NumberInboxShareExtension", "com.numberinbox.app.NumberInboxNSE"])
 # username("user@fastlane.tools") # Your Apple Developer Portal username
 
 # For all available options run `fastlane match --help`

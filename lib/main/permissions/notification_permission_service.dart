@@ -9,7 +9,7 @@ class NotificationPermissionService extends PermissionService {
       return false;
     }
 
-    const methodChannel = MethodChannel('com.linagora.android.teammail.notification.group.permission');
+    const methodChannel = MethodChannel('com.numberinbox.app.notification.group.permission');
     const methodName = 'getNotificationGroupPermission';
     final invokeResult = await methodChannel.invokeMethod<bool>(
       methodName,

@@ -119,6 +119,8 @@ dependencies:
 
   super_dns_client: 0.3.8
 
+  dlibphonenumber: ^1.1.71
+
   external_app_launcher: 4.0.3
 
   cupertino_icons: 1.0.6
@@ -213,7 +215,7 @@ dependencies:
 
   flutter_appauth_platform_interface: 9.0.0
 
-  intl: 0.20.2
+  intl: 0.20.3
 
   flutter_typeahead: 5.0.2
 
@@ -454,32 +456,31 @@ flutter:
       fonts:
         - asset: assets/fonts/fallback/NotoSansSymbols2-Regular.ttf
 
-flutter_icons:
+flutter_launcher_icons:
   android: true
-  ios: false
-  remove_alpha_ios: true
-  image_path: "assets/icons/icon_launcher.png"
-  adaptive_icon_background: "#000000"
-  adaptive_icon_foreground: "assets/icons/icon_launcher.png"
+  ios: true
+  image_path: "assets/icons/icon_ni_logo.png"
+  adaptive_icon_background: "#0b3d2e"
+  adaptive_icon_foreground: "assets/icons/icon_ni_foreground.png"
 
 flutter_native_splash:
-  color: "#ffffff"
-  image_ios: "assets/icons/icon_logo_ios.png"
-  image_android: "assets/icons/icon_android.png"
-  branding: "assets/icons/icon_twp.png"
+  color: "#0b3d2e"
+  image_ios: "assets/icons/icon_ni_logo.png"
+  image_android: "assets/icons/icon_ni_android.png"
+  branding: "assets/icons/icon_ni_branding.png"
   android_12:
-    image: "assets/icons/icon_android.png"
-    branding: "assets/icons/icon_twp_android12.png"
+    image: "assets/icons/icon_ni_android.png"
+    branding: "assets/icons/icon_ni_branding_android12.png"
 
 cider:
   link_template:
-    tag: https://github.com/linagora/tmail-flutter/releases/tag/v%tag% # initial release link template
+    tag: https://github.com/numberinbox/mobile-app/releases/tag/v%tag% # initial release link template
 
 patrol:
   test_directory: integration_test
-  app_name: Twake Mail
+  app_name: NumberInbox
   android:
-    package_name: com.linagora.android.teammail
+    package_name: com.numberinbox.app
 
 sentry:
   upload_debug_symbols: false

@@ -6,11 +6,11 @@
 	<string>development</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
-		<string>group.com.linagora.teammail</string>
+		<string>group.com.numberinbox.app</string>
 	</array>
 	<key>keychain-access-groups</key>
 	<array>
-		<string>$(AppIdentifierPrefix)com.linagora.ios.teammail.shared</string>
+		<string>$(AppIdentifierPrefix)com.numberinbox.ios.shared</string>
 	</array>
 </dict>
 </plist>

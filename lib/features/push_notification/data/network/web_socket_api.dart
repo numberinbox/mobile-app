@@ -15,28 +15,27 @@ class WebSocketApi {
 
   WebSocketApi(this._dioClient);
 
-  Future<String> getWebSocketTicket(
+  Future<String?> getWebSocketTicket(
     Session session,
     AccountId accountId
   ) async {
-    requireCapability(
-      session,
-      accountId,
-      [CapabilityIdentifier.jmapWebSocketTicket]);
+    if (!CapabilityIdentifier.jmapWebSocketTicket.isSupported(session, accountId)) {
+      return null;
+    }
     final webSocketTicketCapability = session.getCapabilityProperties<WebSocketTicketCapability>(
       accountId,
       CapabilityIdentifier.jmapWebSocketTicket);
     
     final webSocketTicketGenerationUrl = webSocketTicketCapability?.normalizedGenerationEndpoint;
     if (webSocketTicketGenerationUrl == null) {
-      throw WebSocketTicketUnavailableException();
+      return null;
     }
     final webSocketTicketGenerationResponse = await _dioClient.post(
       '$webSocketTicketGenerationUrl');
     final webSocketTicket = WebSocketTicket.fromJson(
       webSocketTicketGenerationResponse);
     if (webSocketTicket.value == null) {
-      throw WebSocketTicketUnavailableException();
+      return null;
     }
 
     return webSocketTicket.value!;

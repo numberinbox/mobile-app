@@ -77,17 +77,8 @@ class LoginView extends BaseLoginView {
               ),
               const ApplicationVersionWidget(padding: EdgeInsets.only(top: 8)),
             ],
-          )
+           )
         ),
-        Positioned.fill(
-          bottom: 24,
-          child: Align(
-            alignment: Alignment.bottomCenter,
-            child: SvgPicture.asset(
-              controller.imagePaths.icPowerByLinagora,
-              width: 97,
-              height: 44,
-              fit: BoxFit.fill)))
       ],
     );
   }
@@ -248,10 +239,6 @@ class LoginView extends BaseLoginView {
                   ],
                 )
               ),
-              Padding(
-                padding: const EdgeInsets.only(top: 44, bottom: 10),
-                child: SvgPicture.asset(controller.imagePaths.icPowerByLinagora, width: 97, height: 44, fit: BoxFit.fill)
-              )
             ]
           )
         ],

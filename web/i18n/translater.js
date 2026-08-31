@@ -1,7 +1,7 @@
 const i18n = {};
 const languageDefault = 'en';
 const defaultEngText = {
-  title: 'Download Twake Mail application',
+  title: 'Download NumberInbox application',
   description: 'Faster and more convenient',
   open: 'Open'
 };
@@ -31,10 +31,10 @@ function getUserLanguage() {
       userLanguage = language.split('-')[0];
     }
   } catch (error) {
-    console.error(`[Twake Mail] Error getting user language:`, error);
+    console.error(`[NumberInbox] Error getting user language:`, error);
   }
 
-  console.info(`[Twake Mail] Current Language: `, userLanguage);
+  console.info(`[NumberInbox] Current Language: `, userLanguage);
   return userLanguage;
 }
 
@@ -48,11 +48,11 @@ async function loadLanguageResources() {
     const response = await fetch(`/i18n/${language}.json`);
     const data = await response.json();
     i18n[language] = data;
-    console.info(`[Twake Mail] Successfully loaded ${language} resources:`, i18n[language]);
+    console.info(`[NumberInbox] Successfully loaded ${language} resources:`, i18n[language]);
   } catch (error) {
-    console.error(`[Twake Mail] Error loading ${language} resources:`, error);
+    console.error(`[NumberInbox] Error loading ${language} resources:`, error);
     i18n['en'] = defaultEngText;
-    console.info(`[Twake Mail] Using default English resources:`, i18n['en']);
+    console.info(`[NumberInbox] Using default English resources:`, i18n['en']);
   }
 }
 

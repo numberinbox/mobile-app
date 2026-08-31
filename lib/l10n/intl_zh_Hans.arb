@@ -87,7 +87,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -1235,7 +1235,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "恢复正在进行中。您可以继续使用 Twake Mail",
+  "bannerProgressingRecoveryMessage": "恢复正在进行中。您可以继续使用 NumberInbox",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -1621,7 +1621,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1733,7 +1733,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1999,7 +1999,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "设置您在 Twake Mail 上使用的语言。",
+  "languageSubtitle": "设置您在 NumberInbox 上使用的语言。",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -2137,14 +2137,14 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "请在设备的设置中允许来自 Twake Mail 的通知",
+  "pleaseAllowNotifications": "请在设备的设置中允许来自 NumberInbox 的通知",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "允许 Twake Mail 在您的手机上收到新邮件时通知您",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "允许 NumberInbox 在您的手机上收到新邮件时通知您",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -2307,7 +2307,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -3063,8 +3063,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "创建 Twake ID 失败，请重新检查。",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "创建 NumberInbox ID 失败，请重新检查。",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -3147,8 +3147,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "创建 Twake ID",
-  "@createTwakeId": {
+  "createNumberInboxId": "创建 NumberInbox ID",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4789,13 +4789,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithPremium": "要继续发送邮件并使用 Twake Mail 所有功能，请考虑清理或升级您的存储空间。",
+  "quotaBannerWarningSubtitleWithPremium": "要继续发送邮件并使用 NumberInbox 所有功能，请考虑清理或升级您的存储空间。",
   "@quotaBannerWarningSubtitleWithPremium": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithoutPremium": "要继续发送邮件并使用 Twake Mail 所有功能，请考虑清理。",
+  "quotaBannerWarningSubtitleWithoutPremium": "要继续发送邮件并使用 NumberInbox 所有功能，请考虑清理。",
   "@quotaBannerWarningSubtitleWithoutPremium": {
     "type": "text",
     "placeholders_order": [],
@@ -5191,8 +5191,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "manageYourTwakeAccount": "管理您的 Twake 账号",
-  "@manageYourTwakeAccount": {
+  "manageYourNumberInboxAccount": "管理您的 NumberInbox 账号",
+  "@manageYourNumberInboxAccount": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5677,7 +5677,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "driveAttachmentSettingExplanation": "在编辑器中显示或隐藏 Twake 云盘附件按钮",
+  "driveAttachmentSettingExplanation": "在编辑器中显示或隐藏 NumberInbox 云盘附件按钮",
   "@driveAttachmentSettingExplanation": {
     "type": "text",
     "placeholders_order": [],

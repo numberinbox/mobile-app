@@ -1,12 +1,12 @@
 {
-  "@@last_modified": "2026-08-24T15:11:50.161826",
+  "@@last_modified": "2026-08-31T14:38:58.209303",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -872,7 +872,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1028,7 +1028,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1626,7 +1626,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Set the language you use on Twake Mail.",
+  "languageSubtitle": "Set the language you use on NumberInbox.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -2668,7 +2668,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -2778,7 +2778,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "teamMailBoxes": "Team-mailboxes",
+  "teamMailBoxes": "Shared-mailboxes",
   "@teamMailBoxes": {
     "type": "text",
     "placeholders_order": [],
@@ -3708,7 +3708,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "The recovery is in progress. You can continue using Twake Mail",
+  "bannerProgressingRecoveryMessage": "The recovery is in progress. You can continue using NumberInbox",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -4002,7 +4002,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Allows Twake Mail to notify you when a new message arrives on your phone",
+  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Allows NumberInbox to notify you when a new message arrives on your phone",
   "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
@@ -4146,7 +4146,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "Create Twake ID",
+  "createTwakeId": "Create NumberInbox ID",
   "@createTwakeId": {
     "type": "text",
     "placeholders_order": [],
@@ -4164,7 +4164,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "Create Twake Id failed. Please check again.",
+  "createTwakeIdFailed": "Create NumberInbox Id failed. Please check again.",
   "@createTwakeIdFailed": {
     "type": "text",
     "placeholders_order": [],
@@ -4716,13 +4716,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithPremium": "To keep sending messages and enjoying all Twake Mail features, please consider cleaning up or upgrading your storage.",
+  "quotaBannerWarningSubtitleWithPremium": "To keep sending messages and enjoying all NumberInbox features, please consider cleaning up or upgrading your storage.",
   "@quotaBannerWarningSubtitleWithPremium": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithoutPremium": "To keep sending messages and enjoying all Twake Mail features, please consider cleaning up.",
+  "quotaBannerWarningSubtitleWithoutPremium": "To keep sending messages and enjoying all NumberInbox features, please consider cleaning up.",
   "@quotaBannerWarningSubtitleWithoutPremium": {
     "type": "text",
     "placeholders_order": [],
@@ -5136,7 +5136,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "manageYourTwakeAccount": "Manage your Twake account",
+  "manageYourTwakeAccount": "Manage your NumberInbox account",
   "@manageYourTwakeAccount": {
     "type": "text",
     "placeholders_order": [],
@@ -5278,7 +5278,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "driveAttachmentSettingExplanation": "Show or hide the Twake Drive attachment button in the composer",
+  "driveAttachmentSettingExplanation": "Show or hide the NumberInbox Drive attachment button in the composer",
   "@driveAttachmentSettingExplanation": {
     "type": "text",
     "placeholders_order": [],

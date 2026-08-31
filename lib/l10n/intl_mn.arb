@@ -5,7 +5,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -817,7 +817,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -961,7 +961,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1535,7 +1535,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Twake Mail дээр ашиглах хэлээ тохируулна уу.",
+  "languageSubtitle": "NumberInbox дээр ашиглах хэлээ тохируулна уу.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -2541,7 +2541,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -3827,7 +3827,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "Сэргээлт хийгдэж байна. Та Twake Mail-ийг үргэлжлүүлэн ашиглаж болно",
+  "bannerProgressingRecoveryMessage": "Сэргээлт хийгдэж байна. Та NumberInbox-ийг үргэлжлүүлэн ашиглаж болно",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -4079,7 +4079,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "Төхөөрөмжийн тохиргооноос Twake Mail-ийн мэдэгдлийг зөвшөөрнө үү",
+  "pleaseAllowNotifications": "Төхөөрөмжийн тохиргооноос NumberInbox-ийн мэдэгдлийг зөвшөөрнө үү",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],
@@ -4091,8 +4091,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Шинэ мессеж ирэх үед Twake Mail таныг мэдэгдэхийг зөвшөөрөх",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Шинэ мессеж ирэх үед NumberInbox таныг мэдэгдэхийг зөвшөөрөх",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4235,8 +4235,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "Twake ID үүсгэх",
-  "@createTwakeId": {
+  "createNumberInboxId": "NumberInbox ID үүсгэх",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4253,8 +4253,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "Twake ID үүсгэхэд амжилтгүй боллоо. Дахин шалгана уу.",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "NumberInbox ID үүсгэхэд амжилтгүй боллоо. Дахин шалгана уу.",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4805,13 +4805,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithPremium": "Мессеж илгээж, Twake Mail-ийн бүх функцийг ашиглахын тулд шаардлагагүй файлуудыг устгах эсвэл хадгалах зайгаа нэмэгдүүлэхийг бодож үзнэ үү.",
+  "quotaBannerWarningSubtitleWithPremium": "Мессеж илгээж, NumberInbox-ийн бүх функцийг ашиглахын тулд шаардлагагүй файлуудыг устгах эсвэл хадгалах зайгаа нэмэгдүүлэхийг бодож үзнэ үү.",
   "@quotaBannerWarningSubtitleWithPremium": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithoutPremium": "Мессеж илгээж, Twake Mail-ийн бүх функцийг ашиглахын тулд шаардлагагүй файлуудыг устгахыг бодож үзнэ үү.",
+  "quotaBannerWarningSubtitleWithoutPremium": "Мессеж илгээж, NumberInbox-ийн бүх функцийг ашиглахын тулд шаардлагагүй файлуудыг устгахыг бодож үзнэ үү.",
   "@quotaBannerWarningSubtitleWithoutPremium": {
     "type": "text",
     "placeholders_order": [],
@@ -5207,8 +5207,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "manageYourTwakeAccount": "Twake бүртгэлээ удирдах",
-  "@manageYourTwakeAccount": {
+  "manageYourNumberInboxAccount": "NumberInbox бүртгэлээ удирдах",
+  "@manageYourNumberInboxAccount": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5349,7 +5349,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "driveAttachmentSettingExplanation": "Бичигч дэх Twake Drive хавсралтын товчийг харуулах эсвэл нуух",
+  "driveAttachmentSettingExplanation": "Бичигч дэх NumberInbox Drive хавсралтын товчийг харуулах эсвэл нуух",
   "@driveAttachmentSettingExplanation": {
     "type": "text",
     "placeholders_order": [],

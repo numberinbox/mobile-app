@@ -6,7 +6,7 @@ class OIDCConstant {
   static List<String> get oidcScope => ['openid', 'profile', 'email', 'offline_access'];
   static const String keyAuthorityOidc = 'KEY_AUTHORITY_OIDC';
   static const String authResponseKey = "auth_info";
-  static const String twakeWorkplaceUrlScheme = 'twakemail.mobile';
+  static const String twakeWorkplaceUrlScheme = 'numberinbox.mobile';
   static const String twakeWorkplaceRedirectUrl = '$twakeWorkplaceUrlScheme://redirect';
   static const String appParameter = 'tmail';
   static const String postRegisteredRedirectUrlPathParams = 'post_registered_redirect_url';

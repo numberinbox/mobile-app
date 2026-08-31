@@ -5,7 +5,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -817,7 +817,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -961,7 +961,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1541,7 +1541,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Set the language you use on Twake Mail.",
+  "languageSubtitle": "Set the language you use on NumberInbox.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -2547,7 +2547,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -2663,7 +2663,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "teamMailBoxes": "Team-mailboxes",
+  "teamMailBoxes": "Shared-mailboxes",
   "@teamMailBoxes": {
     "type": "text",
     "placeholders_order": [],

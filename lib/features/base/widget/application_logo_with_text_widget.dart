@@ -22,11 +22,12 @@ class ApplicationLogoWidthTextWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoSize = iconSize ?? 44;
     return TMailButtonWidget.fromIcon(
       icon: PlatformInfo.isWeb && AppConfig.isSaasPlatForm
-        ? _imagePaths.icLogoWithTextBeta
+        ? _imagePaths.icLogoWithText
         : _imagePaths.icLogoWithText,
-      iconSize: iconSize ?? 33,
+      iconSize: logoSize,
       padding: EdgeInsets.zero,
       margin: margin,
       backgroundColor: Colors.transparent,

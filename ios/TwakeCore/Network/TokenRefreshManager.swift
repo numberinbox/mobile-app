@@ -3,9 +3,9 @@ import Alamofire
 
 class TokenRefreshManager {
     private let MOBIE_CLIENT_ID = "teammail-mobile"
-    private let MOBIE_REDIRECT_URL = "teammail.mobile://oauthredirect"
+    private let MOBIE_REDIRECT_URL = "numberinbox.mobile://oauthredirect"
     private let OIDC_SCOPES = ["openid", "profile", "email", "offline_access"]
-    private let TWP_MOBIE_REDIRECT_URL = "twakemail.mobile://redirect"
+    private let TWP_MOBIE_REDIRECT_URL = "numberinbox.mobile://redirect"
 
     private let GRANT_TYPE = "grant_type"
     private let REFRESH_TOKEN = "refresh_token"

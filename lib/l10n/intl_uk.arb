@@ -195,7 +195,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -967,7 +967,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1105,7 +1105,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -1655,7 +1655,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Встановіть мову, яку ви використовуєте в Twake Mail.",
+  "languageSubtitle": "Встановіть мову, яку ви використовуєте в NumberInbox.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -2655,7 +2655,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -3693,7 +3693,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "Відновлення триває. Ви можете продовжувати користуватися Twake Mail",
+  "bannerProgressingRecoveryMessage": "Відновлення триває. Ви можете продовжувати користуватися NumberInbox",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -3979,7 +3979,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "Будь ласка, дозвольте сповіщення від Twake Mail у налаштуваннях пристрою",
+  "pleaseAllowNotifications": "Будь ласка, дозвольте сповіщення від NumberInbox у налаштуваннях пристрою",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],
@@ -3991,8 +3991,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Дозволяє Twake Mail повідомляти вас про надходження нового повідомлення на ваш телефон",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Дозволяє NumberInbox повідомляти вас про надходження нового повідомлення на ваш телефон",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4135,8 +4135,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "Створити Twake ID",
-  "@createTwakeId": {
+  "createNumberInboxId": "Створити NumberInbox ID",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4153,8 +4153,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "Не вдалося створити ідентифікатор Twake. Перевірте ще раз.",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "Не вдалося створити ідентифікатор NumberInbox. Перевірте ще раз.",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -4723,13 +4723,13 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithPremium": "Щоб продовжувати надсилати повідомлення та користуватися всіма функціями Twake Mail, подумайте про очищення або оновлення вашого сховища.",
+  "quotaBannerWarningSubtitleWithPremium": "Щоб продовжувати надсилати повідомлення та користуватися всіма функціями NumberInbox, подумайте про очищення або оновлення вашого сховища.",
   "@quotaBannerWarningSubtitleWithPremium": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "quotaBannerWarningSubtitleWithoutPremium": "Щоб продовжувати надсилати повідомлення та користуватися всіма функціями Twake Mail, будь ласка, подумайте про очищення.",
+  "quotaBannerWarningSubtitleWithoutPremium": "Щоб продовжувати надсилати повідомлення та користуватися всіма функціями NumberInbox, будь ласка, подумайте про очищення.",
   "@quotaBannerWarningSubtitleWithoutPremium": {
     "type": "text",
     "placeholders_order": [],
@@ -5125,8 +5125,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "manageYourTwakeAccount": "Керуйте своїм обліковим записом Twake",
-  "@manageYourTwakeAccount": {
+  "manageYourNumberInboxAccount": "Керуйте своїм обліковим записом NumberInbox",
+  "@manageYourNumberInboxAccount": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

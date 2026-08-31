@@ -1,4 +1,4 @@
-const androidStore = 'https://play.google.com/store/apps/details?id=com.linagora.android.teammail';
+const androidStore = 'https://play.google.com/store/apps/details?id=com.numberinbox.app';
 const iosStore = 'https://apps.apple.com/app/twake-mail/id1587086189';
 const openAppDeepLink = 'twakemail.mobile://openapp';
 const iosPlatform = 'iOS';
@@ -7,22 +7,22 @@ const otherPlatform = 'other';
 
 function getPlatform() {
   const ua = navigator.userAgent || navigator.vendor || window.opera;
-  console.info('[TwakeMail] getPlatform():', ua);
+  console.info('[NumberInbox] getPlatform():', ua);
   if (/iPhone|iPad|iPod/i.test(ua)) return iosPlatform;
   if (/Android/i.test(ua)) return androidPlatform;
   return otherPlatform;
 }
 
-function openTwakeMailApp() {
+function openNumberInboxApp() {
   const os = getPlatform();
-  console.info('[TwakeMail] handleOpenTwakeMailApp() - OS:', os);
+  console.info('[NumberInbox] handleOpenNumberInboxApp() - OS:', os);
 
   let fallbackTimer;
   let hiddenAt = null;
 
   const clearFallback = (reason) => {
     if (fallbackTimer) clearTimeout(fallbackTimer);
-    console.info(`[TwakeMail] Cancel store redirect: ${reason}`);
+    console.info(`[NumberInbox] Cancel store redirect: ${reason}`);
     window.removeEventListener('blur', onBlur);
     document.removeEventListener('visibilitychange', onVisibility);
     window.removeEventListener('pagehide', onPageHide);
@@ -53,10 +53,10 @@ function openTwakeMailApp() {
     // fallback only if still visible after 1500 ms AND page wasn’t hidden recently
     fallbackTimer = setTimeout(() => {
       if (!document.hidden && (!hiddenAt || Date.now() - hiddenAt > 800)) {
-        console.info('[TwakeMail] Deep link failed — redirecting to store.');
+        console.info('[NumberInbox] Deep link failed — redirecting to store.');
         window.location.href = storeUrl;
       } else {
-        console.info('[TwakeMail] App likely opened — skip store redirect.');
+        console.info('[NumberInbox] App likely opened — skip store redirect.');
       }
     }, 1500);
   };
@@ -66,7 +66,7 @@ function openTwakeMailApp() {
   } else if (os === iosPlatform) {
     tryOpen(openAppDeepLink, iosStore);
   } else {
-    console.info('[TwakeMail] Unsupported platform. No app open.');
+    console.info('[NumberInbox] Unsupported platform. No app open.');
   }
 
   closeSmartBanner();
@@ -76,11 +76,11 @@ function initialTmailApp() {
   const os = getPlatform();
   const originInUrl = window.location;
 
-  console.info('[TwakeMail] initialTmailApp(): OriginInUrl:', originInUrl);
+  console.info('[NumberInbox] initialTmailApp(): OriginInUrl:', originInUrl);
 
   // Skip displaying the banner on desktop browsers
   if (os === otherPlatform || typeof window === 'undefined') {
-    console.info('[TwakeMail] Skipping smart-banner on desktop.');
+    console.info('[NumberInbox] Skipping smart-banner on desktop.');
     return;
   }
 
@@ -96,7 +96,7 @@ function initialTmailApp() {
 }
 
 function showSmartBanner() {
-  console.info('[TwakeMail] showSmartBanner(): Displaying the smart banner.');
+  console.info('[NumberInbox] showSmartBanner(): Displaying the smart banner.');
   const smartBanner = document.querySelector('.smart-banner');
   if (!smartBanner) return;
 
@@ -107,7 +107,7 @@ function showSmartBanner() {
 }
 
 function closeSmartBanner() {
-  console.info('[TwakeMail] closeSmartBanner(): Closing the smart banner.');
+  console.info('[NumberInbox] closeSmartBanner(): Closing the smart banner.');
   const smartBanner = document.querySelector('.smart-banner');
   if (!smartBanner) return;
 

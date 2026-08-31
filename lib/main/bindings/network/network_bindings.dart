@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' as io;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:core/core.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:dio/io.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/http/http_client.dart';
@@ -58,15 +59,21 @@ class NetworkBindings extends Bindings {
 
   void _bindingBaseOption() {
     final headers = <String, dynamic>{
-      HttpHeaders.acceptHeader: Constant.acceptHeaderDefault,
-      HttpHeaders.contentTypeHeader: Constant.contentTypeHeaderDefault
+      io.HttpHeaders.acceptHeader: Constant.acceptHeaderDefault,
+      io.HttpHeaders.contentTypeHeader: Constant.contentTypeHeaderDefault
     };
     Get.put(BaseOptions(headers: headers));
   }
 
   void _bindingDio() {
-    Get.put(Dio(Get.find<BaseOptions>()));
-    Get.put(DioClient(Get.find<Dio>()));
+    final dio = Dio(Get.find<BaseOptions>());
+    if (BuildUtils.isDebugMode) {
+      configureDebugDio(dio);
+    } else {
+      configureProductionDio(dio);
+    }
+    Get.put(dio);
+    Get.put(DioClient(dio));
     Get.put(const FlutterAppAuth());
     Get.put(AppAuthWebPlugin());
     Get.put(OIDCHttpClient(Get.find<DioClient>()));
@@ -147,5 +154,19 @@ class NetworkBindings extends Bindings {
   void _bindingServices() {
     Get.put(DnsLookupManager());
     Get.put(PromptService(Get.find<Dio>(tag: 'prompt')));
+  }
+
+  static void configureDebugDio(Dio dio) {
+    dio.httpClientAdapter = IOHttpClientAdapter(
+      createHttpClient: () {
+        final client = io.HttpClient();
+        client.badCertificateCallback = (cert, host, port) => true;
+        return client;
+      },
+    );
+  }
+
+  static void configureProductionDio(Dio dio) {
+    dio.httpClientAdapter = IOHttpClientAdapter();
   }
 }

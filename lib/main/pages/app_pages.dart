@@ -36,6 +36,8 @@ import 'package:tmail_ui_user/features/search/mailbox/presentation/search_mailbo
 import 'package:tmail_ui_user/features/mailto/presentation/mailto_url_view.dart' deferred as mailto_url_view;
 import 'package:tmail_ui_user/features/email_recovery/presentation/email_recovery_view.dart' deferred as email_recovery;
 import 'package:tmail_ui_user/features/email_previewer/email_previewer_view.dart' deferred as email_previewer_view;
+import 'package:tmail_ui_user/features/numberinbox/otp_screen.dart';
+import 'package:tmail_ui_user/features/numberinbox/numberinbox_otp_controller.dart';
 
 class AppPages {
   static final pages = [
@@ -91,6 +93,13 @@ class AppPages {
       binding: EmailPreviewerBindings(),
     ),
     unknownRoutePage,
+    GetPage(
+        name: AppRoutes.numberinboxOtp,
+        page: () => const NumberInboxOtpScreen(),
+        binding: BindingsBuilder(() {
+          Get.put(NumberInboxOtpController());
+        }),
+    ),
     if (PlatformInfo.isMobile)
       ...[
         GetPage(

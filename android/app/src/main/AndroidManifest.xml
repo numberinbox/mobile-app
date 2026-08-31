@@ -100,7 +100,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:scheme="twakemail.mobile"
+                    android:scheme="numberinbox.mobile"
                     android:host="openApp" />
             </intent-filter>
         </activity>
@@ -112,7 +112,19 @@
                <action android:name="android.intent.action.VIEW" />
                <category android:name="android.intent.category.DEFAULT" />
                <category android:name="android.intent.category.BROWSABLE" />
-               <data android:scheme="twakemail.mobile"
+               <data android:scheme="numberinbox.mobile"
+                   android:host="redirect" />
+           </intent-filter>
+       </activity>
+
+       <activity
+           android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
+           android:exported="true">
+           <intent-filter android:label="flutter_web_auth_2">
+               <action android:name="android.intent.action.VIEW" />
+               <category android:name="android.intent.category.DEFAULT" />
+               <category android:name="android.intent.category.BROWSABLE" />
+               <data android:scheme="numberinbox"
                    android:host="redirect" />
            </intent-filter>
        </activity>

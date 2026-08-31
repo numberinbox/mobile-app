@@ -36,7 +36,7 @@ abstract final class QuotedReplyEnterHandlerSource {
           if (typeof console !== 'undefined'
               && console
               && typeof console.error === 'function') {
-            console.error('[TwakeMail][QuotedReplyEnterHandler] ' + context, error);
+            console.error('[NumberInbox][QuotedReplyEnterHandler] ' + context, error);
           }
         }''';
 

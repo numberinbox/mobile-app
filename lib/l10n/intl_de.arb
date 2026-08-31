@@ -41,7 +41,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Twake Mail",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -3299,7 +3299,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "languageSubtitle": "Legen Sie die Sprache fest, die Sie in Twake Mail verwenden.",
+  "languageSubtitle": "Legen Sie die Sprache fest, die Sie in NumberInbox verwenden.",
   "@languageSubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -3459,7 +3459,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "page_name": "Twake Mail",
+  "page_name": "NumberInbox",
   "@page_name": {
     "type": "text",
     "placeholders_order": [],
@@ -3483,7 +3483,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Twake Mail",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -3567,7 +3567,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "Bitte erlauben Sie Benachrichtigungen von Twake Mail in den Einstellungen des Geräts",
+  "pleaseAllowNotifications": "Bitte erlauben Sie Benachrichtigungen von NumberInbox in den Einstellungen des Geräts",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],
@@ -3645,7 +3645,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "appTitlePushNotification": "Twake Mail",
+  "appTitlePushNotification": "NumberInbox",
   "@appTitlePushNotification": {
     "type": "text",
     "placeholders_order": [],
@@ -3663,7 +3663,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "bannerProgressingRecoveryMessage": "Die Wiederherstellung ist im Gange. Sie können Twake Mail weiterhin verwenden",
+  "bannerProgressingRecoveryMessage": "Die Wiederherstellung ist im Gange. Sie können NumberInbox weiterhin verwenden",
   "@bannerProgressingRecoveryMessage": {
     "type": "text",
     "placeholders_order": [],
@@ -3727,7 +3727,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "teamMailBoxes": "Team-Postfächer",
+  "teamMailBoxes": "Shared-mailboxes",
   "@teamMailBoxes": {
     "type": "text",
     "placeholders_order": [],
@@ -3917,8 +3917,8 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Erlaubt Twake Mail, Sie zu benachrichtigen, wenn eine neue Nachricht auf Ihrem Telefon ankommt",
-  "@allowsTwakeMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
+  "allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": "Erlaubt NumberInbox, Sie zu benachrichtigen, wenn eine neue Nachricht auf Ihrem Telefon ankommt",
+  "@allowsNumberInboxMailToNotifyYouWhenANewMessageArrivesOnYourPhone": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -3929,7 +3929,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "folderVisibilitySubtitle": "Ordner anzeigen/ausblenden, einschließlich Ihrer persönlichen Ordner und Team-Postfächer.",
+  "folderVisibilitySubtitle": "Ordner anzeigen/ausblenden, einschließlich Ihrer persönlichen Ordner und Shared-mailboxes.",
   "@folderVisibilitySubtitle": {
     "type": "text",
     "placeholders_order": [],
@@ -4117,14 +4117,14 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeIdFailed": "Erstellen der Twake-ID fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.",
-  "@createTwakeIdFailed": {
+  "createNumberInboxIdFailed": "Erstellen der NumberInbox-ID fehlgeschlagen. Bitte überprüfen Sie Ihre Eingaben.",
+  "@createNumberInboxIdFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
   },
-  "createTwakeId": "Twake-ID erstellen",
-  "@createTwakeId": {
+  "createNumberInboxId": "NumberInbox-ID erstellen",
+  "@createNumberInboxId": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
