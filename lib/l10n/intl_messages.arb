@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-08-31T14:38:58.209303",
+  "@@last_modified": "2026-08-31T22:32:23.906401",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
@@ -2778,7 +2778,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "teamMailBoxes": "Shared-mailboxes",
+  "teamMailBoxes": "Team-mailboxes",
   "@teamMailBoxes": {
     "type": "text",
     "placeholders_order": [],

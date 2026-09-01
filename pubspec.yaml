@@ -317,6 +317,9 @@ dev_dependencies:
   sentry_dart_plugin: ^3.2.1
 
 dependency_overrides:
+  # Pin enough_platform_widgets — 1.1.0 breaks on Dart 3.13 bool?→bool
+  enough_platform_widgets: 1.0.0
+
   # Canonical git sources — declared once here, propagate to all workspace members.
   # Sub-packages simply write the package name with no git spec.
   jmap_dart_client:

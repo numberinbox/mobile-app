@@ -1,234 +1,172 @@
-import 'dart:async';
-
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/utils/app_logger.dart';
-import 'package:core/utils/platform_info.dart';
-import 'package:dartz/dartz.dart';
-import 'package:flutter/cupertino.dart';
-import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
-import 'package:model/oidc/oidc_configuration.dart';
+import 'package:jmap_dart_client/jmap/core/user_name.dart';
+import 'package:model/account/password.dart';
 import 'package:tmail_ui_user/features/base/reloadable/reloadable_controller.dart';
-import 'package:tmail_ui_user/features/home/domain/state/auto_sign_in_via_deep_link_state.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
-import 'package:tmail_ui_user/features/login/data/network/config/oidc_constant.dart';
-import 'package:tmail_ui_user/features/login/domain/exceptions/authentication_exception.dart';
-import 'package:tmail_ui_user/features/login/domain/usecases/remove_company_server_login_info_interactor.dart';
-import 'package:tmail_ui_user/features/login/presentation/login_form_type.dart';
-import 'package:tmail_ui_user/features/login/presentation/model/login_arguments.dart';
-import 'package:tmail_ui_user/features/starting_page/domain/state/sign_in_twake_workplace_state.dart';
-import 'package:tmail_ui_user/features/starting_page/domain/state/sign_up_twake_workplace_state.dart';
-import 'package:tmail_ui_user/features/starting_page/domain/usecase/sign_in_twake_workplace_interactor.dart';
-import 'package:tmail_ui_user/features/starting_page/domain/usecase/sign_up_twake_workplace_interactor.dart';
-import 'package:tmail_ui_user/main/deep_links/deep_link_data.dart';
-import 'package:tmail_ui_user/main/deep_links/deep_links_manager.dart';
-import 'package:tmail_ui_user/main/deep_links/open_app_deep_link_data.dart';
-import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
+import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
+import 'package:tmail_ui_user/features/numberinbox/country.dart';
+import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
 import 'package:tmail_ui_user/main/routes/app_routes.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 import 'package:tmail_ui_user/main/routes/route_utils.dart';
-import 'package:tmail_ui_user/main/utils/app_config.dart';
-import 'package:tmail_ui_user/main/utils/app_utils.dart';
+
+enum OtpPhase { phone, code }
 
 class TwakeWelcomeController extends ReloadableController {
+  TwakeWelcomeController({required this.authClient});
 
-  final SignInTwakeWorkplaceInteractor _signInTwakeWorkplaceInteractor;
-  final SignUpTwakeWorkplaceInteractor _signUpTwakeWorkplaceInteractor;
+  final NumberInboxAuthClient authClient;
+  final _sessionManager = JmapSessionManager();
 
-  RemoveCompanyServerLoginInfoInteractor? _removeCompanyServerLoginInfoInteractor;
+  final phoneController = TextEditingController();
+  final codeController = TextEditingController();
 
-  DeepLinksManager? _deepLinksManager;
-  StreamSubscription<DeepLinkData?>? _deepLinkDataStreamSubscription;
+  OtpPhase _phase = OtpPhase.phone;
+  Country _selectedCountry = countries.first;
+  String? _error;
+  bool _sending = false;
+  bool _verifying = false;
 
-  TwakeWelcomeController(
-    this._signInTwakeWorkplaceInteractor,
-    this._signUpTwakeWorkplaceInteractor,
-  );
+  OtpPhase get phase => _phase;
+  Country get selectedCountry => _selectedCountry;
+  String? get error => _error;
+  bool get sending => _sending;
+  bool get verifying => _verifying;
 
-  @override
-  void onInit() {
-    super.onInit();
-    if (PlatformInfo.isMobile) {
-      _registerDeepLinks();
+  String get fullE164 => _selectedCountry.buildE164(phoneController.text.trim());
+
+  @visibleForTesting
+  set phase(OtpPhase value) {
+    _phase = value;
+    update();
+  }
+
+  @visibleForTesting
+  set error(String? value) {
+    _error = value;
+    update();
+  }
+
+  void onCountrySelected(Country country) {
+    _selectedCountry = country;
+    update();
+  }
+
+  Future<void> sendCode() async {
+    final phone = phoneController.text.trim();
+    if (phone.isEmpty) {
+      _error = 'Enter your phone number';
+      update();
+      return;
     }
-  }
-
-  void _registerDeepLinks() {
-    _deepLinksManager = getBinding<DeepLinksManager>();
-    _deepLinksManager?.clearPendingDeepLinkData();
-    _deepLinkDataStreamSubscription = _deepLinksManager
-        ?.pendingDeepLinkData.stream
-        .listen(_handlePendingDeepLinkDataStream);
-  }
-
-  void _handlePendingDeepLinkDataStream(DeepLinkData? deepLinkData) {
-    log('TwakeWelcomeController::_handlePendingDeepLinkDataStream:DeepLinkData = $deepLinkData');
-    _deepLinksManager?.handleDeepLinksWhenAppRunning(
-      deepLinkData: deepLinkData,
-      onSuccessCallback: (deepLinkData) {
-        if (deepLinkData is! OpenAppDeepLinkData) return;
-
-        if (currentContext != null) {
-          SmartDialog.showLoading(msg: AppLocalizations.of(currentContext!).loadingPleaseWait);
-        }
-
-        _deepLinksManager?.autoSignInViaDeepLink(
-          openAppDeepLinkData: deepLinkData,
-          onAutoSignInSuccessCallback: _handleAutoSignInViaDeepLinkSuccess,
-          onFailureCallback: SmartDialog.dismiss,
-        );
-      },
-    );
-  }
-
-  void _handleAutoSignInViaDeepLinkSuccess(AutoSignInViaDeepLinkSuccess success) {
-    if (PlatformInfo.isMobile) {
-      removeCompanyServerLoginInfo();
-    }
-    synchronizeTokenAndGetSession(
-      baseUri: success.baseUri,
-      tokenOIDC: success.tokenOIDC,
-      oidcConfiguration: success.oidcConfiguration,
-    );
-  }
-
-  void handleUseCompanyServer() {
-    popAndPush(
-      AppRoutes.login,
-      arguments: LoginArguments(LoginFormType.dnsLookupForm));
-  }
-
-  void onClickPrivacyPolicy() {
-    AppUtils.launchLink(AppConfig.linagoraPrivacyUrl);
-  }
-
-  void onClickSignIn(BuildContext context) {
-    SmartDialog.showLoading(msg: AppLocalizations.of(context).loadingPleaseWait);
-
-    final baseUri = Uri.tryParse(AppConfig.saasJmapServerUrl);
-
-    if (baseUri == null) {
-      consumeState(Stream.value(Left(SignInTwakeWorkplaceFailure(SaasServerUriIsNull()))));
+    if (!_selectedCountry.isValidPhone(phone)) {
+      _error = 'Enter a valid ${_selectedCountry.name} phone number';
+      update();
       return;
     }
 
-    consumeState(_signInTwakeWorkplaceInteractor.execute(
-      baseUri: baseUri,
-      oidcConfiguration: OIDCConfiguration(
-        authority: AppConfig.saasRegistrationUrl,
-        clientId: OIDCConstant.clientId,
-        scopes: AppConfig.oidcScopes,
-        isTWP: true,
-      )
-    ));
+    final e164 = fullE164;
+    try {
+      _sending = true;
+      _error = null;
+      update();
+      await authClient.startOtp(e164);
+      _phase = OtpPhase.code;
+      _sending = false;
+    } on InvalidE164Exception {
+      _error = 'Invalid phone number format';
+    } on RateLimitedException {
+      _error = 'Too many attempts. Try again later.';
+    } catch (e) {
+      _error = 'Failed to send code: $e';
+    } finally {
+      _sending = false;
+      update();
+    }
   }
 
-  void onSignUpTwakeWorkplace(BuildContext context) {
-    SmartDialog.showLoading(msg: AppLocalizations.of(context).loadingPleaseWait);
-
-    final baseUri = Uri.tryParse(AppConfig.saasJmapServerUrl);
-
-    if (baseUri == null) {
-      consumeState(Stream.value(Left(SignUpTwakeWorkplaceFailure(SaasServerUriIsNull()))));
+  Future<void> verifyCode() async {
+    final code = codeController.text.trim();
+    if (code.length != 6) {
+      _error = 'Enter 6-digit code';
+      update();
       return;
     }
 
-    consumeState(_signUpTwakeWorkplaceInteractor.execute(
-      baseUri: baseUri,
-      oidcConfiguration: OIDCConfiguration(
-        authority: AppConfig.saasRegistrationUrl,
-        clientId: OIDCConstant.clientId,
-        scopes: AppConfig.oidcScopes,
-        isTWP: true,
-      )
-    ));
+    try {
+      _verifying = true;
+      _error = null;
+      update();
+      final otpSession = await authClient.verifyOtp(fullE164, code);
+      _onOtpVerified(otpSession);
+    } on OtpInvalidException {
+      _error = 'Invalid code. Try again.';
+    } on RateLimitedException {
+      _error = 'Too many attempts. Try again later.';
+    } catch (e) {
+      _error = 'Verification failed. Try again.';
+    } finally {
+      _verifying = false;
+      update();
+    }
   }
 
-  void removeCompanyServerLoginInfo() {
-    _removeCompanyServerLoginInfoInteractor =
-        getBinding<RemoveCompanyServerLoginInfoInteractor>();
-    if (_removeCompanyServerLoginInfoInteractor != null) {
-      consumeState(_removeCompanyServerLoginInfoInteractor!.execute());
-    }
+  /// Called after OTP verification succeeds.
+  /// Follows the canonical Twake Mail pattern:
+  /// 1. setDataToInterceptors (both main + isolate)
+  /// 2. getSessionAction (fetch JMAP session)
+  /// 3. handleReloaded navigates to dashboard
+  void _onOtpVerified(OtpSession otpSession) {
+    log('TwakeWelcomeController::_onOtpVerified: username=${otpSession.username}');
+
+    final baseUrl = _sessionManager.baseUrlFromSession(otpSession);
+    final decoded = _sessionManager.decodeBasicAuth(otpSession);
+
+    setDataToInterceptors(
+      baseUrl: baseUrl.toString(),
+      userName: UserName(decoded['username']!),
+      password: Password(decoded['password']!),
+    );
+
+    getSessionAction();
   }
 
   @override
-  void handleSuccessViewState(Success success) {
-    if (success is SignInTwakeWorkplaceSuccess) {
-      if (PlatformInfo.isMobile) {
-        removeCompanyServerLoginInfo();
-      }
-      synchronizeTokenAndGetSession(
-        baseUri: success.baseUri,
-        tokenOIDC: success.tokenOIDC,
-        oidcConfiguration: success.oidcConfiguration,
-      );
-    } else if (success is SignUpTwakeWorkplaceSuccess) {
-      if (PlatformInfo.isMobile) {
-        removeCompanyServerLoginInfo();
-      }
-      synchronizeTokenAndGetSession(
-        baseUri: success.baseUri,
-        tokenOIDC: success.tokenOIDC,
-        oidcConfiguration: success.oidcConfiguration,
-      );
-    } else {
-      super.handleSuccessViewState(success);
-    }
+  void handleReloaded(Session session) {
+    log('TwakeWelcomeController::handleReloaded: session fetched');
+    pushAndPopAll(
+      RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
+      arguments: session,
+    );
   }
 
   @override
   void handleFailureViewState(Failure failure) {
-    if (failure is SignInTwakeWorkplaceFailure) {
-      _handleSignInTwakeWorkplaceFailure(failure);
-    } else if (failure is SignUpTwakeWorkplaceFailure) {
-      _handleSignUpTwakeWorkplaceFailure(failure);
+    logError('TwakeWelcomeController::handleFailureViewState: ${failure.runtimeType} — $failure');
+    if (failure is GetSessionFailure) {
+      _error = 'Failed to sign in: ${failure.runtimeType}';
+      update();
     } else {
       super.handleFailureViewState(failure);
     }
   }
 
   @override
-  void handleReloaded(Session session) {
-    SmartDialog.dismiss();
-
-    popAndPush(
-      RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
-      arguments: session);
-  }
-
-  @override
-  void handleGetSessionFailure(GetSessionFailure failure) {
-    SmartDialog.dismiss();
-
-    toastManager.showMessageFailure(failure);
-  }
-
-  @override
-  void handleUrgentExceptionOnMobile({Failure? failure, Exception? exception}) {
-    SmartDialog.dismiss();
-    super.handleUrgentExceptionOnMobile(failure: failure, exception: exception);
-  }
-
-  void _handleSignInTwakeWorkplaceFailure(SignInTwakeWorkplaceFailure failure) {
-    SmartDialog.dismiss();
-
-    toastManager.showMessageFailure(failure);
-  }
-
-  void _handleSignUpTwakeWorkplaceFailure(SignUpTwakeWorkplaceFailure failure) {
-    SmartDialog.dismiss();
-
-    toastManager.showMessageFailure(failure);
+  void handleSuccessViewState(Success success) {
+    log('TwakeWelcomeController::handleSuccessViewState: ${success.runtimeType}');
+    super.handleSuccessViewState(success);
   }
 
   @override
   void onClose() {
-    if (PlatformInfo.isMobile) {
-      _deepLinkDataStreamSubscription?.cancel();
-      _removeCompanyServerLoginInfoInteractor = null;
-    }
+    phoneController.dispose();
+    codeController.dispose();
     super.onClose();
   }
 }

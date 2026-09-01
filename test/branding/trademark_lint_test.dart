@@ -87,6 +87,7 @@ void main() {
   group('Phase 1: Android config', () {
     final androidFiles = [
       'android/app/src/main/AndroidManifest.xml',
+      'android/app/src/main/res/values/strings.xml',
       'android/fastlane/Appfile',
       'android/app/src/androidTest/java/com/numberinbox/app/MainActivityTest.java',
     ];
@@ -154,6 +155,25 @@ void main() {
       }
       expect(violations, isEmpty,
           reason: 'teamMailBoxes in arb files:\n${violations.join('\n')}');
+    });
+
+    test('no Twake Mail in pleaseAllowNotifications arb value', () {
+      final violations = <String>[];
+      final arbDir = Directory('lib/l10n');
+      if (arbDir.existsSync()) {
+        for (final file in arbDir.listSync().whereType<File>()) {
+          if (!file.path.endsWith('.arb')) continue;
+          final lines = file.readAsLinesSync();
+          for (var i = 0; i < lines.length; i++) {
+            if (lines[i].contains('pleaseAllowNotifications') &&
+                lines[i].contains('Twake Mail')) {
+              violations.add('${file.path}:${i + 1}');
+            }
+          }
+        }
+      }
+      expect(violations, isEmpty,
+          reason: 'Twake Mail in pleaseAllowNotifications:\n${violations.join('\n')}');
     });
   });
 
