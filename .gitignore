@@ -122,4 +122,4 @@ messages_*.dart
 *.mocks.dart
 test_bundle.dart
 playwright-report
-test-results
+test-resultstest/features/starting_page/failures/

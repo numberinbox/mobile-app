@@ -171,10 +171,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.put(key, newObject);
+        await boxItem.put(key, newObject);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.put(key, newObject);
+        await boxItem.put(key, newObject);
+        await boxItem.flush();
       }
     });
   }
@@ -186,10 +188,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.putAll(mapObject);
+        await boxItem.putAll(mapObject);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.putAll(mapObject);
+        await boxItem.putAll(mapObject);
+        await boxItem.flush();
       }
     });
   }
@@ -301,10 +305,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.put(key, newObject);
+        await boxItem.put(key, newObject);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.put(key, newObject);
+        await boxItem.put(key, newObject);
+        await boxItem.flush();
       }
     });
   }
@@ -316,10 +322,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.putAll(mapObject);
+        await boxItem.putAll(mapObject);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.putAll(mapObject);
+        await boxItem.putAll(mapObject);
+        await boxItem.flush();
       }
     });
   }
@@ -331,10 +339,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.delete(key);
+        await boxItem.delete(key);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.delete(key);
+        await boxItem.delete(key);
+        await boxItem.flush();
       }
     });
   }
@@ -346,10 +356,12 @@ abstract class HiveCacheClient<T> {
     return _runWithRecovery(isolated, () async {
       if (isolated) {
         final boxItem = await openIsolatedBox();
-        return boxItem.deleteAll(listKey);
+        await boxItem.deleteAll(listKey);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
-        return boxItem.deleteAll(listKey);
+        await boxItem.deleteAll(listKey);
+        await boxItem.flush();
       }
     });
   }
@@ -382,9 +394,11 @@ abstract class HiveCacheClient<T> {
       if (isolated) {
         final boxItem = await openIsolatedBox();
         await boxItem.clear();
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
         await boxItem.clear();
+        await boxItem.flush();
       }
     });
   }
@@ -401,14 +415,16 @@ abstract class HiveCacheClient<T> {
             .where((key, value) => _matchedNestedKey(key, nestedKey))
             .keys;
         log('$runtimeType::clearAllDataContainKey: Length of keys is ${listKeys.length}');
-        return boxItem.deleteAll(listKeys);
+        await boxItem.deleteAll(listKeys);
+        await boxItem.flush();
       } else {
         final boxItem = await openBox();
         final listKeys = boxItem.toMap()
             .where((key, value) => _matchedNestedKey(key, nestedKey))
             .keys;
         log('$runtimeType::clearAllDataContainKey: Length of keys is ${listKeys.length}');
-        return boxItem.deleteAll(listKeys);
+        await boxItem.deleteAll(listKeys);
+        await boxItem.flush();
       }
     });
   }
