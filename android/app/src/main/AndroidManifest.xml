@@ -45,7 +45,7 @@
            android:resource="@drawable/notification_icon" />
 
         <activity
-            android:name=".MainActivity"
+            android:name="com.linagora.android.tmail.MainActivity"
             android:exported="true"
             android:launchMode="singleTask"
             android:theme="@style/LaunchTheme"
@@ -115,11 +115,6 @@
                <data android:scheme="numberinbox.mobile"
                    android:host="redirect" />
            </intent-filter>
-       </activity>
-
-       <activity
-           android:name="com.linusu.flutter_web_auth_2.CallbackActivity"
-           android:exported="true">
            <intent-filter android:label="flutter_web_auth_2">
                <action android:name="android.intent.action.VIEW" />
                <category android:name="android.intent.category.DEFAULT" />

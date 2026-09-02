@@ -11,7 +11,10 @@ import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
+import 'package:tmail_ui_user/features/login/data/model/authentication_info_cache.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/account_repository.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_authority_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/login/domain/state/update_authentication_account_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_credential_interactor.dart';
@@ -27,6 +30,8 @@ import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:model/account/authentication_type.dart';
+import 'package:model/account/personal_account.dart';
 
 class MockCachingManager extends Mock implements CachingManager {}
 class MockLanguageCacheManager extends Mock implements LanguageCacheManager {}
@@ -45,6 +50,44 @@ class MockResponsiveUtils extends Mock implements ResponsiveUtils {}
 class MockUuid extends Mock implements Uuid {}
 class MockTwakeAppManager extends Mock implements TwakeAppManager {}
 class MockSession extends Mock implements Session {}
+class MockAccountRepository extends Mock implements AccountRepository {}
+class MockCredentialRepository extends Mock implements CredentialRepository {}
+
+class FakeCredentialRepository implements CredentialRepository {
+  Uri? savedBaseUrl;
+  AuthenticationInfoCache? storedAuth;
+
+  @override
+  Future saveBaseUrl(Uri baseUrl) async { savedBaseUrl = baseUrl; }
+
+  @override
+  Future removeBaseUrl() async {}
+
+  @override
+  Future<Uri> getBaseUrl() async => Uri.parse('https://localhost');
+
+  @override
+  Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async { storedAuth = info; }
+
+  @override
+  Future<AuthenticationInfoCache> getAuthenticationInfoStored() async => AuthenticationInfoCache('', '');
+
+  @override
+  Future<void> removeAuthenticationInfo() async {}
+}
+
+class FakeAccountRepository implements AccountRepository {
+  PersonalAccount? savedAccount;
+
+  @override
+  Future<PersonalAccount> getCurrentAccount() async => throw Exception('no account');
+
+  @override
+  Future<void> setCurrentAccount(PersonalAccount account) async { savedAccount = account; }
+
+  @override
+  Future<void> deleteCurrentAccount(String hashId) async {}
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -73,6 +116,12 @@ void main() {
     Get.put<GetOidcUserInfoInteractor>(MockGetOidcUserInfoInteractor());
     Get.put<UpdateAccountCacheInteractor>(MockUpdateAccountCacheInteractor());
     Get.put<GetSessionInteractor>(MockGetSessionInteractor());
+
+    final fakeAccountRepo = FakeAccountRepository();
+    Get.put<AccountRepository>(fakeAccountRepo);
+
+    final fakeCredentialRepo = FakeCredentialRepository();
+    Get.put<CredentialRepository>(fakeCredentialRepo);
 
     dio = Dio(BaseOptions(baseUrl: 'http://localhost:18080'));
     adapter = DioAdapter(dio: dio);
@@ -295,6 +344,40 @@ void main() {
       );
 
       expect(controller.error, isNull);
+    });
+  });
+
+  group('OTP persistence', () {
+    test('saves account, baseUrl, and credentials on OTP verify', () async {
+      final fakeAccountRepo = Get.find<AccountRepository>() as FakeAccountRepository;
+      final fakeCredentialRepo = Get.find<CredentialRepository>() as FakeCredentialRepository;
+
+      adapter.onPost('/v1/otp/start',
+          (server) => server.reply(200, {'ok': true}),
+          data: {'e164': '+66812345678'});
+      adapter.onPost('/v1/otp/verify', (server) => server.reply(200, {
+        'accessToken': 'jwt',
+        'jmap': {
+          'sessionUrl': 'https://localhost/.well-known/jmap',
+          'username': '+66812345678@numberinbox.test',
+          'credential': 'app_aaaasecret',
+        }
+      }), data: {'e164': '+66812345678', 'code': '123456'});
+
+      controller.phoneController.text = '812345678';
+      await controller.sendCode();
+
+      controller.codeController.text = '123456';
+      await controller.verifyCode();
+
+      expect(fakeCredentialRepo.savedBaseUrl, isNotNull);
+      expect(fakeCredentialRepo.savedBaseUrl!.host, 'localhost');
+      expect(fakeCredentialRepo.storedAuth, isNotNull);
+      expect(fakeCredentialRepo.storedAuth!.username, '+66812345678@numberinbox.test');
+      expect(fakeCredentialRepo.storedAuth!.password, 'app_aaaasecret');
+      expect(fakeAccountRepo.savedAccount, isNotNull);
+      expect(fakeAccountRepo.savedAccount!.authenticationType, AuthenticationType.basic);
+      expect(fakeAccountRepo.savedAccount!.isSelected, isTrue);
     });
   });
 }

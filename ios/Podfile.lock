@@ -184,7 +184,7 @@ PODS:
     - CocoaAsyncSocket (~> 7.6)
     - Flutter
     - FlutterMacOS
-  - pdfium_flutter (0.1.5):
+  - pdfrx (0.0.8):
     - Flutter
     - FlutterMacOS
   - permission_handler_apple (9.4.8):
@@ -253,7 +253,7 @@ DEPENDENCIES:
   - package_info_plus (from `.symlinks/plugins/package_info_plus/ios`)
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - patrol (from `.symlinks/plugins/patrol/darwin`)
-  - pdfium_flutter (from `.symlinks/plugins/pdfium_flutter/darwin`)
+  - pdfrx (from `.symlinks/plugins/pdfrx/darwin`)
   - permission_handler_apple (from `.symlinks/plugins/permission_handler_apple/ios`)
   - photo_manager (from `.symlinks/plugins/photo_manager/darwin`)
   - pointer_interceptor_ios (from `.symlinks/plugins/pointer_interceptor_ios/ios`)
@@ -350,8 +350,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/path_provider_foundation/darwin"
   patrol:
     :path: ".symlinks/plugins/patrol/darwin"
-  pdfium_flutter:
-    :path: ".symlinks/plugins/pdfium_flutter/darwin"
+  pdfrx:
+    :path: ".symlinks/plugins/pdfrx/darwin"
   permission_handler_apple:
     :path: ".symlinks/plugins/permission_handler_apple/ios"
   photo_manager:
@@ -394,7 +394,7 @@ SPEC CHECKSUMS:
   FirebaseInstallations: 4e6e162aa4abaaeeeb01dd00179dfc5ad9c2194e
   FirebaseMessaging: 341004946fa7ffc741344b20f1b667514fc93e31
   fk_user_agent: 137145b086229251761678fe034da53753f4ce59
-  Flutter: 71a624a5bc0c04062bf19101d501e466baf2fb47
+  Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_appauth: d4abcf54856e5d8ba82ed7646ffc83245d4aa448
   flutter_charset_detector_darwin: bfc256cedbf309db64b0800bafa7ff374bf021f2
   flutter_file_dialog: ca8d7fbd1772d4f0c2777b4ab20a7787ef4e7dd8
@@ -413,12 +413,12 @@ SPEC CHECKSUMS:
   lottie_native: c2e590a297861fc32a0188cf8dab39aa97f86d81
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2
-  open_file_ios: c1143c28b4c65f721cdd58d9fba2f7a1c55206cd
+  open_file_ios: 46184d802ee7959203f6392abcfa0dd49fdb5be0
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
   package_info_plus: 580e9a5f1b6ca5594e7c9ed5f92d1dfb2a66b5e1
   path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
   patrol: cea8074f183a2a4232d0ebd10569ae05149ada42
-  pdfium_flutter: e5a6e881af0b182d5b0465ebad23a8a20caa28d4
+  pdfrx: 04c7feb7d21c416d5ff89de5d7a9a35caa0c95c2
   permission_handler_apple: 92d754bbaa7361d436db2d6c3c1c2a0fdcec462e
   photo_manager: c303e4476f6c220274119f0212a7753e45edd4a2
   pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0

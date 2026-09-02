@@ -6,7 +6,12 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
+import 'package:model/account/authentication_type.dart';
 import 'package:model/account/password.dart';
+import 'package:model/account/personal_account.dart';
+import 'package:tmail_ui_user/features/login/data/model/authentication_info_cache.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/account_repository.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/base/reloadable/reloadable_controller.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
@@ -104,7 +109,7 @@ class TwakeWelcomeController extends ReloadableController {
       _error = null;
       update();
       final otpSession = await authClient.verifyOtp(fullE164, code);
-      _onOtpVerified(otpSession);
+      await _onOtpVerified(otpSession);
     } on OtpInvalidException {
       _error = 'Invalid code. Try again.';
     } on RateLimitedException {
@@ -122,7 +127,7 @@ class TwakeWelcomeController extends ReloadableController {
   /// 1. setDataToInterceptors (both main + isolate)
   /// 2. getSessionAction (fetch JMAP session)
   /// 3. handleReloaded navigates to dashboard
-  void _onOtpVerified(OtpSession otpSession) {
+  Future<void> _onOtpVerified(OtpSession otpSession) async {
     log('TwakeWelcomeController::_onOtpVerified: username=${otpSession.username}');
 
     final baseUrl = _sessionManager.baseUrlFromSession(otpSession);
@@ -134,7 +139,38 @@ class TwakeWelcomeController extends ReloadableController {
       password: Password(decoded['password']!),
     );
 
+    await _persistCredentials(
+      baseUrl: baseUrl,
+      username: decoded['username']!,
+      password: decoded['password']!,
+    );
+
     getSessionAction();
+  }
+
+  Future<void> _persistCredentials({
+    required Uri baseUrl,
+    required String username,
+    required String password,
+  }) async {
+    try {
+      final credentialRepo = Get.find<CredentialRepository>();
+      final accountRepo = Get.find<AccountRepository>();
+
+      await credentialRepo.saveBaseUrl(baseUrl);
+      await credentialRepo.storeAuthenticationInfo(
+        AuthenticationInfoCache(username, password),
+      );
+      await accountRepo.setCurrentAccount(
+        PersonalAccount(
+          username,
+          AuthenticationType.basic,
+          isSelected: true,
+        ),
+      );
+    } catch (e) {
+      logError('TwakeWelcomeController::_persistCredentials: $e');
+    }
   }
 
   @override
