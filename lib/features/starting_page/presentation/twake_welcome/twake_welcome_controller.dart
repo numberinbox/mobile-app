@@ -12,6 +12,7 @@ import 'package:model/account/personal_account.dart';
 import 'package:tmail_ui_user/features/login/data/model/authentication_info_cache.dart';
 import 'package:tmail_ui_user/features/login/domain/repository/account_repository.dart';
 import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
+import 'package:core/data/utils/device_manager.dart';
 import 'package:tmail_ui_user/features/base/reloadable/reloadable_controller.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
@@ -108,7 +109,11 @@ class TwakeWelcomeController extends ReloadableController {
       _verifying = true;
       _error = null;
       update();
-      final otpSession = await authClient.verifyOtp(fullE164, code);
+      String? deviceId;
+      try {
+        deviceId = await Get.find<DeviceManager>().getDeviceId();
+      } catch (_) {}
+      final otpSession = await authClient.verifyOtp(fullE164, code, deviceId: deviceId);
       await _onOtpVerified(otpSession);
     } on OtpInvalidException {
       _error = 'Invalid code. Try again.';

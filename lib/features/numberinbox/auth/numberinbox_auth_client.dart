@@ -30,11 +30,12 @@ class NumberInboxAuthClient {
     }
   }
 
-  Future<OtpSession> verifyOtp(String rawE164, String code) async {
+  Future<OtpSession> verifyOtp(String rawE164, String code, {String? deviceId}) async {
     final e164 = normalizeE164(rawE164);
     try {
-      final response = await _dio.post('/v1/otp/verify',
-          data: {'e164': e164, 'code': code});
+      final payload = <String, dynamic>{'e164': e164, 'code': code};
+      if (deviceId != null && deviceId.isNotEmpty) payload['deviceId'] = deviceId;
+      final response = await _dio.post('/v1/otp/verify', data: payload);
       final data = response.data as Map<String, dynamic>;
       final jmap = data['jmap'] as Map<String, dynamic>;
       return OtpSession(
