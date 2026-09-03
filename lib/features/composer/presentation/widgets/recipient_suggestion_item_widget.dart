@@ -34,7 +34,58 @@ class RecipientSuggestionItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (suggestionState == SuggestionEmailState.duplicated) {
+    if (suggestionState == SuggestionEmailState.invalidPhone) {
+      final raw = emailAddress.emailAddress.replaceFirst('invalid:', '');
+      return Container(
+        color: highlight ? AppColor.colorItemSelected : Colors.white,
+        height: ComposerStyle.suggestionItemHeight,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: () => onSelectedAction?.call(emailAddress),
+            child: Padding(
+              padding: RecipientSuggestionItemWidgetStyle.labelPadding,
+              child: Row(
+                children: [
+                  AvatarSuggestionItemWidget(emailAddress: EmailAddress(emailAddress.displayName, raw)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          emailAddress.displayName.isNotEmpty ? emailAddress.displayName : raw,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                        Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded, size: 14, color: Colors.orange),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                '$raw — Invalid — Select country',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: RecipientSuggestionItemWidgetStyle.labelTextStyle.copyWith(color: Colors.orange.shade700),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(Icons.arrow_drop_down, size: 20, color: Colors.grey),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+    } else if (suggestionState == SuggestionEmailState.duplicated) {
       return Container(
         margin: RecipientSuggestionItemWidgetStyle.suggestionDuplicatedMargin,
         decoration: const BoxDecoration(

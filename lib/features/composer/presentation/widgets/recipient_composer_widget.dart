@@ -29,6 +29,9 @@ import 'package:tmail_ui_user/features/composer/presentation/model/suggestion_em
 import 'package:tmail_ui_user/features/composer/presentation/styles/recipient_composer_widget_style.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_suggestion_item_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_tag_item_widget.dart';
+import 'package:tmail_ui_user/features/numberinbox/country.dart';
+import 'package:tmail_ui_user/features/numberinbox/country_picker_sheet.dart';
+import 'package:tmail_ui_user/features/numberinbox/phone_number_parser.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 
@@ -285,11 +288,34 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
                       return RecipientSuggestionItemWidget(
                         imagePaths: widget.imagePaths,
                         suggestionState: suggestionEmailAddress.state,
-                        emailAddress: _subAddressingValidatedEmailAddress(
-                            suggestionEmailAddress.emailAddress),
+                        emailAddress: suggestionEmailAddress.state == SuggestionEmailState.invalidPhone
+                            ? suggestionEmailAddress.emailAddress
+                            : _subAddressingValidatedEmailAddress(suggestionEmailAddress.emailAddress),
                         suggestionValid: suggestionValid,
                         highlight: highlight,
                         onSelectedAction: (emailAddress) {
+                          if (suggestionEmailAddress.state == SuggestionEmailState.invalidPhone) {
+                            final raw = suggestionEmailAddress.rawPhone ?? suggestionEmailAddress.emailAddress.emailAddress;
+                            final displayName = suggestionEmailAddress.emailAddress.displayName;
+                            showCountryPicker(
+                              context: context,
+                              selectedCountry: countries.first,
+                              onSelected: (country) {
+                                final parser = PhoneNumberParser();
+                                final e164 = parser.parseToE164(raw, defaultRegion: country.code);
+                                if (e164 != null) {
+                                  final validEmail = EmailAddress(displayName, '$e164@numberinbox.com');
+                                  if (!_isDuplicatedRecipient(validEmail.emailAddress)) {
+                                    stateSetter(() => _currentListEmailAddress.add(validEmail));
+                                    _updateListEmailAddressAction();
+                                  }
+                                }
+                                tagEditorState.resetTextField();
+                                tagEditorState.closeSuggestionBox();
+                              },
+                            );
+                            return;
+                          }
                           if (!_isDuplicatedRecipient(emailAddress.emailAddress)) {
                             stateSetter(() => _currentListEmailAddress.add(emailAddress));
                           }
@@ -494,6 +520,14 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   }
 
   SuggestionEmailAddress _toSuggestionEmailAddress(EmailAddress item) {
+    if (item.emailAddress.startsWith('invalid:')) {
+      final raw = item.emailAddress.replaceFirst('invalid:', '');
+      return SuggestionEmailAddress(
+        EmailAddress(item.displayName, raw),
+        state: SuggestionEmailState.invalidPhone,
+        rawPhone: raw,
+      );
+    }
     if (_currentListEmailAddress.isDuplicatedEmail(item.emailAddress)) {
       return SuggestionEmailAddress(item, state: SuggestionEmailState.duplicated);
     } else {

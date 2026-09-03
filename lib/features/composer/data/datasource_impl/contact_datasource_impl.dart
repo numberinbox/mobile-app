@@ -44,6 +44,13 @@ class ContactDataSourceImpl extends ContactDataSource {
         final email = mapper.mapPhoneNumber(raw);
         if (email != null) {
           results.add(DeviceContact(contact.displayName ?? '', email));
+        } else {
+          // Keep invalid phones as suggestions with raw value; will be shown as
+          // "Invalid — Select country" row in autocomplete.
+          final trimmed = raw.trim();
+          if (trimmed.isNotEmpty) {
+            results.add(DeviceContact(contact.displayName ?? '', 'invalid:$trimmed'));
+          }
         }
       }
     }
