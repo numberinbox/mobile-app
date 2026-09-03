@@ -15,7 +15,8 @@ class Country {
 
   String buildE164(String phone) {
     final digits = phone.replaceAll(RegExp(r'[\s\-().]'), '');
-    return '$dialCode$digits';
+    final stripped = digits.startsWith('0') ? digits.substring(1) : digits;
+    return '$dialCode$stripped';
   }
 
   bool isValidPhone(String phone) {

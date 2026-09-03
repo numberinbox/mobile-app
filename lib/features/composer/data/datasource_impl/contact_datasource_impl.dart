@@ -3,6 +3,7 @@ import 'package:contacts_service/contacts_service.dart' as contact_service;
 import 'package:get/get.dart';
 import 'package:model/model.dart';
 import 'package:tmail_ui_user/features/composer/data/datasource/contact_datasource.dart';
+import 'package:tmail_ui_user/features/numberinbox/contacts/phone_contact_mapper.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
 
 class ContactDataSourceImpl extends ContactDataSource {
@@ -29,12 +30,23 @@ class ContactDataSourceImpl extends ContactDataSource {
   }
 
   List<DeviceContact> _toDeviceContact(contact_service.Contact contact) {
+    final results = <DeviceContact>[];
     if (contact.emails != null) {
-      return contact.emails!
-        .where((email) => email.value != null && GetUtils.isEmail(email.value!))
-        .map((email) => DeviceContact(contact.displayName ?? '', email.value ?? ''))
-        .toList();
+      results.addAll(contact.emails!
+          .where((email) => email.value != null && GetUtils.isEmail(email.value!))
+          .map((email) => DeviceContact(contact.displayName ?? '', email.value ?? '')));
     }
-    return <DeviceContact>[];
+    if (contact.phones != null) {
+      const mapper = PhoneContactMapper();
+      for (final phone in contact.phones!) {
+        final raw = phone.value ?? '';
+        if (raw.isEmpty) continue;
+        final email = mapper.mapPhoneNumber(raw);
+        if (email != null) {
+          results.add(DeviceContact(contact.displayName ?? '', email));
+        }
+      }
+    }
+    return results;
   }
 }

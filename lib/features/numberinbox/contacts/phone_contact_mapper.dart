@@ -2,29 +2,15 @@
 ///
 /// Takes phone numbers from the device contact directory, normalizes them
 /// to E.164 format, and appends `@numberinbox.com` to create email addresses.
+import '../phone_number_parser.dart';
+
 class PhoneContactMapper {
   const PhoneContactMapper();
-
-  static const _emailDomain = 'numberinbox.com';
 
   /// Normalizes a raw phone number string and returns a NumberInbox email
   /// address, or `null` if the number is invalid/too-short.
   String? mapPhoneNumber(String raw) {
-    final cleaned = raw.replaceAll(RegExp(r'[\s\-().]'), '');
-    if (cleaned.isEmpty) return null;
-
-    String digits;
-    if (cleaned.startsWith('+')) {
-      digits = cleaned.substring(1);
-    } else if (cleaned.startsWith('0')) {
-      digits = '66${cleaned.substring(1)}';
-    } else {
-      return null;
-    }
-
-    if (!RegExp(r'^\d{8,15}$').hasMatch(digits)) return null;
-
-    return '+$digits @$_emailDomain'.replaceAll(' ', '');
+    return PhoneNumberParser().toEmail(raw);
   }
 
   /// Maps a single contact's phone numbers to [MappedContact] entries.
