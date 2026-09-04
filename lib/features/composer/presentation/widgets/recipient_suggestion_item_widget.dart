@@ -38,7 +38,7 @@ class RecipientSuggestionItemWidget extends StatelessWidget {
       final raw = emailAddress.emailAddress.replaceFirst('invalid:', '');
       return Container(
         color: highlight ? AppColor.colorItemSelected : Colors.white,
-        height: ComposerStyle.suggestionItemHeight,
+        constraints: const BoxConstraints(minHeight: ComposerStyle.suggestionItemHeight),
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(
@@ -67,7 +67,7 @@ class RecipientSuggestionItemWidget extends StatelessWidget {
                             const SizedBox(width: 4),
                             Expanded(
                               child: Text(
-                                '$raw — Invalid — Select country',
+                                'Select country',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: RecipientSuggestionItemWidgetStyle.labelTextStyle.copyWith(color: Colors.orange.shade700),

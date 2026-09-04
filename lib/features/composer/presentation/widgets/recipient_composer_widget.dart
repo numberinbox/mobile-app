@@ -19,6 +19,7 @@ import 'package:model/extensions/email_address_extension.dart';
 import 'package:model/extensions/list_email_address_extension.dart';
 import 'package:super_tag_editor/tag_editor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/list_address_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/phone_input_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/list_named_address_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/mail_address_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/prefix_email_address_extension.dart';
@@ -302,14 +303,17 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
                               selectedCountry: countries.first,
                               onSelected: (country) {
                                 final parser = PhoneNumberParser();
-                                final e164 = parser.parseToE164(raw, defaultRegion: country.code);
-                                if (e164 != null) {
-                                  final validEmail = EmailAddress(displayName, '$e164@numberinbox.com');
+                                final e164 = parser.parseToE164(raw, defaultRegion: country.code)
+                                  ?? country.buildE164(raw);
+                                final validEmail = EmailAddress(displayName, '$e164@numberinbox.com');
+                                setState(() {
+                                  _currentListEmailAddress.removeWhere((e) =>
+                                    e.emailAddress == raw || e.emailAddress == '${raw}@numberinbox.com');
                                   if (!_isDuplicatedRecipient(validEmail.emailAddress)) {
-                                    stateSetter(() => _currentListEmailAddress.add(validEmail));
-                                    _updateListEmailAddressAction();
+                                    _currentListEmailAddress.add(validEmail);
                                   }
-                                }
+                                });
+                                _updateListEmailAddressAction();
                                 tagEditorState.resetTextField();
                                 tagEditorState.closeSuggestionBox();
                               },
@@ -508,6 +512,14 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
     final currentTextOnTextField = widget.controller?.text ?? '';
     if (currentTextOnTextField.isEmpty) {
       return [];
+    }
+
+    if (tmailSuggestion.isEmpty && processedQuery.looksLikePhoneNumber) {
+      tmailSuggestion.add(SuggestionEmailAddress(
+        EmailAddress('', processedQuery),
+        state: SuggestionEmailState.invalidPhone,
+        rawPhone: processedQuery,
+      ));
     }
 
     return tmailSuggestion.toSet().toList();

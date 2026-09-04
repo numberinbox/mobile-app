@@ -16,6 +16,10 @@ class Country {
   String buildE164(String phone) {
     final digits = phone.replaceAll(RegExp(r'[\s\-().]'), '');
     final stripped = digits.startsWith('0') ? digits.substring(1) : digits;
+    final dialDigits = dialCode.substring(1);
+    if (stripped.startsWith(dialDigits)) {
+      return '+$stripped';
+    }
     return '$dialCode$stripped';
   }
 
