@@ -45,7 +45,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                       text: TextSpan(
                         children: [
                           TextSpan(
-                            text: 'Number',
+                            text: 'Number ',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.w700,
