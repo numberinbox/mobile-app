@@ -136,6 +136,9 @@ import 'package:tmail_ui_user/main/exceptions/remote/authentication_exception.da
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
+import 'package:tmail_ui_user/main/routes/app_routes.dart';
+import 'package:tmail_ui_user/main/routes/dialog_router.dart';
+import 'package:tmail_ui_user/features/contact/presentation/model/contact_arguments.dart';
 import 'package:tmail_ui_user/main/universal_import/html_stub.dart' as html;
 import 'package:workplace/domain/entity/drive_document.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_handler.dart';
@@ -1686,6 +1689,50 @@ class ComposerController extends BaseController
     }
 
     updatePrefixRootState();
+  }
+
+  Future<void> openContactPicker(PrefixEmailAddress prefix) async {
+    final accountId = mailboxDashBoardController.accountId.value;
+    final session = mailboxDashBoardController.sessionCurrent;
+    if (accountId == null || session == null) return;
+
+    final currentList = _getListEmailAddressByPrefix(prefix);
+    final selectedSet = currentList
+        .map((e) => e.emailAddress)
+        .where((s) => s.isNotEmpty)
+        .toSet();
+
+    final args = ContactArguments(
+      accountId: accountId,
+      session: session,
+      selectedContactList: selectedSet,
+      contactViewTitle: AppLocalizations.of(Get.context!).contact,
+    );
+
+    final result = await DialogRouter().pushGeneralDialog(
+      routeName: AppRoutes.contact,
+      arguments: args,
+    );
+
+    if (result is List<EmailAddress> && result.isNotEmpty) {
+      final merged = <EmailAddress>{...currentList, ...result}.toList();
+      updateListEmailAddress(prefix, merged);
+    }
+  }
+
+  List<EmailAddress> _getListEmailAddressByPrefix(PrefixEmailAddress prefix) {
+    switch (prefix) {
+      case PrefixEmailAddress.to:
+        return listToEmailAddress;
+      case PrefixEmailAddress.cc:
+        return listCcEmailAddress;
+      case PrefixEmailAddress.bcc:
+        return listBccEmailAddress;
+      case PrefixEmailAddress.replyTo:
+        return listReplyToEmailAddress;
+      default:
+        return [];
+    }
   }
 
   void clearFocusRecipients() {

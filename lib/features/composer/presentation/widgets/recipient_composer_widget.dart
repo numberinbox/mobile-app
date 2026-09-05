@@ -45,6 +45,7 @@ typedef OnFocusEmailAddressChangeAction = void Function(PrefixEmailAddress prefi
 typedef OnRemoveDraggableEmailAddressAction = void Function(DraggableEmailAddress draggableEmailAddress);
 typedef OnDeleteTagAction = void Function(EmailAddress emailAddress);
 typedef OnEnableAllRecipientsInputAction = void Function(bool isEnabled);
+typedef OnOpenContactPickerAction = void Function(PrefixEmailAddress prefix);
 typedef OnEditRecipientAction = void Function(
   BuildContext context,
   PrefixEmailAddress prefix,
@@ -81,6 +82,7 @@ class RecipientComposerWidget extends StatefulWidget {
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final OnEnableAllRecipientsInputAction? onEnableAllRecipientsInputAction;
+  final OnOpenContactPickerAction? onOpenContactPickerAction;
   final bool isTestingForWeb;
   final int minInputLengthAutocomplete;
   final String? composerId;
@@ -116,6 +118,7 @@ class RecipientComposerWidget extends StatefulWidget {
     this.onFocusNextAddressAction,
     this.onRemoveDraggableEmailAddressAction,
     this.onEnableAllRecipientsInputAction,
+    this.onOpenContactPickerAction,
     this.focusNodeKeyboard,
     this.onEditRecipientAction,
     this.onClearFocusAction,
@@ -308,7 +311,7 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
                                 final validEmail = EmailAddress(displayName, '$e164@numberinbox.com');
                                 setState(() {
                                   _currentListEmailAddress.removeWhere((e) =>
-                                    e.emailAddress == raw || e.emailAddress == '${raw}@numberinbox.com');
+                                    e.emailAddress == raw || e.emailAddress == '$raw@numberinbox.com');
                                   if (!_isDuplicatedRecipient(validEmail.emailAddress)) {
                                     _currentListEmailAddress.add(validEmail);
                                   }
@@ -357,7 +360,10 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           ),
           if (widget.prefix == widget.prefixRootState && _isWeb && !isMobileResponsive)
             ..._buildListPrefixWidgets(),
-          if (_isShowExpandButton(isMobileResponsive)) _buildExpandButton(),
+          if (_isShowExpandButton(isMobileResponsive)) ...[
+            _buildContactButton(),
+            _buildExpandButton(),
+          ],
           if (widget.prefix != widget.prefixRootState && _isWeb && !isMobileResponsive)
             TMailButtonWidget.fromIcon(
               icon: widget.imagePaths.icClose,
@@ -467,6 +473,21 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           widget.onEnableAllRecipientsInputAction?.call(
             _isAllRecipientInputEnabled,
           ),
+    );
+  }
+
+  Widget _buildContactButton() {
+    return Padding(
+      padding: RecipientComposerWidgetStyle.enableRecipientButtonMargin,
+      child: GestureDetector(
+        key: Key('prefix_${widget.prefix.name}_recipient_contact_button'),
+        onTap: () => widget.onOpenContactPickerAction?.call(widget.prefix),
+        child: const Icon(
+          Icons.contacts_outlined,
+          size: 24,
+          color: AppColor.colorLabelComposer,
+        ),
+      ),
     );
   }
 
