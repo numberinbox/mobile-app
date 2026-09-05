@@ -10,13 +10,13 @@ class AboutNumberInbox extends StatelessWidget {
         'NumberInbox Mail is based on Twake Mail (Linagora), licensed AGPL-3.0. '
         'Source: https://github.com/numberinbox/mobile-app';
     return Scaffold(
-      appBar: AppBar(title: const Text('About NumberInbox')),
+      appBar: AppBar(title: const Text('About Number Inbox')),
       body: const Padding(
         padding: EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('NumberInbox',
+            Text('Number Inbox',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
             SizedBox(height: 8),
             Text('Your number is your inbox'),
