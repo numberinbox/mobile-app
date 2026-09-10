@@ -19,116 +19,112 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
     ]);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
         decoration: BoxDecoration(
           gradient: LinagoraSysColors.material().linearGradientStartingPage,
         ),
-        child: Stack(
-          children: [
-            // Logo + description centered
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      child: SvgPicture.asset(
-                        'assets/images/ic_numberinbox_logo.svg',
-                        width: 80,
-                        height: 80,
-                      ),
-                    ),
-                    RichText(
-                      text: TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Number ',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.black,
-                              fontFamily: 'Inter',
-                            ),
+        child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Column(
+                      children: [
+                        const Spacer(flex: 3),
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: SvgPicture.asset(
+                            'assets/images/ic_tmail_logo.svg',
+                            width: 80,
+                            height: 80,
                           ),
-                          TextSpan(
-                            text: 'Inbox',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFF2196F3),
-                              fontFamily: 'Inter',
-                            ),
+                        ),
+                        RichText(
+                          text: TextSpan(
+                            children: [
+                              TextSpan(
+                                text: 'Number',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.black,
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                              TextSpan(
+                                text: ' Inbox',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2196F3),
+                                  fontFamily: 'Inter',
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                  ],
-                ),
-              ),
-            ),
-
-            // OTP form + privacy at bottom
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-                child: GetBuilder<TwakeWelcomeController>(
-                  builder: (ctrl) => Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (ctrl.phase == OtpPhase.phone) ...[
-                        _buildPhoneRow(context, ctrl),
-                        const SizedBox(height: 16),
-                        _buildSendCodeButton(context, ctrl),
-                      ] else ...[
-                        _buildCodeField(context, ctrl),
-                        const SizedBox(height: 16),
-                        _buildVerifyButton(context, ctrl),
-                      ],
-                      if (ctrl.error != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          ctrl.error!,
-                          key: const Key('otp_error'),
-                          style: TextStyle(
-                            color: Theme.of(context).colorScheme.error,
-                            fontSize: 14,
+                        ),
+                        const SizedBox(height: 8),
+                        const Spacer(flex: 2),
+                        GetBuilder<TwakeWelcomeController>(
+                          builder: (ctrl) => Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (ctrl.phase == OtpPhase.phone) ...[
+                                _buildPhoneRow(context, ctrl),
+                                const SizedBox(height: 16),
+                                _buildSendCodeButton(context, ctrl),
+                              ] else ...[
+                                _buildCodeField(context, ctrl),
+                                const SizedBox(height: 16),
+                                _buildVerifyButton(context, ctrl),
+                              ],
+                              if (ctrl.error != null) ...[
+                                const SizedBox(height: 12),
+                                Text(
+                                  ctrl.error!,
+                                  key: const Key('otp_error'),
+                                  style: TextStyle(
+                                    color: Theme.of(context).colorScheme.error,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ],
+                              const SizedBox(height: 32),
+                              Text(
+                                'By continuing, you are agreeing to our',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: LinagoraSysColors.material().outlineVariantDark,
+                                ),
+                              ),
+                              InkWell(
+                                onTap: () => AppUtils.launchLink(AppConfig.linagoraPrivacyUrl),
+                                child: Text(
+                                  'Privacy policy',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    color: LinagoraSysColors.material().primary,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                            ],
                           ),
                         ),
                       ],
-                      const SizedBox(height: 32),
-                      Text(
-                        'By continuing, you are agreeing to our',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: LinagoraSysColors.material().outlineVariantDark,
-                        ),
-                      ),
-                      InkWell(
-                        onTap: () => AppUtils.launchLink(AppConfig.linagoraPrivacyUrl),
-                        child: Text(
-                          'Privacy policy',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: LinagoraSysColors.material().primary,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              );
+            },
+          ),
         ),
       ),
     );

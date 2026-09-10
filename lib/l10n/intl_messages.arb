@@ -872,7 +872,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "NumberInbox",
+  "app_name": "Number Inbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -3990,7 +3990,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "pleaseAllowNotifications": "Please allow notifications from Twake Mail in the device's Settings",
+  "pleaseAllowNotifications": "Please allow notifications from NumberInbox in the device's Settings",
   "@pleaseAllowNotifications": {
     "type": "text",
     "placeholders_order": [],

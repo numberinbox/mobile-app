@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
+import 'package:tmail_ui_user/main/utils/app_config.dart';
 
 /// Manages JMAP session configuration after OTP login.
 ///
@@ -10,13 +11,12 @@ import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.
 class JmapSessionManager {
   JmapSessionManager({String? baseUrl}) : _baseUrl = baseUrl;
 
-  static const _defaultBaseUrl = 'https://jmap.numberinbox.com';
   static const _jmapPath = '/jmap';
 
   final String? _baseUrl;
 
   /// The JMAP server base URL (without trailing path).
-  String get baseUrl => _baseUrl ?? _defaultBaseUrl;
+  String get baseUrl => _baseUrl ?? AppConfig.jmapBaseUrl;
 
   /// The full JMAP session endpoint (`{baseUrl}/jmap`).
   String get sessionEndpoint => '$baseUrl$_jmapPath';

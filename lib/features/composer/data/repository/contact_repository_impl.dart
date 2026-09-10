@@ -13,4 +13,9 @@ class ContactRepositoryImpl implements ContactRepository {
   Future<List<Contact>> getContactSuggestions(AutoCompletePattern autoCompletePattern) {
     return _contactDataSource.getContactSuggestions(autoCompletePattern);
   }
+
+  @override
+  Future<List<Contact>> getAllContacts() {
+    return _contactDataSource.getAllContacts();
+  }
 }

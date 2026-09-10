@@ -14,6 +14,7 @@ import 'package:super_tag_editor/tag_editor.dart';
 import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/base/mixin/date_range_picker_mixin.dart';
 import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
+import 'package:tmail_ui_user/features/composer/domain/model/contact_permission.dart';
 import 'package:tmail_ui_user/features/composer/domain/model/contact_suggestion_source.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/get_autocomplete_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/get_device_contact_suggestions_state.dart';
@@ -118,12 +119,12 @@ class EmailRecoveryController extends BaseController with DateRangePickerMixin {
 
   void _checkContactPermission() async {
     final permissionStatus = await Permission.contacts.status;
-    if (permissionStatus.isGranted) {
+    if (permissionStatus.allowsDeviceContacts) {
       _contactSuggestionSource = ContactSuggestionSource.all;
     } else if (!permissionStatus.isPermanentlyDenied) {
       final requestedPermission = await Permission.contacts.request();
-      _contactSuggestionSource = 
-        requestedPermission == PermissionStatus.granted
+      _contactSuggestionSource =
+        requestedPermission.allowsDeviceContacts
           ? ContactSuggestionSource.all
           : _contactSuggestionSource;
     }

@@ -90,6 +90,8 @@ class ContactView extends GetWidget<ContactController> {
                           child: Obx(() {
                             if (controller.searchStatus.value == SearchStatus.ACTIVE) {
                               return _buildSearchedContactListView();
+                            } else if (controller.allDeviceContacts.isNotEmpty) {
+                              return _buildAllContactsListView();
                             } else {
                               return _buildSelectedContactListView();
                             }
@@ -161,6 +163,33 @@ class ContactView extends GetWidget<ContactController> {
         itemBuilder: (context, index) {
           return ContactItemWidget(
             emailAddress: controller.selectedContactList[index],
+            selectedContactList: controller.selectedContactList,
+            imagePaths: controller.imagePaths,
+            responsiveUtils: controller.responsiveUtils,
+            onSelectContactAction: controller.handleOnSelectContactAction,
+            onDeleteContactAction: controller.handleOnDeleteContactAction,
+          );
+        }
+      );
+    });
+  }
+
+  Widget _buildAllContactsListView() {
+    return Obx(() {
+      return ListView.separated(
+        itemCount: controller.allDeviceContacts.length,
+        separatorBuilder: (context, index) {
+          return Padding(
+            padding: ContactViewStyle.getDividerSearchResultListPadding(
+              context,
+              controller.responsiveUtils
+            ),
+            child: const Divider(height: 1, color: AppColor.colorDivider),
+          );
+        },
+        itemBuilder: (context, index) {
+          return ContactItemWidget(
+            emailAddress: controller.allDeviceContacts[index],
             selectedContactList: controller.selectedContactList,
             imagePaths: controller.imagePaths,
             responsiveUtils: controller.responsiveUtils,

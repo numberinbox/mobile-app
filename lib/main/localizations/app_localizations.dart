@@ -4160,7 +4160,7 @@ class AppLocalizations {
 
   String get pleaseAllowNotifications {
     return Intl.message(
-      'Please allow notifications from Twake Mail in the device\'s Settings',
+      'Please allow notifications from NumberInbox in the device\'s Settings',
       name: 'pleaseAllowNotifications',
     );
   }

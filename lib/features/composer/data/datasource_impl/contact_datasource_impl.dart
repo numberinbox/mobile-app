@@ -29,6 +29,18 @@ class ContactDataSourceImpl extends ContactDataSource {
     }).catchError(_exceptionThrower.throwException);
   }
 
+  @override
+  Future<List<Contact>> getAllContacts() async {
+    return Future.sync(() async {
+      final allContacts = await contact_service.ContactsService.getContacts();
+      final results = <DeviceContact>[];
+      for (final contact in allContacts) {
+        results.addAll(_toDeviceContact(contact));
+      }
+      return results;
+    }).catchError(_exceptionThrower.throwException);
+  }
+
   List<DeviceContact> _toDeviceContact(contact_service.Contact contact) {
     final results = <DeviceContact>[];
     if (contact.emails != null) {

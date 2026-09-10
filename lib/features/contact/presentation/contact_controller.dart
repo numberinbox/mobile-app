@@ -17,11 +17,15 @@ import 'package:model/extensions/email_address_extension.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/base/mixin/auto_complete_result_mixin.dart';
+import 'package:tmail_ui_user/features/composer/domain/model/contact_permission.dart';
 import 'package:tmail_ui_user/features/composer/domain/model/contact_suggestion_source.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/get_all_device_contacts_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/get_all_autocomplete_interactor.dart';
+import 'package:tmail_ui_user/features/composer/domain/usecases/get_all_device_contacts_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/get_autocomplete_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/get_device_contact_suggestions_interactor.dart';
 import 'package:tmail_ui_user/features/contact/presentation/model/contact_arguments.dart';
+import 'package:tmail_ui_user/features/contact/presentation/utils/contact_search_filter.dart';
 import 'package:tmail_ui_user/features/contact/presentation/widgets/contact_suggestion_box_item.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/search_query.dart';
 import 'package:tmail_ui_user/features/thread/domain/state/search_email_state.dart';
@@ -38,6 +42,7 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
   final searchQuery = SearchQuery.initial().obs;
   final searchedContactList = RxList<EmailAddress>();
   final selectedContactList = RxList<EmailAddress>();
+  final allDeviceContacts = RxList<EmailAddress>();
   final contactArguments = Rxn<ContactArguments>();
   final searchStatus = SearchStatus.INACTIVE.obs;
   final searchViewState = Rx<Either<Failure, Success>>(Right(UIState.idle));
@@ -140,23 +145,46 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
 
   void _checkContactPermission() async {
     final permissionStatus = await Permission.contacts.status;
-    if (permissionStatus.isGranted) {
+    if (permissionStatus.allowsDeviceContacts) {
       _contactSuggestionSource = ContactSuggestionSource.all;
+      await _loadAllDeviceContacts();
     } else if (!permissionStatus.isPermanentlyDenied) {
       final requestedPermission = await Permission.contacts.request();
-      _contactSuggestionSource = requestedPermission == PermissionStatus.granted
-          ? ContactSuggestionSource.all
-          : _contactSuggestionSource;
+      if (requestedPermission.allowsDeviceContacts) {
+        _contactSuggestionSource = ContactSuggestionSource.all;
+        await _loadAllDeviceContacts();
+      }
+    }
+  }
+
+  Future<void> _loadAllDeviceContacts() async {
+    try {
+      final getAllInteractor = getBinding<GetAllDeviceContactsInteractor>();
+      if (getAllInteractor != null) {
+        final result = await getAllInteractor.execute();
+        result.fold(
+          (failure) => log('ContactController::_loadAllDeviceContacts(): failure: $failure'),
+          (success) {
+            if (success is GetAllDeviceContactsSuccess) {
+              allDeviceContacts.value = success.listEmailAddress;
+              log('ContactController::_loadAllDeviceContacts(): loaded ${allDeviceContacts.length} contacts');
+            }
+          },
+        );
+      }
+    } catch (e) {
+      log('ContactController::_loadAllDeviceContacts(): error: $e');
     }
   }
 
   Future<void> _searchContactByNameOrEmail(String query) async {
     log('ContactController::_searchContactByNameOrEmail(): query: $query');
     final listContact = await _getAutoCompleteSuggestion(query);
-    if (query.isEmail && !listContact.any((emailAddress) => emailAddress.email == query)) {
-      listContact.add(EmailAddress(null, query));
-    }
-    searchedContactList.value = listContact;
+    searchedContactList.value = mergeContactResults(
+      localMatches: filterLocalContacts(query, allDeviceContacts),
+      serverResults: listContact,
+      query: query,
+    );
   }
 
   Future<List<EmailAddress>> _getAutoCompleteSuggestion(String queryString) async {
@@ -214,6 +242,10 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
   void handleOnDeleteContactAction(EmailAddress emailAddress) {
     log('ContactController::handleOnDeleteContactAction:emailAddress = $emailAddress');
     selectedContactList.removeWhere((contact) => contact.emailAddress == emailAddress.emailAddress);
+  }
+
+  void setAllDeviceContacts(List<EmailAddress> contacts) {
+    allDeviceContacts.value = contacts;
   }
 
   void closeContactView() {

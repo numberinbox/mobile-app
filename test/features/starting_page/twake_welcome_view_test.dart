@@ -274,4 +274,38 @@ void main() {
       expect(find.byKey(const Key('otp_code_field')), findsOneWidget);
     });
   });
+
+  group('layout', () {
+    testWidgets('no overlap between logo and phone field when keyboard is open', (tester) async {
+      tester.view.physicalSize = const Size(375, 400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await pumpScreen(tester);
+
+      final logo = tester.getRect(find.byType(SvgPicture));
+      final phoneField = tester.getRect(find.byKey(const Key('otp_phone_field')));
+
+      expect(
+        logo.bottom <= phoneField.top,
+        isTrue,
+        reason: 'Logo (bottom=${logo.bottom}) should be above phone field (top=${phoneField.top})',
+      );
+
+      tester.view.resetPhysicalSize();
+    });
+
+    testWidgets('no overlap in normal viewport', (tester) async {
+      await pumpScreen(tester);
+
+      final logo = tester.getRect(find.byType(SvgPicture));
+      final phoneField = tester.getRect(find.byKey(const Key('otp_phone_field')));
+
+      expect(
+        logo.bottom <= phoneField.top,
+        isTrue,
+        reason: 'Logo (bottom=${logo.bottom}) should be above phone field (top=${phoneField.top})',
+      );
+    });
+  });
 }

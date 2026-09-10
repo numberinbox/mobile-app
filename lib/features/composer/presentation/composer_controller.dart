@@ -41,6 +41,7 @@ import 'package:tmail_ui_user/features/base/state/button_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/compose_email_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/extensions/set_method_exception_description_extension.dart';
+import 'package:tmail_ui_user/features/composer/domain/model/contact_permission.dart';
 import 'package:tmail_ui_user/features/composer/domain/model/contact_suggestion_source.dart';
 import 'package:tmail_ui_user/features/composer/domain/repository/composer_repository.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/download_image_as_base64_state.dart';
@@ -1220,11 +1221,11 @@ class ComposerController extends BaseController
 
   void _checkContactPermission() async {
     final permissionStatus = await Permission.contacts.status;
-    if (permissionStatus.isGranted) {
+    if (permissionStatus.allowsDeviceContacts) {
       _contactSuggestionSource = ContactSuggestionSource.all;
     } else if (!permissionStatus.isPermanentlyDenied) {
       final requestedPermission = await Permission.contacts.request();
-      _contactSuggestionSource = requestedPermission == PermissionStatus.granted
+      _contactSuggestionSource = requestedPermission.allowsDeviceContacts
           ? ContactSuggestionSource.all
           : _contactSuggestionSource;
     }

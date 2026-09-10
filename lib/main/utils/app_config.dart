@@ -21,6 +21,15 @@ class AppConfig {
   static const String saasRegistrationUrl = 'https://sign-up.numberinbox.com';
   static const String saasJmapServerUrl = 'https://jmap.numberinbox.com';
 
+  static const String jmapBaseUrl = String.fromEnvironment(
+    'JMAP_BASE_URL',
+    defaultValue: 'https://jmap.numberinbox.com',
+  );
+  static const String apiBaseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://89.167.49.202:18080',
+  );
+
   static String get baseUrl => dotenv.get('SERVER_URL', fallback: '');
   static String get domainRedirectUrl => dotenv.get('DOMAIN_REDIRECT_URL', fallback: '');
   static String get webOidcClientId => dotenv.get('WEB_OIDC_CLIENT_ID', fallback: '');

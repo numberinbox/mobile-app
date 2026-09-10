@@ -360,10 +360,10 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           ),
           if (widget.prefix == widget.prefixRootState && _isWeb && !isMobileResponsive)
             ..._buildListPrefixWidgets(),
-          if (_isShowExpandButton(isMobileResponsive)) ...[
+          if (_isShowContactButton(isMobileResponsive))
             _buildContactButton(),
+          if (_isShowExpandButton(isMobileResponsive))
             _buildExpandButton(),
-          ],
           if (widget.prefix != widget.prefixRootState && _isWeb && !isMobileResponsive)
             TMailButtonWidget.fromIcon(
               icon: widget.imagePaths.icClose,
@@ -435,6 +435,17 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           onTapActionCallback: () => widget.onAddEmailAddressTypeAction?.call(PrefixEmailAddress.replyTo),
         ),
     ];
+  }
+
+  bool _isShowContactButton(bool isMobileResponsive) {
+    if (_isWeb && !isMobileResponsive) return false;
+
+    return switch (widget.prefix) {
+      PrefixEmailAddress.to => widget.toState == PrefixRecipientState.enabled,
+      PrefixEmailAddress.cc => widget.ccState == PrefixRecipientState.enabled,
+      PrefixEmailAddress.bcc => widget.bccState == PrefixRecipientState.enabled,
+      _ => false,
+    };
   }
 
   bool _isShowExpandButton(bool isMobileResponsive) {

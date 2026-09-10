@@ -9,7 +9,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>NumberInbox</string>
+		<string>Number Inbox</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -17,7 +17,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>NumberInbox</string>
+		<string>Number Inbox</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -55,7 +55,7 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSContactsUsageDescription</key>
-		<string>Used by Team-Mail for Email address auto-completion. You can easily to find the email address in your contact book to send the email.</string>
+		<string>Used by Number Inbox for email address auto-completion.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>To save photo to library, we need permission to access your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>
