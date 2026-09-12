@@ -19,6 +19,19 @@ List<EmailAddress> filterLocalContacts(
       .toList();
 }
 
+/// Subtitle shown under a contact's name in the picker.
+///
+/// Phone-derived contacts carry their E.164 number inside a mapped
+/// `+E164@numberinbox.com` address. This is a number-first app, so display
+/// just the phone number instead of the routing address.
+String displaySubtitleForContact(EmailAddress address) {
+  final match = _mappedPhonePattern.firstMatch(address.emailAddress);
+  if (match != null) return match.group(1)!;
+  return address.emailAddress;
+}
+
+final _mappedPhonePattern = RegExp(r'^(\+\d+)@numberinbox\.com$');
+
 /// Merges locally-filtered device contacts with server-side autocomplete
 /// results. Local matches come first; duplicates (by email) and raw-email
 /// echo follow the same rules as the server path.

@@ -46,6 +46,29 @@ void main() {
     });
   });
 
+  group('displaySubtitleForContact', () {
+    test('shows phone number for mapped phone contacts', () {
+      final result = displaySubtitleForContact(
+        EmailAddress('Bob', '+66812345678@numberinbox.com'),
+      );
+      expect(result, '+66812345678');
+    });
+
+    test('shows email unchanged for email contacts', () {
+      final result = displaySubtitleForContact(
+        EmailAddress('Anna Haro', 'anna-haro@mac.com'),
+      );
+      expect(result, 'anna-haro@mac.com');
+    });
+
+    test('shows email unchanged for plus-addressed non-mapped emails', () {
+      final result = displaySubtitleForContact(
+        EmailAddress('Shop', '+deals@other.com'),
+      );
+      expect(result, '+deals@other.com');
+    });
+  });
+
   group('mergeContactResults', () {
     test('puts local matches first', () {
       final result = mergeContactResults(

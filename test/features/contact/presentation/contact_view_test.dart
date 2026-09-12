@@ -104,6 +104,17 @@ void main() {
       expect(find.text('John Doe'), findsOneWidget);
     });
 
+    testWidgets('shows phone number (not mapped email) for phone contacts', (tester) async {
+      Get.find<ContactController>().setAllDeviceContacts([
+        EmailAddress('Bob', '+66812345678@numberinbox.com'),
+      ]);
+
+      await pumpView(tester);
+
+      expect(find.text('+66812345678'), findsOneWidget);
+      expect(find.text('+66812345678@numberinbox.com'), findsNothing);
+    });
+
     testWidgets('shows nothing when no contacts loaded and none selected', (tester) async {
       await pumpView(tester);
 

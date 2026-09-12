@@ -137,14 +137,24 @@ void main() {
     Get.put<AuthorizationInterceptors>(authIsolateInterceptors, tag: BindingTag.isolateTag);
 
     controller = TwakeWelcomeController(authClient: client);
+    // OTP-flow tests below run as Thailand regardless of test env locale.
+    controller.onCountrySelected(
+      countries.firstWhere((c) => c.code == 'TH'),
+    );
   });
 
   tearDown(() => Get.reset());
 
   group('initial state', () {
-    test('country defaults to Thailand', () {
-      expect(controller.selectedCountry.code, 'TH');
-      expect(controller.selectedCountry.dialCode, '+66');
+    test('country defaults to device locale', () {
+      // Fresh controller: default must follow the device locale helper,
+      // not a hardcoded country.
+      final fresh = TwakeWelcomeController(authClient: client);
+      expect(
+        fresh.selectedCountry.code,
+        countryForRegionCode(deviceRegionCode()).code,
+      );
+      fresh.dispose();
     });
 
     test('phase is phone', () {

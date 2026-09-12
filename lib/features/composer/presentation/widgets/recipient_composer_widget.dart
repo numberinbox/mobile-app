@@ -303,7 +303,7 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
                             final displayName = suggestionEmailAddress.emailAddress.displayName;
                             showCountryPicker(
                               context: context,
-                              selectedCountry: countries.first,
+                              selectedCountry: defaultCountry(),
                               onSelected: (country) {
                                 final parser = PhoneNumberParser();
                                 final e164 = parser.parseToE164(raw, defaultRegion: country.code)

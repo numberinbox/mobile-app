@@ -205,12 +205,20 @@ void main() {
   });
 
   group('OTP flow', () {
+    Future<void> pumpScreenAsThailand(WidgetTester tester) async {
+      await pumpScreen(tester);
+      Get.find<TwakeWelcomeController>().onCountrySelected(
+        countries.firstWhere((c) => c.code == 'TH'),
+      );
+      await tester.pump();
+    }
+
     testWidgets('send code transitions to code phase', (tester) async {
       adapter.onPost('/v1/otp/start',
           (server) => server.reply(200, {'ok': true}),
           data: {'e164': '+66812345678'});
 
-      await pumpScreen(tester);
+      await pumpScreenAsThailand(tester);
       await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
       await tester.tap(find.byKey(const Key('otp_send_cta')));
       await tester.pumpAndSettle();
@@ -224,7 +232,7 @@ void main() {
           (server) => server.reply(500, {'error': 'internal'}),
           data: {'e164': '+66812345678'});
 
-      await pumpScreen(tester);
+      await pumpScreenAsThailand(tester);
       await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
       await tester.tap(find.byKey(const Key('otp_send_cta')));
       await tester.pumpAndSettle();
@@ -237,7 +245,7 @@ void main() {
           (server) => server.reply(429, {'error': 'rate_limited'}),
           data: {'e164': '+66812345678'});
 
-      await pumpScreen(tester);
+      await pumpScreenAsThailand(tester);
       await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
       await tester.tap(find.byKey(const Key('otp_send_cta')));
       await tester.pumpAndSettle();
@@ -258,7 +266,7 @@ void main() {
         }
       }), data: {'e164': '+66812345678', 'code': '123456'});
 
-      await pumpScreen(tester);
+      await pumpScreenAsThailand(tester);
       await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
       await tester.tap(find.byKey(const Key('otp_send_cta')));
       await tester.pumpAndSettle();

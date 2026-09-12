@@ -34,7 +34,7 @@ class TwakeWelcomeController extends ReloadableController {
   final codeController = TextEditingController();
 
   OtpPhase _phase = OtpPhase.phone;
-  Country _selectedCountry = countries.first;
+  Country _selectedCountry = defaultCountry();
   String? _error;
   bool _sending = false;
   bool _verifying = false;

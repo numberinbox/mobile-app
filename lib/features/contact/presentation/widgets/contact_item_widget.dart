@@ -8,6 +8,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:model/extensions/email_address_extension.dart';
 import 'package:tmail_ui_user/features/contact/presentation/styles/contact_item_widget_style.dart';
+import 'package:tmail_ui_user/features/contact/presentation/utils/contact_search_filter.dart';
 
 typedef OnSelectContactAction = Function(EmailAddress emailAddress);
 typedef OnDeleteContactAction = Function(EmailAddress emailAddress);
@@ -60,7 +61,7 @@ class ContactItemWidget extends StatelessWidget {
                   Padding(
                     padding: const EdgeInsets.only(top: 2),
                     child: Text(
-                      emailAddress.emailAddress,
+                      displaySubtitleForContact(emailAddress),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: ContactItemWidgetStyle.emailAddressTextStyle

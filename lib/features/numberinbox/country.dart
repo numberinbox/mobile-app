@@ -1,4 +1,36 @@
+import 'dart:ui' as ui;
+
 import 'package:dlibphonenumber/dlibphonenumber.dart';
+
+/// ISO 3166 region code from the device locale (e.g. 'TH', 'US').
+/// Null when the locale carries no country.
+String? deviceRegionCode() {
+  try {
+    final code = ui.PlatformDispatcher.instance.locale.countryCode;
+    if (code != null && code.isNotEmpty) return code;
+  } catch (_) {}
+  return null;
+}
+
+/// Resolves an ISO region code to its [Country], case-insensitively.
+/// Falls back to Thailand (first in [countries]) for null/unknown codes so
+/// existing behavior is preserved where no locale is available.
+Country countryForRegionCode(String? code) {
+  if (code != null && code.isNotEmpty) {
+    final upper = code.toUpperCase();
+    for (final country in countries) {
+      if (country.code == upper) return country;
+    }
+  }
+  return countries.first;
+}
+
+/// Default country for pickers: device locale, falling back to Thailand.
+/// [regionOverride] exists for tests and callers with their own region.
+Country defaultCountry({String? regionOverride}) {
+  if (regionOverride != null) return countryForRegionCode(regionOverride);
+  return countryForRegionCode(deviceRegionCode());
+}
 
 class Country {
   const Country({
