@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:linagora_design_flutter/linagora_design_flutter.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/twake_welcome_controller.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
@@ -22,9 +22,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinagoraSysColors.material().linearGradientStartingPage,
-        ),
+        color: Colors.white,
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -35,40 +33,31 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                   child: IntrinsicHeight(
                     child: Column(
                       children: [
-                        const Spacer(flex: 3),
+                        const Spacer(flex: 2),
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: SvgPicture.asset(
-                            'assets/images/ic_tmail_logo.svg',
-                            width: 80,
-                            height: 80,
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Image.asset(
+                            'assets/images/numberinbox_mark.png',
+                            width: 104,
+                            height: 104,
                           ),
                         ),
-                        RichText(
-                          text: TextSpan(
-                            children: [
-                              TextSpan(
-                                text: 'Number',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700,
-                                  color: Colors.black,
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                              TextSpan(
-                                text: ' Inbox',
-                                style: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w700,
-                                  color: Color(0xFF2196F3),
-                                  fontFamily: 'Inter',
-                                ),
-                              ),
-                            ],
+                        SvgPicture.asset(
+                          'assets/images/numberinbox_wordmark.svg',
+                          semanticsLabel: 'NumberInbox',
+                          width: 244,
+                          height: 48,
+                          fit: BoxFit.contain,
+                        ),
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Email, reimagined with your number.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 15,
+                            color: NumberInboxPalette.navy,
                           ),
                         ),
-                        const SizedBox(height: 8),
                         const Spacer(flex: 2),
                         GetBuilder<TwakeWelcomeController>(
                           builder: (ctrl) => Column(
@@ -100,7 +89,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                                 style: TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
-                                  color: LinagoraSysColors.material().outlineVariantDark,
+                                  color: NumberInboxPalette.navy,
                                 ),
                               ),
                               InkWell(
@@ -110,8 +99,16 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: LinagoraSysColors.material().primary,
+                                    color: NumberInboxPalette.actionBlue,
                                   ),
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              const Text(
+                                'Your number. Your inbox.',
+                                style: TextStyle(
+                                  color: NumberInboxPalette.actionGreen,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                               const SizedBox(height: 16),
@@ -140,7 +137,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
             decoration: BoxDecoration(
               border: Border.all(color: Theme.of(context).colorScheme.outline),
-              borderRadius: BorderRadius.circular(4),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               mainAxisSize: MainAxisSize.min,
@@ -162,7 +159,9 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
               hintText: 'Phone number',
-              border: OutlineInputBorder(),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(14)),
+              ),
               isDense: true,
               contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
             ),
@@ -175,16 +174,31 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
   Widget _buildSendCodeButton(BuildContext context, TwakeWelcomeController ctrl) {
     return SizedBox(
       width: double.infinity,
-      child: FilledButton(
-        key: const Key('otp_send_cta'),
-        onPressed: ctrl.sending ? null : () => ctrl.sendCode(),
-        child: ctrl.sending
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Text('Send code'),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(colors: [
+            NumberInboxPalette.actionGreen,
+            NumberInboxPalette.actionBlue,
+          ]),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: FilledButton(
+          key: const Key('otp_send_cta'),
+          style: FilledButton.styleFrom(
+            backgroundColor: Colors.transparent,
+            disabledBackgroundColor: Colors.transparent,
+            shadowColor: Colors.transparent,
+            minimumSize: const Size.fromHeight(54),
+          ),
+          onPressed: ctrl.sending ? null : () => ctrl.sendCode(),
+          child: ctrl.sending
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Text('Send code'),
+        ),
       ),
     );
   }
@@ -198,7 +212,9 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
       decoration: const InputDecoration(
         labelText: 'Verification code',
         hintText: '123456',
-        border: OutlineInputBorder(),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(14)),
+        ),
       ),
     );
   }

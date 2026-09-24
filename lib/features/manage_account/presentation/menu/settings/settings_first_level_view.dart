@@ -6,6 +6,7 @@ import 'package:model/extensions/session_extension.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/user_information_widget.dart';
+import 'package:tmail_ui_user/features/numberinbox/about_numberinbox.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/setting_user_info_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/settings_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings_utils.dart';
@@ -235,6 +236,15 @@ class SettingsFirstLevelView extends GetWidget<SettingsController> {
             ),
           ]);
         }),
+        divider,
+        ListTile(
+          key: const Key('setting_about_numberinbox'),
+          leading: const Icon(Icons.info_outline, color: AppColor.primaryColor),
+          title: const Text('About NumberInbox'),
+          onTap: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const AboutNumberInbox()),
+          ),
+        ),
         divider,
         _buildSettingItem(
           context: context,

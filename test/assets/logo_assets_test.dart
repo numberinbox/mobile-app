@@ -17,13 +17,13 @@ void main() {
       test('$name has outlined letter paths', () {
         final content = File(name).readAsStringSync();
         expect(content.contains('<path'), isTrue);
-        expect(content.contains('fill="black"'), isTrue);
-        expect(content.contains('#2196F3'), isTrue);
+        expect(content.contains('#0F172A'), isTrue);
+        expect(content.contains('#10B981'), isTrue);
       });
 
       test('$name keeps brand icon', () {
         final content = File(name).readAsStringSync();
-        expect(content.contains('iconGrad'), isTrue);
+        expect(content.contains('<linearGradient'), isTrue);
       });
     }
   });

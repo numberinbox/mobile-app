@@ -1,23 +1,32 @@
-<svg width="197" height="197" viewBox="0 0 197 197" fill="none" xmlns="http://www.w3.org/2000/svg">
-<rect width="196.105" height="196.105" rx="64.7641" fill="white"/>
-<rect width="196.105" height="196.105" rx="64.7641" fill="url(#paint0_linear_56880_7724)"/>
-<g filter="url(#filter0_d_56880_7724)">
-<path fill-rule="evenodd" clip-rule="evenodd" d="M40.3522 72.1511C35.719 75.6845 33 81.1775 33 87.0043V140.32C33 152.7 43.0357 162.735 55.4154 162.735H140.585C152.964 162.735 163 152.7 163 140.32V87.0043C163 81.1775 160.281 75.6845 155.648 72.1511L109.327 36.8263C102.637 31.7246 93.3625 31.7245 86.6727 36.8263L40.3522 72.1511ZM47.4444 84.8395V141.101C47.4444 145.227 50.7897 148.573 54.9163 148.573H141.084C145.21 148.573 148.556 145.227 148.556 141.101V84.8395L106.573 114.243C101.426 117.847 94.5741 117.847 89.4274 114.243L47.4444 84.8395Z" fill="white"/>
-</g>
-<defs>
-<filter id="filter0_d_56880_7724" x="23" y="25" width="150" height="149.735" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
-<feFlood flood-opacity="0" result="BackgroundImageFix"/>
-<feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
-<feOffset dy="2"/>
-<feGaussianBlur stdDeviation="5"/>
-<feComposite in2="hardAlpha" operator="out"/>
-<feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.1 0"/>
-<feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow_56880_7724"/>
-<feBlend mode="normal" in="SourceGraphic" in2="effect1_dropShadow_56880_7724" result="shape"/>
-</filter>
-<linearGradient id="paint0_linear_56880_7724" x1="27.5" y1="175.5" x2="191.5" y2="9.5" gradientUnits="userSpaceOnUse">
-<stop stop-color="#1E91FF"/>
-<stop offset="0.997303" stop-color="#2ED9FF"/>
-</linearGradient>
-</defs>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">NumberInbox full-color mark</title>
+  <desc id="desc">A green and blue letter N with a white at symbol.</desc>
+  <defs>
+    <linearGradient id="left" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#22E6A7"/>
+      <stop offset="1" stop-color="#10B981"/>
+    </linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2="0.8" y2="1">
+      <stop offset="0" stop-color="#16D4E8"/>
+      <stop offset="1" stop-color="#0787F5"/>
+    </linearGradient>
+    <linearGradient id="diagonal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#15D99D"/>
+      <stop offset="0.52" stop-color="#08BFD2"/>
+      <stop offset="1" stop-color="#087BF1"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="10" stdDeviation="12" flood-color="#0F172A" flood-opacity="0.24"/>
+    </filter>
+    <filter id="atShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#047E9B" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <g>
+    <rect x="70" y="66" width="132" height="380" rx="66" fill="url(#left)"/>
+    <rect x="310" y="66" width="132" height="380" rx="66" fill="url(#right)"/>
+    <rect x="191" y="15" width="130" height="482" rx="65" transform="rotate(-45 256 256)" fill="url(#diagonal)"/>
+  </g>
+  <circle cx="256" cy="256" r="88" fill="url(#diagonal)"/>
+  <g data-glyph="at" fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"><circle cx="256" cy="256" r="29"/><path d="M285 227v36a22 22 0 0 0 43 0v-7a72 72 0 1 0-29 58"/></g>
 </svg>

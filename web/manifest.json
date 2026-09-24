@@ -1,11 +1,11 @@
 {
-    "name": "NumberInbox - JMAP Email Client",
+    "name": "NumberInbox",
     "short_name": "NumberInbox",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "NumberInbox - JMAP Email Client",
+    "background_color": "#0F172A",
+    "theme_color": "#0F172A",
+    "description": "Email, reimagined with your number.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -6,7 +6,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "login_text_slogan": "Number Inbox",
+  "login_text_slogan": "NumberInbox",
   "@login_text_slogan": {
     "type": "text",
     "placeholders_order": [],
@@ -872,7 +872,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Number Inbox",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],
@@ -2778,7 +2778,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "teamMailBoxes": "Team-mailboxes",
+  "teamMailBoxes": "Shared-mailboxes",
   "@teamMailBoxes": {
     "type": "text",
     "placeholders_order": [],

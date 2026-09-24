@@ -1,5 +1,6 @@
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:dio/dio.dart';
@@ -49,16 +50,7 @@ void main() {
   late DioAdapter adapter;
   late NumberInboxAuthClient client;
 
-  final testTheme = ThemeData(
-    colorScheme: ColorScheme.fromSeed(
-      seedColor: const Color(0xFF0B3D2E),
-      primary: const Color(0xFF0B3D2E),
-      surface: const Color(0xFF111111),
-      error: const Color(0xFFFF0000),
-      outline: const Color(0xFF888888),
-      onSurface: const Color(0xFFCCCCCC),
-    ),
-  );
+  final testTheme = ThemeUtils.buildAppTheme();
 
   void registerStubs() {
     Get.put<CachingManager>(_MockCachingManager());
@@ -106,9 +98,8 @@ void main() {
   });
 
   group('rendering', () {
-    testWidgets('renders gradient background', (tester) async {
+    testWidgets('renders light brand background', (tester) async {
       await pumpScreen(tester);
-      // The gradient container should exist
       expect(find.byType(Container), findsWidgets);
     });
 
@@ -119,14 +110,10 @@ void main() {
 
     testWidgets('renders NumberInbox branding text', (tester) async {
       await pumpScreen(tester);
-      final richTexts = find.byType(RichText);
-      expect(richTexts, findsWidgets);
-      final hasBranding = richTexts.evaluate().any((el) {
-        final widget = el.widget as RichText;
-        final text = (widget.text as TextSpan).toPlainText();
-        return text.contains('Number') && text.contains('Inbox');
-      });
-      expect(hasBranding, isTrue);
+      expect(find.byWidgetPredicate((widget) =>
+        widget is SvgPicture && widget.semanticsLabel == 'NumberInbox'),
+        findsOneWidget);
+      expect(find.text('Email, reimagined with your number.'), findsOneWidget);
     });
 
     testWidgets('does not render Twake branding', (tester) async {

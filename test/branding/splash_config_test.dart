@@ -10,8 +10,8 @@ void main() {
 
   test('native splash uses brand background', () {
     expect(splash, isNotNull);
-    expect((splash!['color'] as String).toLowerCase(), '#0b3d2e',
-        reason: 'splash background must be the deep-green brand color');
+    expect((splash!['color'] as String).toLowerCase(), '#0f172a',
+        reason: 'splash background must match the navy brand launch screen');
   });
 
   test('no Twake branding assets on the splash', () {

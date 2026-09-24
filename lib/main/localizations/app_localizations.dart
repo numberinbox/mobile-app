@@ -2842,7 +2842,7 @@ class AppLocalizations {
 
   String get teamMailBoxes {
     return Intl.message(
-      'Team-mailboxes',
+      'Shared-mailboxes',
       name: 'teamMailBoxes');
   }
 

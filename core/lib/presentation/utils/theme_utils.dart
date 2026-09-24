@@ -1,5 +1,6 @@
 import 'package:core/presentation/constants/constants_ui.dart';
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:linagora_design_flutter/style/linagora_text_theme.dart';
@@ -7,15 +8,53 @@ import 'package:linagora_design_flutter/style/linagora_text_theme.dart';
 class ThemeUtils {
   ThemeUtils._();
 
-  static ThemeData buildAppTheme(BuildContext context) {
+  static ThemeData buildAppTheme([BuildContext? context]) {
     return ThemeData(
+      useMaterial3: true,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: NumberInboxPalette.emerald,
+      ).copyWith(
+        primary: NumberInboxPalette.actionGreen,
+        onPrimary: Colors.white,
+        secondary: NumberInboxPalette.actionBlue,
+        onSecondary: Colors.white,
+        surface: Colors.white,
+        onSurface: NumberInboxPalette.navy,
+        outline: NumberInboxPalette.coolGray,
+      ),
       scaffoldBackgroundColor: Colors.white,
       fontFamily: _designSystemFontFamily,
       fontFamilyFallback: ConstantsUI.fontFamilyFallback,
       appBarTheme: _appBarTheme,
       textTheme: _textTheme,
       extensions: [_textThemeExtension],
-      hoverColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
+      hoverColor: NumberInboxPalette.actionGreen.withValues(alpha: 0.08),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: NumberInboxPalette.actionGreen,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: NumberInboxPalette.actionGreen,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        ),
+      ),
+      inputDecorationTheme: InputDecorationTheme(
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: NumberInboxPalette.coolGray),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: NumberInboxPalette.actionGreen, width: 2),
+        ),
+      ),
       textSelectionTheme: _textSelectionTheme,
       dividerTheme: _dividerTheme,
       visualDensity: VisualDensity.adaptivePlatformDensity,
@@ -363,9 +402,9 @@ class ThemeUtils {
     backgroundColor: Colors.white,
     elevation: 0,
     systemOverlayStyle: SystemUiOverlayStyle.light,
-    iconTheme: const IconThemeData(color: Colors.black),
+    iconTheme: const IconThemeData(color: NumberInboxPalette.navy),
     titleTextStyle: defaultTextStyleInterFont.copyWith(
-      color: const Color(0XFF8B8B8B),
+      color: NumberInboxPalette.navy,
       fontSize: 18,
     ),
     toolbarTextStyle: defaultTextStyleInterFont,

@@ -9,7 +9,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>Number Inbox</string>
+		<string>NumberInbox</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -17,7 +17,7 @@
 		<key>CFBundleInfoDictionaryVersion</key>
 		<string>6.0</string>
 		<key>CFBundleName</key>
-		<string>Number Inbox</string>
+		<string>NumberInbox</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
@@ -55,7 +55,7 @@
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
 		<key>NSContactsUsageDescription</key>
-		<string>Used by Number Inbox for email address auto-completion.</string>
+		<string>Used by NumberInbox for email address auto-completion.</string>
 		<key>NSPhotoLibraryAddUsageDescription</key>
 		<string>To save photo to library, we need permission to access your photo library.</string>
 		<key>NSPhotoLibraryUsageDescription</key>

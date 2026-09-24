@@ -52,7 +52,7 @@ class FileLinkCardHtmlBuilder {
         '<div style="font-size:14px;font-weight:500;color:#1F2937;white-space:nowrap;'
         'overflow:hidden;text-overflow:ellipsis;" title="$safeTitle">$safeTitle</div>'
         '<div style="display:block;margin-top:6px;font-size:12px;'
-        'color:#0A84FF;white-space:nowrap;overflow:hidden;'
+        'color:#047857;white-space:nowrap;overflow:hidden;'
         'text-overflow:ellipsis;">$safeActionLabel ↗</div>'
         '</div>'
         '</a>';

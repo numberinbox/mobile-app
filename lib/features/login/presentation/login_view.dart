@@ -5,6 +5,7 @@ import 'package:core/presentation/views/text/type_ahead_form_field_builder.dart'
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:tmail_ui_user/features/base/widget/application_version_widget.dart';
+import 'package:tmail_ui_user/features/base/widget/application_logo_with_text_widget.dart';
 import 'package:tmail_ui_user/features/base/widget/recent_item_tile_widget.dart';
 import 'package:tmail_ui_user/features/login/domain/model/recent_login_url.dart';
 import 'package:tmail_ui_user/features/login/presentation/base_login_view.dart';
@@ -82,6 +83,18 @@ class LoginView extends BaseLoginView {
           mainAxisAlignment: MainAxisAlignment.start,
           mainAxisSize: MainAxisSize.max,
           children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 32, bottom: 12),
+              child: ApplicationLogoWidthTextWidget(iconSize: 38),
+            ),
+            Text(
+              'Email, reimagined with your number.',
+              textAlign: TextAlign.center,
+              style: ThemeUtils.defaultTextStyleInterFont.copyWith(
+                fontSize: 14,
+                color: AppColor.textPrimary,
+              ),
+            ),
             Padding(
               padding: EdgeInsets.only(
                 top: controller.responsiveUtils.isHeightShortest(context) ? 64 : 0),

@@ -1,9 +1,7 @@
 import 'package:core/presentation/resources/image_paths.dart';
-import 'package:core/presentation/views/button/tmail_button_widget.dart';
-import 'package:core/utils/platform_info.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
-import 'package:tmail_ui_user/main/utils/app_config.dart';
 
 class ApplicationLogoWidthTextWidget extends StatelessWidget {
 
@@ -22,17 +20,22 @@ class ApplicationLogoWidthTextWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final logoSize = iconSize ?? 44;
-    return TMailButtonWidget.fromIcon(
-      icon: PlatformInfo.isWeb && AppConfig.isSaasPlatForm
-        ? _imagePaths.icLogoWithText
-        : _imagePaths.icLogoWithText,
-      iconSize: logoSize,
-      padding: EdgeInsets.zero,
-      margin: margin,
-      backgroundColor: Colors.transparent,
-      hoverColor: Colors.transparent,
-      onTapActionCallback: onTapAction,
+    final logoHeight = iconSize ?? 44;
+    final logo = Semantics(
+      label: 'NumberInbox',
+      image: true,
+      child: SvgPicture.asset(
+        _imagePaths.icLogoWithText,
+        width: logoHeight * 1600 / 360,
+        height: logoHeight,
+        fit: BoxFit.contain,
+      ),
+    );
+    return Padding(
+      padding: margin ?? EdgeInsets.zero,
+      child: onTapAction == null
+          ? logo
+          : InkWell(onTap: onTapAction, child: logo),
     );
   }
 }

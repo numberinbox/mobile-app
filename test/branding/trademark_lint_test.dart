@@ -7,15 +7,23 @@ import 'package:flutter_test/flutter_test.dart';
 /// Phase 1 scope: user-visible branding surfaces + config identifiers.
 /// Internal code identifiers are handled separately.
 void main() {
-  final forbidden = ['Twake', 'Linagora', 'linagora', 'TeamMail', 'teammail', 'TWAKE'];
+  final forbidden = [
+    'Twake',
+    'Linagora',
+    'linagora',
+    'TeamMail',
+    'teammail',
+    'TWAKE',
+  ];
   final allowed = [
     'based on Twake Mail (Linagora)', // AGPL attribution
-    'com:linagora:params:jmap:',      // JMAP protocol URIs
-    'linagora_design_flutter',        // external dependency
-    'twake_previewer_flutter',        // external dependency
-    'TwakeInter',                     // external font family name
-    'font-family:',                   // CSS font declarations
-    'linagoraPrivacyUrl',             // upstream API compat constant name
+    'com:linagora:params:jmap:', // JMAP protocol URIs
+    'linagora_design_flutter', // external dependency
+    'twake_previewer_flutter', // external dependency
+    'TwakeInter', // external font family name
+    'font-family:', // CSS font declarations
+    'linagoraPrivacyUrl', // upstream API compat constant name
+    'com.linagora.android.tmail.MainActivity', // internal Android class name
   ];
 
   bool hasViolation(String line) {
@@ -50,8 +58,11 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'trademarks in web assets:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'trademarks in web assets:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -79,8 +90,11 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'trademarks in iOS config:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'trademarks in iOS config:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -104,8 +118,11 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'trademarks in Android config:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'trademarks in Android config:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -132,8 +149,11 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'trademarks in Flutter source:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'trademarks in Flutter source:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -153,8 +173,11 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'teamMailBoxes in arb files:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'teamMailBoxes in arb files:\n${violations.join('\n')}',
+      );
     });
 
     test('no Twake Mail in pleaseAllowNotifications arb value', () {
@@ -172,8 +195,12 @@ void main() {
           }
         }
       }
-      expect(violations, isEmpty,
-          reason: 'Twake Mail in pleaseAllowNotifications:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason:
+            'Twake Mail in pleaseAllowNotifications:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -194,8 +221,11 @@ void main() {
           violations.add(path);
         }
       }
-      expect(violations, isEmpty,
-          reason: 'old URL scheme in:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'old URL scheme in:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -218,8 +248,11 @@ void main() {
           violations.add(path);
         }
       }
-      expect(violations, isEmpty,
-          reason: 'linagora bundle IDs in:\n${violations.join('\n')}');
+      expect(
+        violations,
+        isEmpty,
+        reason: 'linagora bundle IDs in:\n${violations.join('\n')}',
+      );
     });
   });
 
@@ -231,8 +264,7 @@ void main() {
       final content = file.readAsStringSync();
       final match = RegExp(r'"app_name"\s*:\s*"([^"]*)"').firstMatch(content);
       if (match == null) continue;
-      expect(match.group(1), 'NumberInbox',
-          reason: '${file.path} app_name');
+      expect(match.group(1), 'NumberInbox', reason: '${file.path} app_name');
     }
   });
 }

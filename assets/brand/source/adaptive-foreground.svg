@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="title desc">
+  <title id="title">NumberInbox adaptive icon foreground</title>
+  <desc id="desc">The full-color NumberInbox mark centered inside a 660-pixel adaptive-icon safe zone.</desc>
+  <defs>
+    <linearGradient id="left" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#22E6A7"/><stop offset="1" stop-color="#10B981"/></linearGradient>
+    <linearGradient id="right" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#16D4E8"/><stop offset="1" stop-color="#0787F5"/></linearGradient>
+    <linearGradient id="diagonal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#15D99D"/><stop offset=".52" stop-color="#08BFD2"/><stop offset="1" stop-color="#087BF1"/></linearGradient>
+  </defs>
+  <g transform="translate(67.5 67.5) scale(1.736328125)">
+    <rect x="70" y="66" width="132" height="380" rx="66" fill="url(#left)"/>
+    <rect x="310" y="66" width="132" height="380" rx="66" fill="url(#right)"/>
+    <rect x="191" y="15" width="130" height="482" rx="65" transform="rotate(-45 256 256)" fill="url(#diagonal)"/>
+    <circle cx="256" cy="256" r="88" fill="url(#diagonal)"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"><circle cx="256" cy="256" r="29"/><path d="M285 227v36a22 22 0 0 0 43 0v-7a72 72 0 1 0-29 58"/></g>
+  </g>
+</svg>

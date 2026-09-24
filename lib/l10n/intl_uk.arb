@@ -967,7 +967,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "app_name": "Number Inbox",
+  "app_name": "NumberInbox",
   "@app_name": {
     "type": "text",
     "placeholders_order": [],

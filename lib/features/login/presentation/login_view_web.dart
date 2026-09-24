@@ -1,10 +1,10 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/responsive/responsive_widget.dart';
 import 'package:core/presentation/views/text/slogan_builder.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get_state_manager/src/rx_flutter/rx_obx_widget.dart';
 import 'package:tmail_ui_user/features/base/widget/application_logo_with_text_widget.dart';
 import 'package:tmail_ui_user/features/base/widget/application_version_widget.dart';
@@ -22,7 +22,7 @@ class LoginView extends BaseLoginView {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColor.primaryLightColor,
+      backgroundColor: NumberInboxPalette.ice,
       body: Center(child: SingleChildScrollView(
           child: ResponsiveWidget(
             responsiveUtils: controller.responsiveUtils,
@@ -44,6 +44,14 @@ class LoginView extends BaseLoginView {
               Padding(
                 padding: const EdgeInsets.only(top: 67),
                 child: ApplicationLogoWidthTextWidget()
+              ),
+              const Padding(
+                padding: EdgeInsets.only(top: 16),
+                child: Text(
+                  'Email, reimagined with your number.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: NumberInboxPalette.navy),
+                ),
               ),
               Padding(
                 padding: const EdgeInsets.only(top: 67),
@@ -98,7 +106,7 @@ class LoginView extends BaseLoginView {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppLocalizations.of(context).jmapBasedMailSolution,
+                  'Email, reimagined\nwith your number.',
                   style: ThemeUtils.defaultTextStyleInterFont.copyWith(
                     fontSize: 36,
                     color: AppColor.colorNameEmail,
@@ -167,10 +175,11 @@ class LoginView extends BaseLoginView {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 44),
-                  child: SvgPicture.asset(
-                    controller.imagePaths.icLoginGraphic,
-                    fit: BoxFit.fill,
-                    alignment: Alignment.center
+                  child: Image.asset(
+                    'assets/images/numberinbox_mark.png',
+                    width: 180,
+                    height: 180,
+                    fit: BoxFit.contain,
                   )
                 )
               ],
@@ -204,6 +213,14 @@ class LoginView extends BaseLoginView {
                     Padding(
                       padding: const EdgeInsets.only(top: 66),
                       child: ApplicationLogoWidthTextWidget()
+                    ),
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Text(
+                        'Email, reimagined with your number.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: NumberInboxPalette.navy),
+                      ),
                     ),
                     Padding(
                       padding: const EdgeInsets.only(top: 67),

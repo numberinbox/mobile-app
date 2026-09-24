@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" role="img" aria-labelledby="title desc">
+  <title id="title">NumberInbox notification icon</title>
+  <desc id="desc">A simplified solid white NumberInbox N for small Android status-bar sizes.</desc>
+  <g transform="translate(12 12) scale(.140625)" fill="#FFFFFF">
+    <rect x="70" y="66" width="132" height="380" rx="66"/>
+    <rect x="310" y="66" width="132" height="380" rx="66"/>
+    <rect x="191" y="15" width="130" height="482" rx="65" transform="rotate(-45 256 256)"/>
+  </g>
+</svg>
