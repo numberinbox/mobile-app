@@ -2,5 +2,5 @@ flutter_icons:
   android: true
   ios: true
   image_path: assets/icons/icon_ni_logo.png
-  adaptive_icon_background: "#0F172A"
+  adaptive_icon_background: "#F5F7EB"
   adaptive_icon_foreground: assets/icons/icon_ni_foreground.png
