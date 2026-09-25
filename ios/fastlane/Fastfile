@@ -49,14 +49,18 @@ platform :ios do
       type: "appstore",
       git_private_key: ENV["APPLE_CERTIFICATES_SSH_KEY"]
     )
+    # Use the pubspec version for the archive and Sentry. A fresh checkout need
+    # not have any Git tags, and pubspec is the app version's source of truth.
+    require 'base64'
+    pubspec = File.read(File.expand_path("../../pubspec.yaml", __dir__))
+    sentry_release = pubspec.match(/^version:\s+(\S+)/)[1].split("+").first
     increment_build_number(
       build_number: latest_testflight_build_number + 1
     )
     increment_version_number(
-      version_number: last_git_tag.gsub("v", "").split("-").first
+      version_number: sentry_release
     )
-    # Pass the pubspec version (X.Y.Z, no -rc suffix) to the Dart layer as SENTRY_RELEASE.
-    # Read from pubspec.yaml (same source as CI release.yaml) to guarantee consistency.
+    # Pass the same version to the Dart layer as SENTRY_RELEASE.
     #
     # DART_DEFINES must be a comma-separated list of base64-encoded "KEY=VALUE" entries
     # (matches Flutter's encodeDartDefines in build_info.dart). Flutter 3.38.9 has a bug
@@ -64,9 +68,6 @@ platform :ios do
     # happens when "SENTRY_RELEASE=X.Y.Z" length is divisible by 3. We append a benign
     # padding define ("_FB_PAD=") whose base64 always ends in '==' so the joined value
     # is guaranteed to contain '=', avoiding the Flutter bug.
-    require 'base64'
-    pubspec = File.read(File.expand_path("../../pubspec.yaml", __dir__))
-    sentry_release = pubspec.match(/^version:\s+(\S+)/)[1].split("+").first
     sentry_define = Base64.strict_encode64("SENTRY_RELEASE=#{sentry_release}")
     padding_define = Base64.strict_encode64("_FB_PAD=") # always encodes to "X0ZCX1BBRD0="
     endpoint_defines = endpoints.map { |name, value| Base64.strict_encode64("#{name}=#{value}") }

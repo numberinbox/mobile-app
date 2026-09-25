@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		ABCD00000000000000000003 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */; };
+		ABCD00000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
@@ -121,6 +123,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		06C73A54FA0478D3C89AB5E5 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		07753111B751BFDB3187FE6F /* Pods-TeamMailShareExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TeamMailShareExtension.debug.xcconfig"; path = "Target Support Files/Pods-TeamMailShareExtension/Pods-TeamMailShareExtension.debug.xcconfig"; sourceTree = "<group>"; };
 		143BD7B2CF181BA69CDE351A /* Pods_TeamMailShareExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TeamMailShareExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -286,6 +290,7 @@
 		97C146F01CF9000F007C117D /* Runner */ = {
 			isa = PBXGroup;
 			children = (
+				ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */,
 				C06B95702FAC7800009C15B4 /* SceneDelegate.swift */,
 				4D124E74293A67D900BA5186 /* RunnerProfile.entitlements */,
 				F52F993D27FD733C00346091 /* Runner.entitlements */,
@@ -450,6 +455,7 @@
 		F5D4EA012B2ABF090090DDFC /* TwakeMailNSE */ = {
 			isa = PBXGroup;
 			children = (
+				ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */,
 				F5630C7C2B2CE33A003CC0FD /* Utils */,
 				F5630C792B2CE133003CC0FD /* Model */,
 				F5630C742B2CDFC5003CC0FD /* Keychain */,
@@ -660,6 +666,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABCD00000000000000000003 /* PrivacyInfo.xcprivacy in Resources */,
 				F5550D292B4E90A7003DD2AE /* Localizable.strings in Resources */,
 				97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */,
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
@@ -687,6 +694,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				ABCD00000000000000000004 /* PrivacyInfo.xcprivacy in Resources */,
 				F5550D2A2B4E90A7003DD2AE /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1018,7 +1026,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1160,7 +1168,7 @@
 			baseConfigurationReference = 9740EEB21CF90195004384FC /* Debug.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1194,7 +1202,7 @@
 			baseConfigurationReference = 7AFA3C8E1D35360C0083082E /* Release.xcconfig */;
 			buildSettings = {
 				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ALLOW_NON_MODULAR_INCLUDES_IN_FRAMEWORK_MODULES = YES;
 				CLANG_ENABLE_MODULES = YES;
@@ -1226,7 +1234,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 07753111B751BFDB3187FE6F /* Pods-TeamMailShareExtension.debug.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1272,7 +1280,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = BC08294F5AE09BF8CC592AD1 /* Pods-TeamMailShareExtension.release.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1315,7 +1323,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 1FB76FA91BBCB2BF7B08705B /* Pods-TeamMailShareExtension.profile.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++17";
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -1469,7 +1477,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 5E35AF242935B79C2DCACB65 /* Pods-TwakeMailNSE.debug.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -1517,7 +1525,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 6B7C6E49525344DE515F7373 /* Pods-TwakeMailNSE.release.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
@@ -1562,7 +1570,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = AF31502A83CA492E27C36A7B /* Pods-TwakeMailNSE.profile.xcconfig */;
 			buildSettings = {
-				APP_GROUP_ID = group.com.numberinbox.teammail;
+				APP_GROUP_ID = group.com.numberinbox.app;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = AppIcon;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
