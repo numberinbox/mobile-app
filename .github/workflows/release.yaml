@@ -8,6 +8,9 @@ name: Release
 env:
   FLUTTER_VERSION: 3.38.9
   XCODE_VERSION: 26.2
+  SERVER_URL: https://jmap.numberinbox.com
+  JMAP_BASE_URL: https://jmap.numberinbox.com
+  API_BASE_URL: https://api.numberinbox.com
 
 jobs:
   release:

@@ -10,7 +10,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class NotificationGroup {
-    private val channel = "com.linagora.android.teammail.notification.group.permission"
+    private val channel = "com.numberinbox.app.notification.group.permission"
 
     fun register(flutterEngine: FlutterEngine, applicationContext: Context) {
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, channel).setMethodCallHandler { call, result ->

@@ -27,7 +27,7 @@ class AppConfig {
   );
   static const String apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://89.167.49.202:18080',
+    defaultValue: 'https://api.numberinbox.com',
   );
 
   static String get baseUrl => dotenv.get('SERVER_URL', fallback: '');

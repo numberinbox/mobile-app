@@ -46,7 +46,7 @@ void main() {
   }) {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
       .setMockMethodCallHandler(
-        const MethodChannel('com.linagora.android.teammail.notification.group.permission'),
+        const MethodChannel('com.numberinbox.app.notification.group.permission'),
         (message) async {
           if (message.method == 'getNotificationGroupPermission') {
             return groupIsBlocked;

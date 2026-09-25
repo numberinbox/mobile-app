@@ -340,7 +340,7 @@ dependency_overrides:
 
   # jmap_dart_client incorrectly declares build_runner and json_serializable
   # as regular dependencies. Override here so the workspace can resolve.
-  build_runner: ^2.15.0
+  build_runner: 2.15.0 # 2.15.2 requires Dart 3.11; Flutter 3.38.9 ships Dart 3.10.
   json_serializable: ^6.11.3
   json_annotation: ^4.9.0
 

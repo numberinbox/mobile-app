@@ -7,6 +7,7 @@ import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/user_information_widget.dart';
 import 'package:tmail_ui_user/features/numberinbox/about_numberinbox.dart';
+import 'package:tmail_ui_user/features/numberinbox/account_deletion_page.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/setting_user_info_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/settings_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings_utils.dart';
@@ -251,6 +252,20 @@ class SettingsFirstLevelView extends GetWidget<SettingsController> {
           menuItem: AccountMenuItem.signOut,
           appLocalizations: appLocalizations,
         ),
+        if (PlatformInfo.isMobile) ...[
+          divider,
+          ListTile(
+            key: const Key('setting_delete_account'),
+            leading: Icon(Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error),
+            title: Text('Delete account',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                  builder: (_) => const AccountDeletionPage()),
+            ),
+          ),
+        ],
       ]),
     );
   }

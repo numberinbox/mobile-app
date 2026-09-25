@@ -1,8 +1,9 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:mockito/annotations.dart';
-import 'package:mockito/mockito.dart';
 import 'package:model/account/password.dart';
 import 'package:tmail_ui_user/features/login/data/local/account_cache_manager.dart';
 import 'package:tmail_ui_user/features/login/data/local/token_oidc_cache_manager.dart';
@@ -40,7 +41,7 @@ void main() {
       expect(result, isNull);
     });
 
-    test('should return correct Basic header after setBasicAuthorization', () {
+    test('should return encoded credentials after setBasicAuthorization', () {
       // Act
       interceptor.setBasicAuthorization(
         UserName('+66951987335@numberinbox.test'),
@@ -50,7 +51,9 @@ void main() {
       // Assert
       final result = interceptor.basicAuthorizationHeader;
       expect(result, isNotNull);
-      expect(result, startsWith('Basic '));
+      expect(result, base64Encode(utf8.encode(
+        '+66951987335@numberinbox.test:test-password-123',
+      )));
     });
 
     test('should return null after setting OIDC token clears basic auth', () {
@@ -67,7 +70,8 @@ void main() {
       // The getter still returns the Basic header if _authorization is set.
 
       // Assert
-      expect(interceptor.basicAuthorizationHeader, startsWith('Basic '));
+      expect(interceptor.basicAuthorizationHeader,
+          base64Encode(utf8.encode('user@test.com:pass123')));
     });
   });
 }

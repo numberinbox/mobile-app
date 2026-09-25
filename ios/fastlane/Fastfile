@@ -34,6 +34,11 @@ platform :ios do
 
   desc "Build and deploy release version"
   lane :release do
+    endpoints = %w[SERVER_URL JMAP_BASE_URL API_BASE_URL].to_h do |name|
+      value = ENV.fetch(name)
+      UI.user_error!("#{name} must be a public HTTPS URL") unless value.start_with?("https://") && !value.include?("localhost")
+      [name, value]
+    end
     # App Store Connect API setup
     app_store_connect_api_key(
       key_id: ENV["APPLE_KEY_ID"],
@@ -64,7 +69,8 @@ platform :ios do
     sentry_release = pubspec.match(/^version:\s+(\S+)/)[1].split("+").first
     sentry_define = Base64.strict_encode64("SENTRY_RELEASE=#{sentry_release}")
     padding_define = Base64.strict_encode64("_FB_PAD=") # always encodes to "X0ZCX1BBRD0="
-    dart_defines_value = "#{sentry_define},#{padding_define}"
+    endpoint_defines = endpoints.map { |name, value| Base64.strict_encode64("#{name}=#{value}") }
+    dart_defines_value = ([sentry_define] + endpoint_defines + [padding_define]).join(',')
 
     # Detect Flutter DART_DEFINES bug condition. Warn when the bare sentry_define
     # has no '=' padding (would crash assemble.dart:282 without our workaround),

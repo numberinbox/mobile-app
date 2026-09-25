@@ -24,6 +24,7 @@ void main() {
     'font-family:', // CSS font declarations
     'linagoraPrivacyUrl', // upstream API compat constant name
     'com.linagora.android.tmail.MainActivity', // internal Android class name
+    'com.numberinbox.app.TwakeMailNSE', // existing internal iOS extension bundle ID
   ];
 
   bool hasViolation(String line) {
