@@ -28,6 +28,21 @@ Use this text on both public pages **only after** production backup expiry and r
 
 The restore sentence is part of the promise: verify it before use. If the actual procedure differs, revise the copy to match the deployed behavior rather than publishing it unchanged.
 
+## App Store Connect copy draft
+
+These fields are ready for review but must be entered and checked against the final TestFlight build:
+
+- **Name:** NumberInbox
+- **Subtitle:** Email with your number
+- **Primary category:** Productivity
+- **Privacy Policy URL:** `https://numberinbox.com/privacy`
+- **Support URL:** `https://numberinbox.com/privacy#choices` (contains the public privacy contact; verify it resolves for reviewers)
+- **Description:** “NumberInbox gives your phone number an email mailbox. Sign in with a one-time code, read and manage your mail, get notifications when enabled, and delete your account from Settings. Your NumberInbox address uses your number, so people can reach your inbox without a new username.” Verify every claim in the production build before publishing.
+- **Screenshots:** Capture the real TestFlight app on the required iPhone sizes after the production login and mail flows pass. Do not submit the brand-board mockups as app screenshots.
+- **Review notes:** Explain the dedicated reviewer number, how the reviewer receives its live OTP without team assistance, the populated test mailbox, and where to find Settings → Delete account. Do not put credentials or OTPs in this repository.
+
+Complete the current age-rating questionnaire, App Privacy responses (including the app and its third-party SDKs), encryption/export questions, pricing/availability, and reviewer contact in App Store Connect. These answers require the final production configuration; the draft does not pre-answer them.
+
 ## Submission record
 
 | Item | Value |
