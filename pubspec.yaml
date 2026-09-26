@@ -461,13 +461,11 @@ flutter:
 
 flutter_native_splash:
   color: "#0F172A"
-  image_ios: "assets/icons/icon_ni_android.png"
-  image_android: "assets/icons/icon_ni_android.png"
-  branding: "assets/icons/icon_ni_branding.png"
+  image_ios: "assets/splash/numberinbox_splash_mark.png"
+  image_android: "assets/splash/numberinbox_splash_mark.png"
   android_12:
     color: "#0F172A"
-    image: "assets/icons/icon_ni_android.png"
-    branding: "assets/icons/icon_ni_branding_android12.png"
+    image: "assets/splash/numberinbox_splash_mark_android12.png"
 
 cider:
   link_template:

@@ -43,6 +43,7 @@
        must activate after the SDK bundle so window.Sentry is already populated. -->
   <script src="js/sentry-tracing.min.js?v=1.0.0"></script>
   <script src="js/sentry-interceptor.js?v=1.0.1"></script>
+  <script src="splash/splash.js"></script>
 </head>
 <body>
     <div class="splash-brand" aria-label="NumberInbox loading">
@@ -99,9 +100,7 @@
               const appRunner = await engineInitializer.initializeEngine({
                 fontFallbackBaseUrl: ''
               });
-              await setTimeout( async function () {
-                await appRunner.runApp();
-              }, 2000);
+              await appRunner.runApp();
             }
           });
         });
@@ -111,9 +110,7 @@
           const appRunner = await engineInitializer.initializeEngine({
             fontFallbackBaseUrl: ''
           });
-          await setTimeout( async function () {
-            await appRunner.runApp();
-          }, 2000);
+          await appRunner.runApp();
         }
       });
     }
@@ -121,5 +118,6 @@
   <script src="https://unpkg.com/pica/dist/pica.min.js"></script>
 
 
-</body>
-</html>
+
+
+</body></html>
