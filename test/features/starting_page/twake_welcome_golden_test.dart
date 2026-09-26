@@ -64,7 +64,6 @@ class _MockTwakeAppManager extends Mock implements TwakeAppManager {}
 
 void main() {
   late Dio dio;
-  late DioAdapter adapter;
   late NumberInboxAuthClient client;
 
   final testTheme = ThemeUtils.buildAppTheme();
@@ -144,7 +143,7 @@ void main() {
 
   setUp(() {
     dio = Dio(BaseOptions(baseUrl: 'http://localhost:18080'));
-    adapter = DioAdapter(dio: dio);
+    DioAdapter(dio: dio);
     client = NumberInboxAuthClient(dio);
   });
 

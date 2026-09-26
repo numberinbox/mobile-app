@@ -84,7 +84,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                                 ),
                               ],
                               const SizedBox(height: 32),
-                              Text(
+                              const Text(
                                 'By continuing, you are agreeing to our',
                                 style: TextStyle(
                                   fontSize: 12,
@@ -94,7 +94,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                               ),
                               InkWell(
                                 onTap: () => AppUtils.launchLink(AppConfig.linagoraPrivacyUrl),
-                                child: Text(
+                                child: const Text(
                                   'Privacy policy',
                                   style: TextStyle(
                                     fontSize: 14,

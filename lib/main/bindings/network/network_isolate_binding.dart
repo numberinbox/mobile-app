@@ -1,5 +1,4 @@
 import 'package:core/core.dart';
-import 'package:dio/io.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';

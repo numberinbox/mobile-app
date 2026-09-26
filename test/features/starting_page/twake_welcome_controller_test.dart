@@ -311,7 +311,6 @@ void main() {
         }
       }), data: {'e164': '+66812345678', 'code': '123456'});
 
-      final mockAuthInterceptors = Get.find<AuthorizationInterceptors>();
       final mockDynamicUrlInterceptors = Get.find<DynamicUrlInterceptors>();
 
       controller.phoneController.text = '812345678';

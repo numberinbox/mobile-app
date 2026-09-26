@@ -36,7 +36,7 @@ class HomeView extends GetWidget<HomeController> {
                 right: 0,
                 child: const Column(
                   mainAxisSize: MainAxisSize.min,
-                  children: const [
+                  children: [
                     Image(
                       image: AssetImage(
                           'assets/images/numberinbox_wordmark_dark.png'),

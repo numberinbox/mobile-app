@@ -26,7 +26,7 @@ void main() {
 
     test('builds correct authorization header from OtpSession', () {
       final mgr = JmapSessionManager();
-      final session = OtpSession(
+      const session = OtpSession(
         accessToken: 'jwt-token',
         username: '+66812345678@numberinbox.com',
         sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
@@ -39,7 +39,7 @@ void main() {
 
     test('credential mapping uses credential (not accessToken) as password', () {
       final mgr = JmapSessionManager();
-      final session = OtpSession(
+      const session = OtpSession(
         accessToken: 'jwt-token-should-not-be-used',
         username: '+66812345678@numberinbox.com',
         sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
@@ -53,7 +53,7 @@ void main() {
 
     test('sessionUrl from OtpSession is used as base URL', () {
       final mgr = JmapSessionManager();
-      final session = OtpSession(
+      const session = OtpSession(
         accessToken: 'jwt',
         username: '+66812345678@numberinbox.com',
         sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
@@ -65,7 +65,7 @@ void main() {
 
     test('baseUrlFromSession strips .well-known/jmap suffix', () {
       final mgr = JmapSessionManager();
-      final session = OtpSession(
+      const session = OtpSession(
         accessToken: 'jwt',
         username: '+66812345678@numberinbox.com',
         sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
