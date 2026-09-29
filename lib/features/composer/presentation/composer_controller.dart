@@ -47,6 +47,7 @@ import 'package:tmail_ui_user/features/composer/domain/repository/composer_repos
 import 'package:tmail_ui_user/features/composer/domain/state/download_image_as_base64_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/generate_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/upload_attachment_state.dart';
@@ -213,10 +214,107 @@ class ComposerController extends BaseController
   GetDeviceContactSuggestionsInteractor? _getDeviceContactSuggestionsInteractor;
   RestoreEmailInlineImagesInteractor? restoreEmailInlineImagesInteractor;
 
-  List<EmailAddress> listToEmailAddress = <EmailAddress>[];
-  List<EmailAddress> listCcEmailAddress = <EmailAddress>[];
-  List<EmailAddress> listBccEmailAddress = <EmailAddress>[];
-  List<EmailAddress> listReplyToEmailAddress = <EmailAddress>[];
+  final RxList<EmailAddress> _toRecipients = <EmailAddress>[].obs;
+  final RxList<EmailAddress> _ccRecipients = <EmailAddress>[].obs;
+  final RxList<EmailAddress> _bccRecipients = <EmailAddress>[].obs;
+  final RxList<EmailAddress> _replyToRecipients = <EmailAddress>[].obs;
+
+  /// Growable snapshots; all writes go through the setters below so every
+  /// committed selection is canonicalized, deduplicated, and notified once.
+  List<EmailAddress> get listToEmailAddress => _toRecipients.toList();
+  set listToEmailAddress(List<EmailAddress> value) =>
+      _setRecipients(PrefixEmailAddress.to, value);
+
+  List<EmailAddress> get listCcEmailAddress => _ccRecipients.toList();
+  set listCcEmailAddress(List<EmailAddress> value) =>
+      _setRecipients(PrefixEmailAddress.cc, value);
+
+  List<EmailAddress> get listBccEmailAddress => _bccRecipients.toList();
+  set listBccEmailAddress(List<EmailAddress> value) =>
+      _setRecipients(PrefixEmailAddress.bcc, value);
+
+  List<EmailAddress> get listReplyToEmailAddress =>
+      _replyToRecipients.toList();
+  set listReplyToEmailAddress(List<EmailAddress> value) =>
+      _setRecipients(PrefixEmailAddress.replyTo, value);
+
+  RxList<EmailAddress> _recipientsOf(PrefixEmailAddress prefix) {
+    switch (prefix) {
+      case PrefixEmailAddress.cc:
+        return _ccRecipients;
+      case PrefixEmailAddress.bcc:
+        return _bccRecipients;
+      case PrefixEmailAddress.replyTo:
+        return _replyToRecipients;
+      case PrefixEmailAddress.to:
+      default:
+        return _toRecipients;
+    }
+  }
+
+  void _refreshRecipientState(PrefixEmailAddress prefix) {
+    switch (prefix) {
+      case PrefixEmailAddress.cc:
+        ccRecipientState.refresh();
+        break;
+      case PrefixEmailAddress.bcc:
+        bccRecipientState.refresh();
+        break;
+      case PrefixEmailAddress.replyTo:
+        replyToRecipientState.refresh();
+        break;
+      case PrefixEmailAddress.to:
+      default:
+        toRecipientState.refresh();
+        break;
+    }
+  }
+
+  void _setRecipients(PrefixEmailAddress prefix, List<EmailAddress> value) {
+    _recipientsOf(prefix).assignAll(deduplicateRecipients(value));
+    _refreshRecipientState(prefix);
+  }
+
+  /// Removes one recipient by canonical address and notifies once.
+  void removeRecipient(PrefixEmailAddress prefix, String address) {
+    final key = canonicalRecipientKey(address);
+    _recipientsOf(prefix).removeWhere(
+      (element) => canonicalRecipientKey(element.emailAddress) == key,
+    );
+    _refreshRecipientState(prefix);
+  }
+
+  /// Applies a contact-picker result authoritatively:
+  /// - `null`: dialog dismissed, recipients unchanged.
+  /// - empty: valid clear, the field is emptied.
+  /// - otherwise: the selection replaces the field, canonicalized and
+  ///   deduplicated, keeping an existing nonempty display name when the
+  ///   returned entry has none.
+  void applyContactPickerResult(
+    PrefixEmailAddress prefix,
+    List<EmailAddress>? result,
+  ) {
+    if (result == null) return;
+    if (result.isEmpty) {
+      // Committing through the controller update keeps the recipient
+      // observer and the Send button in sync for the cleared field.
+      updateListEmailAddress(prefix, const <EmailAddress>[]);
+      return;
+    }
+    final existingNames = <String, String?>{
+      for (final entry in _recipientsOf(prefix))
+        canonicalRecipientKey(entry.emailAddress): entry.name,
+    };
+    final canonicalized = deduplicateRecipients(result).map((entry) {
+      final name = (entry.name ?? '').trim().isEmpty
+          ? existingNames[canonicalRecipientKey(entry.email ?? '')]
+          : entry.name;
+      return EmailAddress(name, entry.email);
+    }).toList();
+    // Committing through the controller update keeps the recipient
+    // observer and the Send button in sync for the replaced field.
+    updateListEmailAddress(prefix, canonicalized);
+  }
   ContactSuggestionSource _contactSuggestionSource = ContactSuggestionSource.tMailContact;
 
   final subjectEmailInputController = TextEditingController();
@@ -781,22 +879,9 @@ class ComposerController extends BaseController
     PrefixEmailAddress prefixEmailAddress,
     List<EmailAddress> newListEmailAddress
   ) {
-    switch(prefixEmailAddress) {
-      case PrefixEmailAddress.to:
-        listToEmailAddress = List.from(newListEmailAddress);
-        break;
-      case PrefixEmailAddress.cc:
-        listCcEmailAddress = List.from(newListEmailAddress);
-        break;
-      case PrefixEmailAddress.bcc:
-        listBccEmailAddress = List.from(newListEmailAddress);
-        break;
-      case PrefixEmailAddress.replyTo:
-        listReplyToEmailAddress = List.from(newListEmailAddress);
-        break;
-      default:
-        break;
-    }
+    // Routed through the setters so every update is canonicalized,
+    // deduplicated, and notified exactly once.
+    _setRecipients(prefixEmailAddress, newListEmailAddress);
     updateStatusEmailSendButton();
   }
 
@@ -1698,15 +1783,11 @@ class ComposerController extends BaseController
     if (accountId == null || session == null) return;
 
     final currentList = _getListEmailAddressByPrefix(prefix);
-    final selectedSet = currentList
-        .map((e) => e.emailAddress)
-        .where((s) => s.isNotEmpty)
-        .toSet();
 
     final args = ContactArguments(
       accountId: accountId,
       session: session,
-      selectedContactList: selectedSet,
+      selectedContactList: deduplicateRecipients(currentList),
       contactViewTitle: AppLocalizations.of(Get.context!).contact,
     );
 
@@ -1715,9 +1796,8 @@ class ComposerController extends BaseController
       arguments: args,
     );
 
-    if (result is List<EmailAddress> && result.isNotEmpty) {
-      final merged = <EmailAddress>{...currentList, ...result}.toList();
-      updateListEmailAddress(prefix, merged);
+    if (result is List<EmailAddress>) {
+      applyContactPickerResult(prefix, result.cast<EmailAddress>());
     }
   }
 

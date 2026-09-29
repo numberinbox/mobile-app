@@ -26,6 +26,7 @@ import 'package:tmail_ui_user/features/composer/domain/usecases/get_autocomplete
 import 'package:tmail_ui_user/features/composer/domain/usecases/get_device_contact_suggestions_interactor.dart';
 import 'package:tmail_ui_user/features/contact/presentation/model/contact_arguments.dart';
 import 'package:tmail_ui_user/features/contact/presentation/utils/contact_search_filter.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/features/contact/presentation/widgets/contact_suggestion_box_item.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/search_query.dart';
 import 'package:tmail_ui_user/features/thread/domain/state/search_email_state.dart';
@@ -77,9 +78,10 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
     super.onReady();
     if (contactArguments.value != null) {
       _accountId = contactArguments.value!.accountId;
-      selectedContactList.value = contactArguments.value!.selectedContactList
-        .map((mailAddress) => EmailAddress(null, mailAddress))
-        .toList();
+      // Independent snapshot: later picker edits must not mutate the
+      // caller's list, and display names survive the round trip.
+      selectedContactList.assignAll(
+        deduplicateRecipients(contactArguments.value!.selectedContactList));
       injectAutoCompleteBindings(contactArguments.value!.session, _accountId);
 
       if (selectedContactList.isEmpty) {
@@ -166,7 +168,8 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
           (failure) => log('ContactController::_loadAllDeviceContacts(): failure: $failure'),
           (success) {
             if (success is GetAllDeviceContactsSuccess) {
-              allDeviceContacts.value = success.listEmailAddress;
+              allDeviceContacts.assignAll(
+                deduplicateRecipients(success.listEmailAddress));
               log('ContactController::_loadAllDeviceContacts(): loaded ${allDeviceContacts.length} contacts');
             }
           },
@@ -231,8 +234,9 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
 
   void handleOnSelectContactAction(EmailAddress emailAddress) {
     log('ContactController::selectContact:emailAddress = $emailAddress');
+    final key = canonicalRecipientKey(emailAddress.emailAddress);
     final isEmailAddressExist = selectedContactList
-      .any((contact) => contact.emailAddress == emailAddress.emailAddress);
+      .any((contact) => canonicalRecipientKey(contact.emailAddress) == key);
     log('ContactController::selectContact:isEmailAddressExist = $isEmailAddressExist');
     if (!isEmailAddressExist) {
       selectedContactList.add(emailAddress);
@@ -241,11 +245,13 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
 
   void handleOnDeleteContactAction(EmailAddress emailAddress) {
     log('ContactController::handleOnDeleteContactAction:emailAddress = $emailAddress');
-    selectedContactList.removeWhere((contact) => contact.emailAddress == emailAddress.emailAddress);
+    final key = canonicalRecipientKey(emailAddress.emailAddress);
+    selectedContactList.removeWhere(
+      (contact) => canonicalRecipientKey(contact.emailAddress) == key);
   }
 
   void setAllDeviceContacts(List<EmailAddress> contacts) {
-    allDeviceContacts.value = contacts;
+    allDeviceContacts.assignAll(deduplicateRecipients(contacts));
   }
 
   void closeContactView() {
@@ -258,14 +264,19 @@ class ContactController extends BaseController with AutoCompleteResultMixin {
     selectedContactList.clear();
     textInputSearchFocus.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
-    popBack(result: selectedContactList);
+    popBack(result: _selectionSnapshot());
   }
 
   void handleOnDoneAction() {
     textInputSearchFocus.unfocus();
     FocusManager.instance.primaryFocus?.unfocus();
-    popBack(result: selectedContactList);
+    popBack(result: _selectionSnapshot());
   }
+
+  /// Independent snapshot so later picker lifecycle changes cannot mutate
+  /// the returned value. An empty list is a valid clear.
+  List<EmailAddress> _selectionSnapshot() =>
+      List<EmailAddress>.unmodifiable(selectedContactList.toList());
 
   void handleOnSearchBackAction() {
     textInputSearchController.clear();

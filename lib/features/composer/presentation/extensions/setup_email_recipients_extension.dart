@@ -57,7 +57,9 @@ extension SetupEmailRecipientsExtension on ComposerController {
   void _setupToAddressOnly(ComposerArguments arguments) {
     final emailAddressOfTo = arguments.listEmailAddress ?? [];
     if (emailAddressOfTo.isNotEmpty) {
-      listToEmailAddress.addAll(emailAddressOfTo);
+      // The getter returns a snapshot, so mutate-and-discard would lose the
+      // addresses. Assign through the setter, keeping any existing entries.
+      listToEmailAddress = [...listToEmailAddress, ...emailAddressOfTo];
       isInitialRecipient.value = true;
     }
   }
@@ -68,7 +70,9 @@ extension SetupEmailRecipientsExtension on ComposerController {
     final emailAddressOfBcc = arguments.bcc ?? [];
 
     if (emailAddressOfTo.isNotEmpty) {
-      listToEmailAddress.addAll(emailAddressOfTo);
+      // The getter returns a snapshot, so mutate-and-discard would lose the
+      // addresses. Assign through the setter, keeping any existing entries.
+      listToEmailAddress = [...listToEmailAddress, ...emailAddressOfTo];
       isInitialRecipient.value = true;
     }
     if (emailAddressOfCc.isNotEmpty) {

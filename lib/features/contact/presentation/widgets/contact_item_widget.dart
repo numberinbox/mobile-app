@@ -9,6 +9,7 @@ import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:model/extensions/email_address_extension.dart';
 import 'package:tmail_ui_user/features/contact/presentation/styles/contact_item_widget_style.dart';
 import 'package:tmail_ui_user/features/contact/presentation/utils/contact_search_filter.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 
 typedef OnSelectContactAction = Function(EmailAddress emailAddress);
 typedef OnDeleteContactAction = Function(EmailAddress emailAddress);
@@ -98,6 +99,9 @@ class ContactItemWidget extends StatelessWidget {
     );
   }
 
-  bool get _isSelectedEmailAddress => selectedContactList
-    .any((contact) => contact.emailAddress == emailAddress.emailAddress);
+  bool get _isSelectedEmailAddress {
+    final key = canonicalRecipientKey(emailAddress.emailAddress);
+    return selectedContactList.any(
+      (contact) => canonicalRecipientKey(contact.emailAddress) == key);
+  }
 }

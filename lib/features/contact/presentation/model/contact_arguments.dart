@@ -2,11 +2,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 
 class ContactArguments with EquatableMixin {
   final AccountId accountId;
   final Session session;
-  final Set<String> selectedContactList;
+  final List<EmailAddress> selectedContactList;
   final String? contactViewTitle;
 
   ContactArguments({

@@ -742,7 +742,9 @@ class SearchEmailController extends BaseController
     final arguments = ContactArguments(
       accountId: accountId!,
       session: session!,
-      selectedContactList: selectedContactList,
+      selectedContactList: selectedContactList
+        .map((address) => EmailAddress(null, address))
+        .toList(),
       contactViewTitle: '${AppLocalizations.of(context).findEmails} ${prefixEmailAddress.asName(context).toLowerCase()}'
     );
 

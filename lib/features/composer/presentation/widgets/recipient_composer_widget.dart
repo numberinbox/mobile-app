@@ -140,7 +140,7 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   @override
   void initState() {
     super.initState();
-    _currentListEmailAddress = widget.listEmailAddress;
+    _currentListEmailAddress = List.of(widget.listEmailAddress);
     if (PlatformInfo.isWeb) {
       widget.focusNodeKeyboard?.addListener(_onFocusKeyboardListener);
     }
@@ -150,7 +150,7 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   void didUpdateWidget(covariant RecipientComposerWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.listEmailAddress != widget.listEmailAddress) {
-      _currentListEmailAddress = widget.listEmailAddress;
+      _currentListEmailAddress = List.of(widget.listEmailAddress);
     }
   }
 
@@ -360,10 +360,7 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           ),
           if (widget.prefix == widget.prefixRootState && _isWeb && !isMobileResponsive)
             ..._buildListPrefixWidgets(),
-          if (_isShowContactButton(isMobileResponsive))
-            _buildContactButton(),
-          if (_isShowExpandButton(isMobileResponsive))
-            _buildExpandButton(),
+          ..._buildTrailingActionRow(isMobileResponsive),
           if (widget.prefix != widget.prefixRootState && _isWeb && !isMobileResponsive)
             TMailButtonWidget.fromIcon(
               icon: widget.imagePaths.icClose,
@@ -469,6 +466,26 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
     return shouldCheckPrefix && (isMobileResponsive || !_isWeb);
   }
 
+  /// Trailing Contacts / expand controls in one deterministic row outside the
+  /// editor: an 8-pixel gap, then 48 pixels per visible action. Actions stay
+  /// top-anchored as the recipient row grows.
+  List<Widget> _buildTrailingActionRow(bool isMobileResponsive) {
+    final showContactButton = _isShowContactButton(isMobileResponsive);
+    final showExpandButton = _isShowExpandButton(isMobileResponsive);
+    if (!showContactButton && !showExpandButton) return const [];
+    final actions = <Widget>[
+      if (showContactButton) _buildContactButton(),
+      if (showExpandButton) _buildExpandButton(),
+    ];
+    return [
+      const SizedBox(width: 8),
+      SizedBox(
+        width: showContactButton && showExpandButton ? 96 : 48,
+        child: Row(children: actions),
+      ),
+    ];
+  }
+
   Widget _buildExpandButton() {
     return TMailButtonWidget.fromIcon(
       key: Key('prefix_${widget.prefix.name}_recipient_expand_button'),
@@ -477,9 +494,12 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
           : widget.imagePaths.icChevronDownOutline,
       backgroundColor: Colors.transparent,
       iconSize: 24,
-      padding: const EdgeInsets.all(5),
+      width: 48,
+      height: 48,
+      padding: const EdgeInsets.all(12),
+      margin: EdgeInsets.zero,
+      alignment: Alignment.center,
       iconColor: AppColor.colorLabelComposer,
-      margin: RecipientComposerWidgetStyle.enableRecipientButtonMargin,
       onTapActionCallback: () =>
           widget.onEnableAllRecipientsInputAction?.call(
             _isAllRecipientInputEnabled,
@@ -488,15 +508,19 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   }
 
   Widget _buildContactButton() {
-    return Padding(
-      padding: RecipientComposerWidgetStyle.enableRecipientButtonMargin,
+    return SizedBox(
+      width: 48,
+      height: 48,
       child: GestureDetector(
         key: Key('prefix_${widget.prefix.name}_recipient_contact_button'),
+        behavior: HitTestBehavior.opaque,
         onTap: () => widget.onOpenContactPickerAction?.call(widget.prefix),
-        child: const Icon(
-          Icons.contacts_outlined,
-          size: 24,
-          color: AppColor.colorLabelComposer,
+        child: const Center(
+          child: Icon(
+            Icons.contacts_outlined,
+            size: 24,
+            color: AppColor.colorLabelComposer,
+          ),
         ),
       ),
     );

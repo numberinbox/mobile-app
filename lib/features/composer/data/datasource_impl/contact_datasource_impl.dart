@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:model/model.dart';
 import 'package:tmail_ui_user/features/composer/data/datasource/contact_datasource.dart';
 import 'package:tmail_ui_user/features/numberinbox/contacts/phone_contact_mapper.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
 
 class ContactDataSourceImpl extends ContactDataSource {
@@ -21,7 +22,8 @@ class ContactDataSourceImpl extends ContactDataSource {
         final suggestedList = await contact_service.ContactsService
           .getContactsByEmailOrName(autoCompletePattern.word);
         if (suggestedList.isNotEmpty) {
-          return suggestedList.expand((contact) => _toDeviceContact(contact)).toList();
+          return deduplicateContacts(
+            suggestedList.expand((contact) => _toDeviceContact(contact)).toList());
         } else {
           return <DeviceContact>[];
         }
@@ -37,7 +39,7 @@ class ContactDataSourceImpl extends ContactDataSource {
       for (final contact in allContacts) {
         results.addAll(_toDeviceContact(contact));
       }
-      return results;
+      return deduplicateContacts(results);
     }).catchError(_exceptionThrower.throwException);
   }
 

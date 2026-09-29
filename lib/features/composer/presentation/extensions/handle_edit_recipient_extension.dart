@@ -58,8 +58,7 @@ extension HandleEditRecipientExtension on ComposerController {
   ) {
     switch(prefix) {
       case PrefixEmailAddress.to:
-        listToEmailAddress.remove(emailAddress);
-        toRecipientState.refresh();
+        removeRecipient(prefix, emailAddress.emailAddress);
         _setTextAndFocus(
           controller: toEmailAddressController,
           focusNode: toAddressFocusNode,
@@ -67,8 +66,7 @@ extension HandleEditRecipientExtension on ComposerController {
         );
         break;
       case PrefixEmailAddress.cc:
-        listCcEmailAddress.remove(emailAddress);
-        ccRecipientState.refresh();
+        removeRecipient(prefix, emailAddress.emailAddress);
         _setTextAndFocus(
           controller: ccEmailAddressController,
           focusNode: ccAddressFocusNode,
@@ -76,8 +74,7 @@ extension HandleEditRecipientExtension on ComposerController {
         );
         break;
       case PrefixEmailAddress.bcc:
-        listBccEmailAddress.remove(emailAddress);
-        bccRecipientState.refresh();
+        removeRecipient(prefix, emailAddress.emailAddress);
         _setTextAndFocus(
           controller: bccEmailAddressController,
           focusNode: bccAddressFocusNode,
@@ -85,8 +82,7 @@ extension HandleEditRecipientExtension on ComposerController {
         );
         break;
       case PrefixEmailAddress.replyTo:
-        listReplyToEmailAddress.remove(emailAddress);
-        replyToRecipientState.refresh();
+        removeRecipient(prefix, emailAddress.emailAddress);
         _setTextAndFocus(
           controller: replyToEmailAddressController,
           focusNode: replyToAddressFocusNode,

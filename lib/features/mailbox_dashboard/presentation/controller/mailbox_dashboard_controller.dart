@@ -2265,7 +2265,9 @@ class MailboxDashBoardController extends ReloadableController
     final contactArgument = ContactArguments(
       accountId: accountId.value!,
       session: sessionCurrent!,
-      selectedContactList: searchController.committedSearchFilter.from,
+      selectedContactList: searchController.committedSearchFilter.from
+        .map((address) => EmailAddress(null, address))
+        .toList(),
       contactViewTitle: '${appLocalizations.findEmails} ${appLocalizations.from_email_address_prefix.toLowerCase()}'
     );
 
@@ -2288,7 +2290,9 @@ class MailboxDashBoardController extends ReloadableController
     final contactArgument = ContactArguments(
       accountId: accountId.value!,
       session: sessionCurrent!,
-      selectedContactList: searchController.committedSearchFilter.to,
+      selectedContactList: searchController.committedSearchFilter.to
+        .map((address) => EmailAddress(null, address))
+        .toList(),
       contactViewTitle: '${appLocalizations.findEmails} ${appLocalizations.to_email_address_prefix.toLowerCase()}'
     );
 

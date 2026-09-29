@@ -31,6 +31,7 @@ import 'package:model/email/email_action_type.dart';
 import 'package:model/extensions/session_extension.dart';
 import 'package:model/mailbox/expand_mode.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
+import 'package:model/email/prefix_email_address.dart';
 import 'package:rich_text_composer/rich_text_composer.dart';
 import 'package:tmail_ui_user/features/base/before_reconnect_manager.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
@@ -46,16 +47,24 @@ import 'package:tmail_ui_user/features/composer/domain/usecases/download_image_a
 import 'package:tmail_ui_user/features/composer/domain/usecases/save_composer_cache_interactor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
 import 'package:tmail_ui_user/features/upload/presentation/validator/attachment_upload_validation_service.dart';
+import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_view_web.dart';
 import 'package:tmail_ui_user/features/composer/presentation/controller/rich_text_mobile_tablet_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/controller/rich_text_web_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_mobile_auto_save_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_edit_recipient_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/remove_draggable_email_address_between_recipient_fields_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/refresh_composer_attachments_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/auto_create_tag_for_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_content_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_selected_identity_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_handler.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/formatting_options_state.dart';
+import 'package:tmail_ui_user/features/composer/presentation/model/draggable_email_address.dart';
+import 'package:tmail_ui_user/features/composer/presentation/model/email_address_action_type.dart';
+import 'package:tmail_ui_user/features/composer/presentation/model/prefix_recipient_state.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/saved_composing_email.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/screen_display_mode.dart';
 import 'package:tmail_ui_user/features/composer/presentation/providers/composer_auto_save_notifier.dart';
@@ -1825,5 +1834,456 @@ void main() {
         });
       });
     });
+  });
+
+  group('contact picker result application:', () {
+    test('null result retains current recipients', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Known', 'known@example.com'),
+      ];
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        null,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['known@example.com'],
+      );
+    });
+
+    test('empty result clears the field', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Known', 'known@example.com'),
+      ];
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        const [],
+      );
+
+      expect(composerController!.listToEmailAddress, isEmpty);
+    });
+
+    test('non-empty result replaces instead of unioning', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Old', 'old@example.com'),
+      ];
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        [EmailAddress('New', 'new@example.com')],
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['new@example.com'],
+      );
+    });
+
+    test('duplicates canonicalize and existing names are retained', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Ms Somluck', 'ms.somluck@example.com'),
+      ];
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        [
+          EmailAddress(null, '  MS.SOMLUCK@EXAMPLE.COM '),
+          EmailAddress('Other', 'other@example.com'),
+        ],
+      );
+
+      final result = composerController!.listToEmailAddress;
+      expect(result.map((e) => e.email), [
+        '  MS.SOMLUCK@EXAMPLE.COM ',
+        'other@example.com',
+      ]);
+      expect(result.first.name, 'Ms Somluck');
+    });
+
+    test('reactive setter notifies observer once per commit', () {
+      var notifications = 0;
+      ever(
+        composerController!.toRecipientState,
+        (_) => notifications++,
+      );
+
+      composerController!.listToEmailAddress = [
+        EmailAddress('New', 'new@example.com'),
+      ];
+
+      expect(notifications, 1);
+    });
+
+    test('cc uses identical picker behavior', () {
+      composerController!.listCcEmailAddress = [
+        EmailAddress('Old', 'old@example.com'),
+      ];
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.cc,
+        [EmailAddress('New', 'new@example.com')],
+      );
+
+      expect(
+        composerController!.listCcEmailAddress.map((e) => e.email),
+        ['new@example.com'],
+      );
+    });
+  });
+
+  group('compose entry points populate the To field:', () {
+    test(
+      'Should add the address to To\n'
+      'When composing from an email address',
+    () {
+      composerController!.currentEmailActionType =
+          EmailActionType.composeFromEmailAddress;
+
+      composerController!.setupEmailRecipients(
+        ComposerArguments.fromEmailAddress(
+          EmailAddress('Sender', 'sender@example.com'),
+        ),
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['sender@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    test(
+      'Should add To, Cc and Bcc\n'
+      'When composing from a mailto uri',
+    () {
+      composerController!.currentEmailActionType =
+          EmailActionType.composeFromMailtoUri;
+
+      composerController!.setupEmailRecipients(
+        ComposerArguments.fromMailtoUri(
+          listEmailAddress: [EmailAddress('To Person', 'to@example.com')],
+          cc: [EmailAddress('Cc Person', 'cc@example.com')],
+          bcc: [EmailAddress('Bcc Person', 'bcc@example.com')],
+        ),
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['to@example.com'],
+      );
+      expect(
+        composerController!.listCcEmailAddress.map((e) => e.email),
+        ['cc@example.com'],
+      );
+      expect(
+        composerController!.listBccEmailAddress.map((e) => e.email),
+        ['bcc@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+  });
+
+  group('auto-created tags are committed to the recipient state:', () {
+    test(
+      'Should add the typed address and enable Send\n'
+      'When the To input still holds a valid address',
+    () {
+      composerController!.toEmailAddressController.text = 'typed@example.com';
+
+      composerController!.autoCreateEmailTagForType(
+        PrefixEmailAddress.to,
+        composerController!.toEmailAddressController.text,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['typed@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    test(
+      'Should keep the existing recipient\n'
+      'When a typed address is auto-tagged beside it',
+    () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Existing', 'existing@example.com'),
+      ];
+      composerController!.toEmailAddressController.text = 'typed@example.com';
+
+      composerController!.autoCreateEmailTagForType(
+        PrefixEmailAddress.to,
+        composerController!.toEmailAddressController.text,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['existing@example.com', 'typed@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    List<EmailAddress> readRecipients(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.listToEmailAddress,
+        PrefixEmailAddress.cc => controller.listCcEmailAddress,
+        PrefixEmailAddress.bcc => controller.listBccEmailAddress,
+        PrefixEmailAddress.replyTo => controller.listReplyToEmailAddress,
+        // Production `_recipientsOf` falls through to To for `from`.
+        PrefixEmailAddress.from => controller.listToEmailAddress,
+      };
+    }
+
+    for (final prefix in [
+      PrefixEmailAddress.to,
+      PrefixEmailAddress.cc,
+      PrefixEmailAddress.bcc,
+      PrefixEmailAddress.replyTo,
+    ])
+    {
+      test(
+        'Should commit the typed address to ${prefix.name}\n'
+        'When that field still holds a valid address',
+      () {
+        final address = 'typed-${prefix.name}@example.com';
+
+        composerController!.autoCreateEmailTagForType(prefix, address);
+
+        expect(
+          readRecipients(prefix).map((e) => e.email),
+          [address],
+        );
+      });
+    }
+  });
+
+  group('contact picker results keep the Send button in sync:', () {
+    test(
+      'Should enable Send\n'
+      'When Done adds the first To recipient',
+    () {
+      expect(composerController!.isEnableEmailSendButton.value, isFalse);
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        [EmailAddress('New', 'new@example.com')],
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['new@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    test(
+      'Should disable Send\n'
+      'When Clear removes the last To recipient',
+    () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('New', 'new@example.com'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        const [],
+      );
+
+      expect(composerController!.listToEmailAddress, isEmpty);
+      expect(composerController!.isEnableEmailSendButton.value, isFalse);
+    });
+
+    test(
+      'Should keep Send enabled\n'
+      'When To is cleared but Cc still has a recipient',
+    () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('To Person', 'to@example.com'),
+      ];
+      composerController!.listCcEmailAddress = [
+        EmailAddress('Cc Person', 'cc@example.com'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        const [],
+      );
+
+      expect(composerController!.listToEmailAddress, isEmpty);
+      expect(
+        composerController!.listCcEmailAddress.map((e) => e.email),
+        ['cc@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    test(
+      'Should leave recipients and Send state untouched\n'
+      'When the picker is cancelled',
+    () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Known', 'known@example.com'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+      var notifications = 0;
+      ever(
+        composerController!.toRecipientState,
+        (_) => notifications++,
+      );
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        null,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['known@example.com'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+      expect(notifications, 0);
+    });
+
+    test(
+      'Should notify the To recipient observer exactly once\n'
+      'When a committed picker result is applied',
+    () {
+      var notifications = 0;
+      ever(
+        composerController!.toRecipientState,
+        (_) => notifications++,
+      );
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        [EmailAddress('New', 'new@example.com')],
+      );
+
+      expect(notifications, 1);
+    });
+
+    test(
+      'Should notify the To recipient observer exactly once\n'
+      'When Clear commits an empty picker result',
+    () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('New', 'new@example.com'),
+      ];
+      var notifications = 0;
+      ever(
+        composerController!.toRecipientState,
+        (_) => notifications++,
+      );
+
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        const [],
+      );
+
+      expect(notifications, 1);
+    });
+  });
+
+  group('recipient removal notifies once:', () {
+    const prefixes = [
+      PrefixEmailAddress.to,
+      PrefixEmailAddress.cc,
+      PrefixEmailAddress.bcc,
+      PrefixEmailAddress.replyTo,
+    ];
+
+    Rx<PrefixRecipientState> stateFor(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.toRecipientState,
+        PrefixEmailAddress.cc => controller.ccRecipientState,
+        PrefixEmailAddress.bcc => controller.bccRecipientState,
+        PrefixEmailAddress.replyTo => controller.replyToRecipientState,
+        PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+      };
+    }
+
+    List<EmailAddress> recipientsFor(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.listToEmailAddress,
+        PrefixEmailAddress.cc => controller.listCcEmailAddress,
+        PrefixEmailAddress.bcc => controller.listBccEmailAddress,
+        PrefixEmailAddress.replyTo => controller.listReplyToEmailAddress,
+        PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+      };
+    }
+
+    TextEditingController textControllerFor(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.toEmailAddressController,
+        PrefixEmailAddress.cc => controller.ccEmailAddressController,
+        PrefixEmailAddress.bcc => controller.bccEmailAddressController,
+        PrefixEmailAddress.replyTo => controller.replyToEmailAddressController,
+        PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+      };
+    }
+
+    FilterField filterFor(PrefixEmailAddress prefix) => switch (prefix) {
+      PrefixEmailAddress.to => FilterField.to,
+      PrefixEmailAddress.cc => FilterField.cc,
+      PrefixEmailAddress.bcc => FilterField.bcc,
+      PrefixEmailAddress.replyTo => FilterField.replyTo,
+      PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+    };
+
+    for (final prefix in prefixes) {
+      testWidgets('editing ${prefix.name} notifies its observer once',
+          (tester) async {
+        final address = '${prefix.name}@example.com';
+        final recipient = EmailAddress('Person', address);
+        composerController!.updateListEmailAddress(prefix, [recipient]);
+        var notifications = 0;
+        final worker = ever(stateFor(prefix), (_) => notifications++);
+        addTearDown(worker.dispose);
+
+        await tester.pumpWidget(const MaterialApp(home: Scaffold()));
+        composerController!.onEditRecipient(
+          tester.element(find.byType(Scaffold)),
+          prefix,
+          recipient,
+          EmailAddressActionType.edit,
+        );
+
+        expect(notifications, 1);
+        expect(recipientsFor(prefix), isEmpty);
+        expect(textControllerFor(prefix).text, address);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 200));
+      });
+
+      test('drag removal from ${prefix.name} notifies its observer once', () {
+        final recipient = EmailAddress('Person', '${prefix.name}@example.com');
+        composerController!.updateListEmailAddress(prefix, [recipient]);
+        var notifications = 0;
+        final worker = ever(stateFor(prefix), (_) => notifications++);
+        addTearDown(worker.dispose);
+
+        composerController!.removeDraggableEmailAddressByComposerController(
+          controller: composerController!,
+          draggableEmailAddress: DraggableEmailAddress(
+            emailAddress: recipient,
+            filterField: filterFor(prefix),
+          ),
+        );
+
+        expect(notifications, 1);
+        expect(recipientsFor(prefix), isEmpty);
+      });
+    }
   });
 }

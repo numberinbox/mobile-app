@@ -61,14 +61,15 @@ extension AutoCreateTagForRecipientsExtension on ComposerController {
 
     if (newListEmailAddress.isEmpty) return;
 
-    existingEmailList.addAll(newListEmailAddress);
+    // The getter returns a snapshot, so mutating it would discard the parsed
+    // addresses. Commit the combined list through the controller update,
+    // which also refreshes the recipient state and the Send button.
+    updateListEmailAddress(type, [...existingEmailList, ...newListEmailAddress]);
 
     if (!isInitialRecipient.value) {
       isInitialRecipient.value = true;
       isInitialRecipient.refresh();
     }
-
-    updateStatusEmailSendButton();
 
     final keyEditor = _emailEditors[type]!;
     keyEditor.currentState?.resetTextField();

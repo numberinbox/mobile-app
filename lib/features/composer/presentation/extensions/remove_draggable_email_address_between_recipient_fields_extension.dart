@@ -1,4 +1,6 @@
 
+import 'package:model/email/prefix_email_address.dart';
+import 'package:model/extensions/email_address_extension.dart';
 import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/draggable_email_address.dart';
@@ -31,20 +33,20 @@ extension RemoveDraggableEmailAddressBetweenRecipientFieldsExtension on Composer
   }) {
     switch(draggableEmailAddress.filterField) {
       case FilterField.to:
-        controller.listToEmailAddress.remove(draggableEmailAddress.emailAddress);
-        controller.toRecipientState.refresh();
+        controller.removeRecipient(
+          PrefixEmailAddress.to, draggableEmailAddress.emailAddress.emailAddress);
         break;
       case FilterField.cc:
-        controller.listCcEmailAddress.remove(draggableEmailAddress.emailAddress);
-        controller.ccRecipientState.refresh();
+        controller.removeRecipient(
+          PrefixEmailAddress.cc, draggableEmailAddress.emailAddress.emailAddress);
         break;
       case FilterField.bcc:
-        controller.listBccEmailAddress.remove(draggableEmailAddress.emailAddress);
-        controller.bccRecipientState.refresh();
+        controller.removeRecipient(
+          PrefixEmailAddress.bcc, draggableEmailAddress.emailAddress.emailAddress);
         break;
       case FilterField.replyTo:
-        controller.listReplyToEmailAddress.remove(draggableEmailAddress.emailAddress);
-        controller.replyToRecipientState.refresh();
+        controller.removeRecipient(
+          PrefixEmailAddress.replyTo, draggableEmailAddress.emailAddress.emailAddress);
         break;
       default:
         break;

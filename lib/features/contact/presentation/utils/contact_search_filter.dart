@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:model/extensions/email_address_extension.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 
 /// Filters already-loaded device contacts by display name or email.
 /// Pure function so the contact search behavior is unit-testable without
@@ -33,22 +34,29 @@ String displaySubtitleForContact(EmailAddress address) {
 final _mappedPhonePattern = RegExp(r'^(\+\d+)@numberinbox\.com$');
 
 /// Merges locally-filtered device contacts with server-side autocomplete
-/// results. Local matches come first; duplicates (by email) and raw-email
-/// echo follow the same rules as the server path.
+/// results. Local matches come first; duplicates (by canonical address) and
+/// raw-email echo follow the same rules as the server path.
 List<EmailAddress> mergeContactResults({
   required List<EmailAddress> localMatches,
   required List<EmailAddress> serverResults,
   required String query,
 }) {
-  final all = <EmailAddress>[...localMatches];
-  for (final contact in serverResults) {
-    if (!all.any((existing) => existing.emailAddress == contact.emailAddress)) {
+  final seen = <String>{};
+  final all = <EmailAddress>[];
+  void addIfNew(EmailAddress contact) {
+    if (seen.add(canonicalRecipientKey(contact.emailAddress))) {
       all.add(contact);
     }
   }
-  if (GetUtils.isEmail(query) &&
-      !all.any((existing) => existing.emailAddress == query)) {
-    all.add(EmailAddress(null, query));
+
+  for (final contact in localMatches) {
+    addIfNew(contact);
+  }
+  for (final contact in serverResults) {
+    addIfNew(contact);
+  }
+  if (GetUtils.isEmail(query)) {
+    addIfNew(EmailAddress(null, query));
   }
   return all;
 }

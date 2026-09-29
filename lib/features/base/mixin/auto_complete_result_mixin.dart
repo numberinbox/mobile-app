@@ -9,6 +9,7 @@ import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:model/model.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/get_autocomplete_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/get_device_contact_suggestions_state.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 
 mixin AutoCompleteResultMixin {
 
@@ -45,6 +46,6 @@ mixin AutoCompleteResultMixin {
       listEmailAddress.insert(0, EmailAddress(queryString, queryString));
     }
 
-    return listEmailAddress;
+    return deduplicateRecipients(listEmailAddress);
   }
 }
