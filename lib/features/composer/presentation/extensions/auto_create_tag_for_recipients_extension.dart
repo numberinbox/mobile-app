@@ -7,6 +7,7 @@ import 'package:super_tag_editor/tag_editor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/list_address_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/list_named_address_extension.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 
 extension AutoCreateTagForRecipientsExtension on ComposerController {
 
@@ -44,7 +45,13 @@ extension AutoCreateTagForRecipientsExtension on ComposerController {
     List<EmailAddress> newListEmailAddress = [];
     final existingEmailList = _emailLists[type]!;
 
-    if (namedAddresses.isNotEmpty) {
+    if (isPhoneShaped(input.trim())) {
+      // Whole phone input: commit as one recipient instead of splitting on
+      // spaces into several fragments, using the shared preparation helper.
+      newListEmailAddress = [
+        preparePhoneRecipient(EmailAddress(null, input.trim())),
+      ];
+    } else if (namedAddresses.isNotEmpty) {
       final emailAddressListFromNamed = namedAddresses
           .toFilteredEmailAddressList(existingEmailList);
       log('$runtimeType::autoCreateEmailTagForType: Create email tag from named address list with length ${emailAddressListFromNamed.length}');

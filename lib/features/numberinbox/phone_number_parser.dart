@@ -40,6 +40,39 @@ class PhoneNumberParser {
     return null;
   }
 
+  /// Strict recipient parse for composer/contact flows.
+  ///
+  /// - Explicit `+` numbers resolve internationally without any region.
+  /// - Any other number requires an explicitly selected region, and the
+  ///   complete input is passed to the library with that region — including
+  ///   international dialing prefixes, which the library interprets against
+  ///   the region's own metadata.
+  /// - Never consults device locale, retries another region, or strips or
+  ///   rewrites a dialing prefix by hand.
+  /// - Returns null for unsupported characters, extensions, and numbers that
+  ///   fail library parsing or validity. Never manufactures an address.
+  String? parseRecipientToE164(String raw, {String? selectedRegion}) {
+    if (!_isSupportedRecipientCharset(raw)) return null;
+    final cleaned = raw.replaceAll(RegExp(r'[\s\-.()]'), '');
+    if (cleaned.isEmpty) return null;
+
+    if (cleaned.startsWith('+')) {
+      return _tryParse(cleaned, '');
+    }
+
+    final region = selectedRegion?.trim().toUpperCase();
+    if (region == null || region.isEmpty) return null;
+    return _tryParse(cleaned, region);
+  }
+
+  bool _isSupportedRecipientCharset(String raw) {
+    if (raw.isEmpty) return false;
+    // Digits with an optional single leading `+`, plus spaces, dashes,
+    // parentheses, and dots. Anything else (letters, `;`, `#`, extra `+`,
+    // extension markers) is rejected before parsing.
+    return RegExp(r'^\+?[\d\s\-.()]+$').hasMatch(raw);
+  }
+
   String? _tryParse(String input, String defaultRegion) {
     try {
       final number = _phoneUtil.parse(input, defaultRegion);

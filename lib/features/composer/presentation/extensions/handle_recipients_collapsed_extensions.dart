@@ -4,6 +4,8 @@ import 'package:model/extensions/email_address_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/prefix_recipient_state.dart';
 import 'package:tmail_ui_user/features/email/presentation/utils/email_utils.dart';
+import 'package:tmail_ui_user/features/numberinbox/phone_number_parser.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 
 extension HandleRecipientsCollapsedExtensions on ComposerController {
@@ -20,10 +22,33 @@ extension HandleRecipientsCollapsedExtensions on ComposerController {
 
   bool get existEmailAddressInvalid => allListEmailAddress
       .any(
-        (emailAddress) => !EmailUtils.isValidEmail(
+        (emailAddress) => !isSendableRecipientAddress(
           emailAddress.emailAddress,
         ),
       );
+
+  /// Sendability for one recipient value, checked in this order:
+  /// 1. The complete committed address must pass email-syntax validation —
+  ///    a normalized phone must never approve a malformed committed address
+  ///    such as `+66(29)009119@numberinbox.com`.
+  /// 2. Phone-shaped NumberInbox local parts must additionally be valid
+  ///    explicit international numbers — email syntax alone never approves
+  ///    `029009119@numberinbox.com` or `+6612345@numberinbox.com`.
+  /// Unresolved raw phone values are never sendable.
+  bool isSendableRecipientAddress(String address) {
+    final trimmed = address.trim();
+    if (trimmed.isEmpty) return false;
+    if (isUnresolvedPhoneValue(trimmed)) return false;
+    if (!EmailUtils.isValidEmail(trimmed)) return false;
+    final lowered = trimmed.toLowerCase();
+    final parts = lowered.split('@');
+    if (parts.length == 2 &&
+        parts[1] == numberinboxDomain &&
+        isPhoneShaped(parts[0])) {
+      return PhoneNumberParser().parseRecipientToE164(parts[0]) != null;
+    }
+    return true;
+  }
 
   bool get isRecipientsWithoutReplyToNotEmpty => listToEmailAddress.isNotEmpty ||
       listCcEmailAddress.isNotEmpty ||

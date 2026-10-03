@@ -44,6 +44,20 @@ void main() {
       final result = filterLocalContacts('', allContacts);
       expect(result, hasLength(3));
     });
+
+    test('finds raw local numbers by digits', () {
+      final somluck = EmailAddress('Somluck', '029009119');
+      final result = filterLocalContacts('290091', [somluck, john]);
+      expect(result, hasLength(1));
+      expect(result[0].displayName, 'Somluck');
+    });
+
+    test('finds raw local numbers by name', () {
+      final somluck = EmailAddress('Somluck', '029009119');
+      final result = filterLocalContacts('somluck', [somluck, john]);
+      expect(result, hasLength(1));
+      expect(result[0].emailAddress, '029009119');
+    });
   });
 
   group('displaySubtitleForContact', () {
@@ -66,6 +80,13 @@ void main() {
         EmailAddress('Shop', '+deals@other.com'),
       );
       expect(result, '+deals@other.com');
+    });
+
+    test('shows raw local numbers unchanged', () {
+      final result = displaySubtitleForContact(
+        EmailAddress('Somluck', '029009119'),
+      );
+      expect(result, '029009119');
     });
   });
 
@@ -109,6 +130,25 @@ void main() {
       );
       expect(result, hasLength(1));
       expect(result[0].displayName, 'Manish Thakur');
+    });
+
+    test('merges raw and domain-carried forms of one unresolved number', () {
+      final result = mergeContactResults(
+        localMatches: [EmailAddress('Somluck', '029009119')],
+        serverResults: [EmailAddress('Somluck', '029009119@numberinbox.com')],
+        query: 'somluck',
+      );
+      expect(result, hasLength(1));
+      expect(result[0].emailAddress, '029009119');
+    });
+
+    test('keeps unresolved local distinct from the resolved address', () {
+      final result = mergeContactResults(
+        localMatches: [EmailAddress('Somluck', '029009119')],
+        serverResults: [EmailAddress('Somluck', '+6629009119@numberinbox.com')],
+        query: 'somluck',
+      );
+      expect(result, hasLength(2));
     });
   });
 }

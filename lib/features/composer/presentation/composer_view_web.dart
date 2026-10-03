@@ -965,6 +965,7 @@ class ComposerView extends GetWidget<ComposerController> {
       onAddEmailAddressTypeAction: controller.addEmailAddressType,
       onDeleteEmailAddressTypeAction: controller.deleteEmailAddressType,
       onEnableAllRecipientsInputAction: controller.handleEnableRecipientsInputOnMobileAction,
+      onResolvePhoneRecipientAction: controller.resolveWidgetPhoneRecipient,
     ));
   }
 }

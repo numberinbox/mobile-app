@@ -30,6 +30,120 @@ void main() {
         'not-a-number@numberinbox.com',
       );
     });
+
+    test('non-phone local part on our domain stays a plain address', () {
+      expect(
+        canonicalRecipientKey('Somluck@numberinbox.com'),
+        'somluck@numberinbox.com',
+      );
+    });
+  });
+
+  group('unresolved phone identity', () {
+    test('raw local and domain-carried local share one key', () {
+      expect(
+        canonicalRecipientKey('029009119'),
+        canonicalRecipientKey('029009119@numberinbox.com'),
+      );
+    });
+
+    test('formatting differences do not split unresolved identity', () {
+      expect(
+        canonicalRecipientKey('029-009-119'),
+        canonicalRecipientKey('029009119'),
+      );
+      expect(
+        canonicalRecipientKey('(02) 900 9119'),
+        canonicalRecipientKey('029009119'),
+      );
+    });
+
+    test('unresolved local stays distinct from the resolved address', () {
+      expect(
+        canonicalRecipientKey('029009119'),
+        isNot(canonicalRecipientKey('+6629009119@numberinbox.com')),
+      );
+    });
+
+    test('invalid explicit international stays distinct from valid ones', () {
+      expect(
+        canonicalRecipientKey('+6612345@numberinbox.com'),
+        isNot(canonicalRecipientKey('+66812345678@numberinbox.com')),
+      );
+    });
+
+    test('unresolved duplicates collapse keeping the first useful name', () {
+      final result = deduplicateRecipients([
+        EmailAddress('', '029-009-119'),
+        EmailAddress('Somluck', '029009119@numberinbox.com'),
+      ]);
+      expect(result, hasLength(1));
+      expect(result.single.name, 'Somluck');
+    });
+
+    test('resolved duplicates merge to one canonical address', () {
+      final result = deduplicateRecipients([
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+        EmailAddress('Somluck', '+66 29 009 119@numberinbox.com'),
+      ]);
+      expect(result, hasLength(1));
+      expect(
+        result.single.email,
+        '+6629009119@numberinbox.com',
+      );
+    });
+  });
+
+  group('preparePhoneRecipient', () {
+    test('upgrades explicit international to canonical, keeping the name', () {
+      final result = preparePhoneRecipient(
+        EmailAddress('Somluck', '+66 29 009 119'),
+      );
+      expect(result.email, '+6629009119@numberinbox.com');
+      expect(result.name, 'Somluck');
+    });
+
+    test('keeps unresolved numbers raw with the name retained', () {
+      final result = preparePhoneRecipient(
+        EmailAddress('Somluck', ' 02 900 9119 '),
+      );
+      expect(result.email, '02 900 9119');
+      expect(result.name, 'Somluck');
+    });
+
+    test('normalizes empty names to null', () {
+      final result = preparePhoneRecipient(
+        EmailAddress('  ', '029009119'),
+      );
+      expect(result.email, '029009119');
+      expect(result.name, isNull);
+    });
+
+    test('passes ordinary emails through trimmed', () {
+      final result = preparePhoneRecipient(
+        EmailAddress('Person', '  Person@Example.COM  '),
+      );
+      expect(result.email, 'Person@Example.COM');
+      expect(result.name, 'Person');
+    });
+  });
+
+  group('isPhoneShaped', () {
+    test('accepts digits with phone formatting', () {
+      expect(isPhoneShaped('029009119'), isTrue);
+      expect(isPhoneShaped('+66 95 198 7335'), isTrue);
+      expect(isPhoneShaped('(02) 900-9119'), isTrue);
+      expect(isPhoneShaped('12345'), isTrue);
+    });
+
+    test('rejects empty, non-phone, and digitless input', () {
+      expect(isPhoneShaped(''), isFalse);
+      expect(isPhoneShaped('   '), isFalse);
+      expect(isPhoneShaped('Somluck'), isFalse);
+      expect(isPhoneShaped('abc-def'), isFalse);
+      expect(isPhoneShaped('() - .'), isFalse);
+      expect(isPhoneShaped('someone@example.com'), isFalse);
+    });
   });
 
   group('deduplicateRecipients', () {

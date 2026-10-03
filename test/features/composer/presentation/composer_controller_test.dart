@@ -1,5 +1,7 @@
 import 'package:core/utils/logging/app_logger_registry.dart';
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
+import 'dart:async';
+
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/app_toast.dart';
@@ -28,6 +30,7 @@ import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:model/email/attachment.dart';
 import 'package:model/email/email_action_type.dart';
+import 'package:model/email/presentation_email.dart';
 import 'package:model/extensions/session_extension.dart';
 import 'package:model/mailbox/expand_mode.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
@@ -57,6 +60,7 @@ import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_e
 import 'package:tmail_ui_user/features/composer/presentation/extensions/remove_draggable_email_address_between_recipient_fields_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/refresh_composer_attachments_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/auto_create_tag_for_recipients_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_recipients_collapsed_extensions.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_content_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_selected_identity_extension.dart';
@@ -93,6 +97,9 @@ import 'package:tmail_ui_user/features/upload/presentation/model/upload_file_sta
 import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/cache_exception_thrower.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
+import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart';
+import 'package:tmail_ui_user/main/localizations/localization_service.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
@@ -113,6 +120,13 @@ const fallbackGenerators = {
   #onStart: mockControllerCallback,
   #onDelete: mockControllerCallback,
 };
+
+class _FakeBuildContext extends Fake implements BuildContext {
+  bool mountedValue = true;
+
+  @override
+  bool get mounted => mountedValue;
+}
 
 class MockRichTextWebController extends Mock implements RichTextWebController {
   final _editorController = MockHtmlEditorController();
@@ -2285,5 +2299,825 @@ void main() {
         expect(recipientsFor(prefix), isEmpty);
       });
     }
+  });
+
+  group('picker phone resolution handoff:', () {
+    List<EmailAddress> recipientsOf(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.listToEmailAddress,
+        PrefixEmailAddress.cc => controller.listCcEmailAddress,
+        PrefixEmailAddress.bcc => controller.listBccEmailAddress,
+        PrefixEmailAddress.replyTo => controller.listReplyToEmailAddress,
+        PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+      };
+    }
+
+    Rx<PrefixRecipientState> stateOf(PrefixEmailAddress prefix) {
+      final controller = composerController!;
+      return switch (prefix) {
+        PrefixEmailAddress.to => controller.toRecipientState,
+        PrefixEmailAddress.cc => controller.ccRecipientState,
+        PrefixEmailAddress.bcc => controller.bccRecipientState,
+        PrefixEmailAddress.replyTo => controller.replyToRecipientState,
+        PrefixEmailAddress.from => throw ArgumentError.value(prefix),
+      };
+    }
+
+    BuildContext fakeContext() => _FakeBuildContext();
+
+    Future<EmailAddress?> Function(BuildContext, EmailAddress) resolveWith(
+      Map<String, String> resolutions,
+      List<String> promptOrder,
+    ) =>
+        (BuildContext context, EmailAddress recipient) async {
+          promptOrder.add(recipient.email ?? '');
+          final e164 = resolutions[recipient.email];
+          if (e164 == null) return null;
+          return EmailAddress(recipient.name, e164);
+        };
+
+    test('replaces unresolved selections in order keeping positions', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('A', 'a@example.com'),
+        EmailAddress('Somluck', '029009119'),
+        EmailAddress('B', 'b@example.com'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async => EmailAddress(
+          recipient.name,
+          '+6629009119@numberinbox.com',
+        ),
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['a@example.com', '+6629009119@numberinbox.com', 'b@example.com'],
+      );
+      expect(composerController!.listToEmailAddress[1].name, 'Somluck');
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    for (final prefix in [
+      PrefixEmailAddress.to,
+      PrefixEmailAddress.cc,
+      PrefixEmailAddress.bcc,
+    ]) {
+      test('resolves ${prefix.name} selections through the same handoff',
+          () async {
+        composerController!.updateListEmailAddress(
+          prefix,
+          [EmailAddress('Somluck', '029009119')],
+        );
+        var notifications = 0;
+        final worker = ever(stateOf(prefix), (_) => notifications++);
+        addTearDown(worker.dispose);
+
+        await composerController!.resolveUnresolvedPickerPhones(
+          prefix,
+          unresolvedRaws: const ['029009119'],
+          contextProvider: fakeContext,
+          phoneResolver: (context, recipient) async => EmailAddress(
+            recipient.name,
+            '+6629009119@numberinbox.com',
+          ),
+        );
+
+        expect(
+          recipientsOf(prefix).map((e) => e.email),
+          ['+6629009119@numberinbox.com'],
+        );
+        expect(
+          composerController!.isEnableEmailSendButton.value,
+          isTrue,
+        );
+        expect(notifications, 1);
+      });
+    }
+
+    test('prompts multiple selections in selection order', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+        EmailAddress('Jamie', '0812345678'),
+      ];
+      final promptOrder = <String>[];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119', '0812345678'],
+        contextProvider: fakeContext,
+        phoneResolver: resolveWith(
+          {
+            '029009119': '+6629009119@numberinbox.com',
+            '0812345678': '+66812345678@numberinbox.com',
+          },
+          promptOrder,
+        ),
+      );
+
+      expect(promptOrder, ['029009119', '0812345678']);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com', '+66812345678@numberinbox.com'],
+      );
+    });
+
+    test('merges a resolution duplicating an existing canonical address',
+        () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+        EmailAddress('Other', '+6629009119@numberinbox.com'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async => EmailAddress(
+          recipient.name,
+          '+6629009119@numberinbox.com',
+        ),
+      );
+
+      expect(composerController!.listToEmailAddress, hasLength(1));
+      expect(
+        composerController!.listToEmailAddress.single.email,
+        '+6629009119@numberinbox.com',
+      );
+    });
+
+    test('cancellation stops the queue and retains unresolved selections',
+        () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+        EmailAddress('Jamie', '0812345678'),
+      ];
+      var prompts = 0;
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119', '0812345678'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return null;
+        },
+      );
+
+      expect(prompts, 1);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119', '0812345678'],
+      );
+      expect(composerController!.isEnableEmailSendButton.value, isFalse);
+    });
+
+    test('stale results after removal are never resurrected', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          composerController!.updateListEmailAddress(
+            PrefixEmailAddress.to,
+            const [],
+          );
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(composerController!.listToEmailAddress, isEmpty);
+    });
+
+    test('skips targets already absent without prompting', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('A', 'a@example.com'),
+      ];
+      var prompts = 0;
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(prompts, 0);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['a@example.com'],
+      );
+    });
+
+    test('stops prompting when the context is gone', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      var prompts = 0;
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: () => null,
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(prompts, 0);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+    });
+
+    test('each committed resolution refreshes its field once', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+        EmailAddress('Jamie', '0812345678'),
+      ];
+      var notifications = 0;
+      final worker =
+          ever(composerController!.toRecipientState, (_) => notifications++);
+      addTearDown(worker.dispose);
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119', '0812345678'],
+        contextProvider: fakeContext,
+        phoneResolver: resolveWith(
+          {
+            '029009119': '+6629009119@numberinbox.com',
+            '0812345678': '+66812345678@numberinbox.com',
+          },
+          <String>[],
+        ),
+      );
+
+      expect(notifications, 2);
+    });
+
+    test('cancellation produces no field refresh', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      var notifications = 0;
+      final worker =
+          ever(composerController!.toRecipientState, (_) => notifications++);
+      addTearDown(worker.dispose);
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async => null,
+      );
+
+      expect(notifications, 0);
+    });
+  });
+
+  group('resolution lifecycle guards:', () {
+    BuildContext fakeContext() => _FakeBuildContext();
+
+    test('closing the controller discards a pending resolution', () async {
+      final controller = composerController!;
+      controller.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await controller.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          controller.onDelete();
+          expect(controller.isClosed, isTrue);
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(
+        controller.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+    });
+
+    test('unmounted context discards a pending resolution', () async {
+      final context = _FakeBuildContext();
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: () => context,
+        phoneResolver: (promptContext, recipient) async {
+          context.mountedValue = false;
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+    });
+
+    test('edits during a prompt discard the stale result', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          composerController!.updateListEmailAddress(
+            PrefixEmailAddress.to,
+            [
+              EmailAddress('Somluck', '029009119'),
+              EmailAddress('Jamie', 'jamie@example.com'),
+            ],
+          );
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119', 'jamie@example.com'],
+      );
+    });
+
+    test('removed and re-added entries are never force-resolved', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          composerController!.removeRecipient(
+            PrefixEmailAddress.to,
+            '029009119',
+          );
+          composerController!.updateListEmailAddress(
+            PrefixEmailAddress.to,
+            [EmailAddress('Somluck', '029009119')],
+          );
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+    });
+
+    test('overlapping requests never open a second prompt', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      final releaseFirst = Completer<EmailAddress?>();
+      var prompts = 0;
+
+      final first = composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) {
+          prompts++;
+          return releaseFirst.future;
+        },
+      );
+      await composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      releaseFirst.complete(
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+      );
+      await first;
+
+      expect(prompts, 1);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+    });
+
+    test('the guard releases after cancellation', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      var prompts = 0;
+
+      Future<EmailAddress?> cancelOnce(
+        BuildContext context,
+        EmailAddress recipient,
+      ) async {
+        prompts++;
+        return null;
+      }
+
+      await composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: fakeContext,
+        phoneResolver: cancelOnce,
+      );
+      await composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(prompts, 2);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+    });
+
+    test('discarded results produce no field refresh', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      var notifications = 0;
+      final worker =
+          ever(composerController!.toRecipientState, (_) => notifications++);
+      addTearDown(worker.dispose);
+
+      await composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: fakeContext,
+        phoneResolver: (context, recipient) async {
+          composerController!.updateListEmailAddress(
+            PrefixEmailAddress.to,
+            [EmailAddress('Jamie', 'jamie@example.com')],
+          );
+          return EmailAddress(recipient.name, '+6629009119@numberinbox.com');
+        },
+      );
+
+      expect(notifications, 1);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['jamie@example.com'],
+      );
+    });
+  });
+
+  group('widget phone resolution requests:', () {
+    test('unresolved widget recipient triggers one prompt and replaces',
+        () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      await composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: () => _FakeBuildContext(),
+        phoneResolver: (context, recipient) async => EmailAddress(
+          recipient.name,
+          '+6629009119@numberinbox.com',
+        ),
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+      expect(composerController!.listToEmailAddress.single.name, 'Somluck');
+    });
+
+    test('already-resolved widget recipient never prompts', () async {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+      ];
+      var prompts = 0;
+
+      await composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+        contextProvider: () => _FakeBuildContext(),
+        phoneResolver: (context, recipient) async {
+          prompts++;
+          return recipient;
+        },
+      );
+
+      expect(prompts, 0);
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+    });
+  });
+
+  group('send validation for phone recipients:', () {
+    test('unresolved raw numbers block sending', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    test('phone-shaped local parts are rejected despite email syntax', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119@numberinbox.com'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    test('invalid explicit international addresses are rejected', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Nobody', '+6612345@numberinbox.com'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    test('malformed phone-shaped email syntax is rejected', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Nobody', '+66(29)009119@numberinbox.com'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    test('resolved international addresses send', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isFalse);
+    });
+
+    test('ordinary and non-phone NumberInbox addresses still send', () {
+      composerController!.listToEmailAddress = [
+        EmailAddress('Person', 'person@example.com'),
+      ];
+      composerController!.listCcEmailAddress = [
+        EmailAddress('Somluck', 'somluck@numberinbox.com'),
+      ];
+
+      expect(composerController!.existEmailAddressInvalid, isFalse);
+    });
+
+    test('whole spaced phone input commits as one unresolved recipient',
+        () {
+      composerController!.toEmailAddressController.text = '02 900 9119';
+
+      composerController!.autoCreateEmailTagForType(
+        PrefixEmailAddress.to,
+        composerController!.toEmailAddressController.text,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['02 900 9119'],
+      );
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    test('whole explicit international input commits canonical and valid',
+        () {
+      composerController!.toEmailAddressController.text = '+66 29 009 119';
+
+      composerController!.autoCreateEmailTagForType(
+        PrefixEmailAddress.to,
+        composerController!.toEmailAddressController.text,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+      expect(composerController!.existEmailAddressInvalid, isFalse);
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+    });
+
+    test('reopening a draft preserves raw values and still blocks sending',
+        () {
+      composerController!.initEmailAddress(
+        presentationEmail: PresentationEmail(
+          id: EmailId(Id('draft-1')),
+          to: {EmailAddress('Somluck', '029009119')},
+          cc: {EmailAddress('Jamie', '+66812345678@numberinbox.com')},
+        ),
+        actionType: EmailActionType.editDraft,
+      );
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+      expect(
+        composerController!.listCcEmailAddress.map((e) => e.email),
+        ['+66812345678@numberinbox.com'],
+      );
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+  });
+
+  group('real Send handler submission guard:', () {
+    Future<BuildContext> pumpSendHarness(WidgetTester tester) async {
+      await tester.pumpWidget(const GetMaterialApp(
+        localizationsDelegates: [
+          AppLocalizationsDelegate(),
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        supportedLocales: LocalizationService.supportedLocales,
+        home: Scaffold(),
+      ));
+      await tester.pumpAndSettle();
+      return tester.element(find.byType(Scaffold));
+    }
+
+    testWidgets('never submits unresolved recipients', (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+
+      composerController!.handleClickSendButton(context);
+      await tester.pumpAndSettle();
+
+      verifyZeroInteractions(mockCreateNewAndSendEmailInteractor);
+      expect(
+        find.text(AppLocalizations.of(context).fix_email_addresses),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('never submits malformed phone-shaped addresses',
+        (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Nobody', '+66(29)009119@numberinbox.com'),
+        EmailAddress('Somluck', '029009119@numberinbox.com'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+
+      composerController!.handleClickSendButton(context);
+      await tester.pumpAndSettle();
+
+      verifyZeroInteractions(mockCreateNewAndSendEmailInteractor);
+      expect(
+        find.text(AppLocalizations.of(context).fix_email_addresses),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('never submits during a live resolution operation',
+        (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+      final releaseResolver = Completer<EmailAddress?>();
+      final resolving = composerController!.resolveWidgetPhoneRecipient(
+        PrefixEmailAddress.to,
+        EmailAddress('Somluck', '029009119'),
+        contextProvider: () => context,
+        phoneResolver: (promptContext, recipient) =>
+            releaseResolver.future,
+      );
+
+      composerController!.handleClickSendButton(context);
+      await tester.pumpAndSettle();
+
+      verifyZeroInteractions(mockCreateNewAndSendEmailInteractor);
+
+      releaseResolver.complete(null);
+      await resolving;
+    });
+
+    testWidgets('picker selection flows to the sheet and resolves unaided',
+        (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+      var notifications = 0;
+      final worker =
+          ever(composerController!.toRecipientState, (_) => notifications++);
+      addTearDown(worker.dispose);
+
+      // Picker Done equivalent: authoritative apply, then the handoff.
+      composerController!.applyContactPickerResult(
+        PrefixEmailAddress.to,
+        [EmailAddress('Somluck', '029009119')],
+      );
+      final resolving = composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: () => context,
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('029009119'), findsOneWidget);
+      await tester.enterText(
+        find.byKey(const Key('country_search')),
+        'Thailand',
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('country_TH')));
+      await tester.pumpAndSettle();
+      await resolving;
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['+6629009119@numberinbox.com'],
+      );
+      expect(composerController!.listToEmailAddress.single.name, 'Somluck');
+      expect(composerController!.isEnableEmailSendButton.value, isTrue);
+      expect(composerController!.existEmailAddressInvalid, isFalse);
+      expect(notifications, 2);
+    });
+
+    testWidgets('cancellation retains the unresolved chip', (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '029009119'),
+      ];
+
+      final resolving = composerController!.resolveUnresolvedPickerPhones(
+        PrefixEmailAddress.to,
+        unresolvedRaws: const ['029009119'],
+        contextProvider: () => context,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('029009119'), findsOneWidget);
+      expect(find.byKey(const Key('country_search')), findsOneWidget);
+
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await resolving;
+
+      expect(
+        composerController!.listToEmailAddress.map((e) => e.email),
+        ['029009119'],
+      );
+      expect(composerController!.existEmailAddressInvalid, isTrue);
+    });
+
+    testWidgets('valid recipients pass the invalid-address gate',
+        (tester) async {
+      final context = await pumpSendHarness(tester);
+      composerController!.listToEmailAddress = [
+        EmailAddress('Somluck', '+6629009119@numberinbox.com'),
+      ];
+      composerController!.listCcEmailAddress = [
+        EmailAddress('Person', 'person@example.com'),
+      ];
+      composerController!.updateStatusEmailSendButton();
+
+      composerController!.handleClickSendButton(context);
+      await tester.pumpAndSettle();
+
+      verifyZeroInteractions(mockCreateNewAndSendEmailInteractor);
+      expect(
+        find.text(AppLocalizations.of(context).send_anyway),
+        findsOneWidget,
+      );
+    });
   });
 }

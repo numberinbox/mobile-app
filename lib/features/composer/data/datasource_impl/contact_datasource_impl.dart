@@ -53,9 +53,11 @@ class ContactDataSourceImpl extends ContactDataSource {
     if (contact.phones != null) {
       const mapper = PhoneContactMapper();
       for (final phone in contact.phones!) {
-        final raw = phone.value ?? '';
-        if (raw.isEmpty) continue;
-        final email = mapper.mapPhoneNumber(raw);
+        // Strict recipient mapping: explicit international numbers become
+        // canonical addresses, phone-shaped local/invalid numbers stay raw
+        // (no domain) so the picker shows them unchanged for later country
+        // selection. Empty and non-phone content map to null and are omitted.
+        final email = mapper.mapRecipientPhoneNumber(phone.value ?? '');
         if (email != null) {
           results.add(DeviceContact(contact.displayName ?? '', email));
         }

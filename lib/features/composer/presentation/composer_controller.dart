@@ -47,6 +47,7 @@ import 'package:tmail_ui_user/features/composer/domain/repository/composer_repos
 import 'package:tmail_ui_user/features/composer/domain/state/download_image_as_base64_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/generate_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
+import 'package:tmail_ui_user/features/numberinbox/country_picker_sheet.dart';
 import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
@@ -272,6 +273,7 @@ class ComposerController extends BaseController
 
   void _setRecipients(PrefixEmailAddress prefix, List<EmailAddress> value) {
     _recipientsOf(prefix).assignAll(deduplicateRecipients(value));
+    _bumpRecipientRevision(prefix);
     _refreshRecipientState(prefix);
   }
 
@@ -281,7 +283,21 @@ class ComposerController extends BaseController
     _recipientsOf(prefix).removeWhere(
       (element) => canonicalRecipientKey(element.emailAddress) == key,
     );
+    _bumpRecipientRevision(prefix);
     _refreshRecipientState(prefix);
+  }
+
+  /// Per-field recipient revision, incremented by every list replacement
+  /// and removal. Resolution queues capture it before awaiting and discard
+  /// results when the field changed meanwhile, so stale prompts never
+  /// overwrite newer edits or resurrect removed entries.
+  final Map<PrefixEmailAddress, int> _recipientRevisions = {};
+
+  int _revisionOf(PrefixEmailAddress prefix) =>
+      _recipientRevisions[prefix] ?? 0;
+
+  void _bumpRecipientRevision(PrefixEmailAddress prefix) {
+    _recipientRevisions[prefix] = _revisionOf(prefix) + 1;
   }
 
   /// Applies a contact-picker result authoritatively:
@@ -467,7 +483,13 @@ class ComposerController extends BaseController
   }
 
   @override
+  @override
   void onClose() {
+    // Invalidate in-flight phone resolution first: queue workers capture
+    // this generation and discard results when it changes, so a closed
+    // composer never commits or prompts again.
+    _phoneResolutionGeneration++;
+    _isResolvingPickerPhones = false;
     _textEditorWeb = null;
     savedActionType = null;
     _savedEmailDraftHash = null;
@@ -901,6 +923,14 @@ class ComposerController extends BaseController
       return;
     }
     _sendButtonState = ButtonState.disabled;
+
+    if (_isResolvingPickerPhones) {
+      // A country-resolution queue is open; Send stays blocked until every
+      // prompt settles. The modal sheet already captures interaction; this
+      // guards programmatic Send attempts.
+      _sendButtonState = ButtonState.enabled;
+      return;
+    }
 
     clearFocus();
 
@@ -1777,27 +1807,161 @@ class ComposerController extends BaseController
     updatePrefixRootState();
   }
 
+  /// Guards picker/resolution serialization: while a contact dialog or a
+  /// country-resolution queue is in flight, further picker opens return
+  /// immediately so prompts never overlap.
+  bool _isResolvingPickerPhones = false;
+
+  /// Resolution operation generation, invalidated when the controller
+  /// closes. Queue workers capture it before awaiting and discard results
+  /// when it changes, so a closed composer never commits or prompts again.
+  int _phoneResolutionGeneration = 0;
+
   Future<void> openContactPicker(PrefixEmailAddress prefix) async {
+    if (isClosed || _isResolvingPickerPhones) return;
     final accountId = mailboxDashBoardController.accountId.value;
     final session = mailboxDashBoardController.sessionCurrent;
     if (accountId == null || session == null) return;
 
-    final currentList = _getListEmailAddressByPrefix(prefix);
+    _isResolvingPickerPhones = true;
+    try {
+      final currentList = _getListEmailAddressByPrefix(prefix);
 
-    final args = ContactArguments(
-      accountId: accountId,
-      session: session,
-      selectedContactList: deduplicateRecipients(currentList),
-      contactViewTitle: AppLocalizations.of(Get.context!).contact,
-    );
+      final args = ContactArguments(
+        accountId: accountId,
+        session: session,
+        selectedContactList: deduplicateRecipients(currentList),
+        contactViewTitle: AppLocalizations.of(Get.context!).contact,
+      );
 
-    final result = await DialogRouter().pushGeneralDialog(
-      routeName: AppRoutes.contact,
-      arguments: args,
-    );
+      final result = await DialogRouter().pushGeneralDialog(
+        routeName: AppRoutes.contact,
+        arguments: args,
+      );
 
-    if (result is List<EmailAddress>) {
-      applyContactPickerResult(prefix, result.cast<EmailAddress>());
+      if (result is List<EmailAddress>) {
+        final selection = result.cast<EmailAddress>();
+        applyContactPickerResult(prefix, selection);
+        await _resolveUnresolvedQueue(
+          prefix,
+          unresolvedRaws: selection
+              .map((entry) => (entry.email ?? '').trim())
+              .where(isUnresolvedPhoneValue)
+              .toList(),
+          getContext: () => Get.context,
+          resolve: resolvePhoneRecipient,
+        );
+      }
+    } finally {
+      _isResolvingPickerPhones = false;
+    }
+  }
+
+  /// Controller-owned country resolution for one widget phone commit, wired
+  /// to the recipient widget in mobile and web views. Serialized with picker
+  /// resolution through the shared operation guard: overlapping requests
+  /// return immediately. Already-resolved values never prompt.
+  Future<void> resolveWidgetPhoneRecipient(
+    PrefixEmailAddress prefix,
+    EmailAddress recipient, {
+    BuildContext? Function()? contextProvider,
+    Future<EmailAddress?> Function(BuildContext context, EmailAddress recipient)?
+        phoneResolver,
+  }) {
+    if (isClosed || _isResolvingPickerPhones) return Future.value();
+    final raw = (recipient.email ?? '').trim();
+    if (!isUnresolvedPhoneValue(raw)) return Future.value();
+    _isResolvingPickerPhones = true;
+    return _resolveUnresolvedQueue(
+      prefix,
+      unresolvedRaws: [raw],
+      getContext: contextProvider ?? () => Get.context,
+      resolve: phoneResolver ?? resolvePhoneRecipient,
+    ).whenComplete(() => _isResolvingPickerPhones = false);
+  }
+
+  /// Acquires the shared operation guard and prompts for [unresolvedRaws]
+  /// through the private queue worker. Overlapping operations return
+  /// immediately; the guard releases in `finally`.
+  ///
+  /// [contextProvider] and [phoneResolver] default to the composer's context
+  /// and the shared country flow; tests inject fakes for both.
+  Future<void> resolveUnresolvedPickerPhones(
+    PrefixEmailAddress prefix, {
+    required List<String> unresolvedRaws,
+    BuildContext? Function()? contextProvider,
+    Future<EmailAddress?> Function(BuildContext context, EmailAddress recipient)?
+        phoneResolver,
+  }) async {
+    if (isClosed || _isResolvingPickerPhones) return;
+    _isResolvingPickerPhones = true;
+    try {
+      await _resolveUnresolvedQueue(
+        prefix,
+        unresolvedRaws: unresolvedRaws,
+        getContext: contextProvider ?? () => Get.context,
+        resolve: phoneResolver ?? resolvePhoneRecipient,
+      );
+    } finally {
+      _isResolvingPickerPhones = false;
+    }
+  }
+
+  /// Private queue worker. Assumes the caller holds the operation guard.
+  ///
+  /// Prompts in selection order; each successful resolution replaces its
+  /// entry in its original position through the controller update (one
+  /// field refresh per commit, Send kept in sync, duplicates merged).
+  /// Cancellation stops the queue and retains every unresolved selection.
+  /// The operation generation, controller lifetime, context mount state,
+  /// and per-field revision are checked before opening a prompt and after
+  /// every await: an expired operation neither updates recipients nor opens
+  /// another prompt. Awaiting the dialog and sheet futures directly
+  /// provides the navigation lifecycle; no fixed delay is used.
+  Future<void> _resolveUnresolvedQueue(
+    PrefixEmailAddress prefix, {
+    required List<String> unresolvedRaws,
+    required BuildContext? Function() getContext,
+    required Future<EmailAddress?> Function(BuildContext context, EmailAddress recipient)
+        resolve,
+  }) async {
+    final generation = _phoneResolutionGeneration;
+    bool alive() =>
+        generation == _phoneResolutionGeneration && !isClosed;
+    final pending = unresolvedRaws
+        .map((raw) => raw.trim())
+        .where((raw) => raw.isNotEmpty)
+        .toList();
+    while (pending.isNotEmpty) {
+      if (!alive()) return;
+      final context = getContext();
+      if (context == null || !context.mounted || !alive()) return;
+      final raw = pending.first;
+      final target = _getListEmailAddressByPrefix(prefix).firstWhereOrNull(
+        (entry) => (entry.email ?? '').trim() == raw,
+      );
+      if (target == null) {
+        pending.removeAt(0);
+        continue;
+      }
+      final revision = _revisionOf(prefix);
+      final resolved = await resolve(context, target);
+      if (!alive()) return;
+      if (!context.mounted) return;
+      if (resolved == null) return;
+      if (_revisionOf(prefix) != revision) return;
+      final current = _getListEmailAddressByPrefix(prefix);
+      final index = current.indexWhere(
+        (entry) => (entry.email ?? '').trim() == raw,
+      );
+      if (index == -1) {
+        pending.removeAt(0);
+        continue;
+      }
+      final updated = current.toList();
+      updated[index] = resolved;
+      updateListEmailAddress(prefix, updated);
+      pending.removeAt(0);
     }
   }
 

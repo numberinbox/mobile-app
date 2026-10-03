@@ -18,6 +18,7 @@ import 'package:tmail_ui_user/features/composer/presentation/view/edit_recipient
 import 'package:tmail_ui_user/features/composer/presentation/widgets/draggable_recipient_tag_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_composer_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/utils/email_utils.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 
 class RecipientTagItemWidget extends StatelessWidget {
 
@@ -115,11 +116,7 @@ class RecipientTagItemWidget extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             Flexible(
-              child: MiddleEllipsisText(
-                key: Key('label_recipient_tag_item_${prefix.name}_$index'),
-                currentEmailAddress.asString(),
-                style: RecipientTagItemWidgetStyle.labelTextStyle,
-              ),
+              child: _buildLabel(),
             ),
             const SizedBox(width: 4),
             TMailButtonWidget.fromIcon(
@@ -178,6 +175,42 @@ class RecipientTagItemWidget extends StatelessWidget {
     }
 
     return tagWidget;
+  }
+
+  /// Label for the chip: unresolved phone numbers always show the raw
+  /// number (even when a contact name exists — the name stays in the model
+  /// and in the accessible description). Everything else keeps the normal
+  /// `asString()` label. `EmailAddress.asString()` itself is unchanged.
+  Widget _buildLabel() {
+    final label = MiddleEllipsisText(
+      key: Key('label_recipient_tag_item_${prefix.name}_$index'),
+      _labelText(),
+      style: RecipientTagItemWidgetStyle.labelTextStyle,
+    );
+    final semanticLabel = _unresolvedSemanticLabel();
+    if (semanticLabel == null) return label;
+    return Semantics(
+      label: semanticLabel,
+      excludeSemantics: true,
+      child: label,
+    );
+  }
+
+  String _labelText() {
+    if (isUnresolvedPhoneValue(currentEmailAddress.emailAddress)) {
+      return currentEmailAddress.emailAddress;
+    }
+    return currentEmailAddress.asString();
+  }
+
+  String? _unresolvedSemanticLabel() {
+    if (!isUnresolvedPhoneValue(currentEmailAddress.emailAddress)) {
+      return null;
+    }
+    final name = currentEmailAddress.displayName.trim();
+    final raw = currentEmailAddress.emailAddress;
+    if (name.isEmpty) return raw;
+    return '$name, $raw';
   }
 
   Color _getTagBackgroundColor() {

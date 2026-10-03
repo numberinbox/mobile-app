@@ -30,9 +30,7 @@ import 'package:tmail_ui_user/features/composer/presentation/model/suggestion_em
 import 'package:tmail_ui_user/features/composer/presentation/styles/recipient_composer_widget_style.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_suggestion_item_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_tag_item_widget.dart';
-import 'package:tmail_ui_user/features/numberinbox/country.dart';
-import 'package:tmail_ui_user/features/numberinbox/country_picker_sheet.dart';
-import 'package:tmail_ui_user/features/numberinbox/phone_number_parser.dart';
+import 'package:tmail_ui_user/features/numberinbox/recipient_identity.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 
@@ -46,6 +44,10 @@ typedef OnRemoveDraggableEmailAddressAction = void Function(DraggableEmailAddres
 typedef OnDeleteTagAction = void Function(EmailAddress emailAddress);
 typedef OnEnableAllRecipientsInputAction = void Function(bool isEnabled);
 typedef OnOpenContactPickerAction = void Function(PrefixEmailAddress prefix);
+typedef OnResolvePhoneRecipientAction = Future<void> Function(
+  PrefixEmailAddress prefix,
+  EmailAddress recipient,
+);
 typedef OnEditRecipientAction = void Function(
   BuildContext context,
   PrefixEmailAddress prefix,
@@ -83,6 +85,7 @@ class RecipientComposerWidget extends StatefulWidget {
   final EdgeInsetsGeometry? margin;
   final OnEnableAllRecipientsInputAction? onEnableAllRecipientsInputAction;
   final OnOpenContactPickerAction? onOpenContactPickerAction;
+  final OnResolvePhoneRecipientAction? onResolvePhoneRecipientAction;
   final bool isTestingForWeb;
   final int minInputLengthAutocomplete;
   final String? composerId;
@@ -119,6 +122,7 @@ class RecipientComposerWidget extends StatefulWidget {
     this.onRemoveDraggableEmailAddressAction,
     this.onEnableAllRecipientsInputAction,
     this.onOpenContactPickerAction,
+    this.onResolvePhoneRecipientAction,
     this.focusNodeKeyboard,
     this.onEditRecipientAction,
     this.onClearFocusAction,
@@ -297,30 +301,18 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
                             : _subAddressingValidatedEmailAddress(suggestionEmailAddress.emailAddress),
                         suggestionValid: suggestionValid,
                         highlight: highlight,
-                        onSelectedAction: (emailAddress) {
+                        onSelectedAction: (emailAddress) async {
                           if (suggestionEmailAddress.state == SuggestionEmailState.invalidPhone) {
                             final raw = suggestionEmailAddress.rawPhone ?? suggestionEmailAddress.emailAddress.emailAddress;
-                            final displayName = suggestionEmailAddress.emailAddress.displayName;
-                            showCountryPicker(
-                              context: context,
-                              selectedCountry: defaultCountry(),
-                              onSelected: (country) {
-                                final parser = PhoneNumberParser();
-                                final e164 = parser.parseToE164(raw, defaultRegion: country.code)
-                                  ?? country.buildE164(raw);
-                                final validEmail = EmailAddress(displayName, '$e164@numberinbox.com');
-                                setState(() {
-                                  _currentListEmailAddress.removeWhere((e) =>
-                                    e.emailAddress == raw || e.emailAddress == '$raw@numberinbox.com');
-                                  if (!_isDuplicatedRecipient(validEmail.emailAddress)) {
-                                    _currentListEmailAddress.add(validEmail);
-                                  }
-                                });
-                                _updateListEmailAddressAction();
-                                tagEditorState.resetTextField();
-                                tagEditorState.closeSuggestionBox();
-                              },
+                            await _commitPhoneRecipient(
+                              candidate: EmailAddress(
+                                suggestionEmailAddress.emailAddress.displayName,
+                                raw,
+                              ),
+                              stateSetter: stateSetter,
                             );
+                            tagEditorState.resetTextField();
+                            tagEditorState.closeSuggestionBox();
                             return;
                           }
                           if (!_isDuplicatedRecipient(emailAddress.emailAddress)) {
@@ -588,12 +580,14 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   }
 
   SuggestionEmailAddress _toSuggestionEmailAddress(EmailAddress item) {
-    if (item.emailAddress.startsWith('invalid:')) {
-      final raw = item.emailAddress.replaceFirst('invalid:', '');
+    // Raw unresolved phone suggestions are recognized directly: no `invalid:`
+    // marker is required, and such a marker is never stored as a recipient.
+    final address = item.emailAddress;
+    if (!address.contains('@') && isPhoneShaped(address)) {
       return SuggestionEmailAddress(
-        EmailAddress(item.displayName, raw),
+        EmailAddress(item.displayName, address),
         state: SuggestionEmailState.invalidPhone,
-        rawPhone: raw,
+        rawPhone: address,
       );
     }
     if (_currentListEmailAddress.isDuplicatedEmail(item.emailAddress)) {
@@ -636,10 +630,54 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
     }
   }
 
+  /// Unified phone-commit handler for pointer suggestion selection,
+  /// keyboard suggestion selection, whole-phone submission, and delimiter
+  /// commitment. Prepares the value, commits exactly one recipient through
+  /// shared identity deduplication, then invokes the controller resolution
+  /// callback when the committed value is still unresolved.
+  ///
+  /// Committing runs synchronously before any await, so the chip is retained
+  /// even when the user cancels country selection — including on the
+  /// keyboard path, where the editor resets its text immediately without
+  /// awaiting this callback.
+  Future<void> _commitPhoneRecipient({
+    required EmailAddress candidate,
+    required StateSetter stateSetter,
+  }) async {
+    final prepared = preparePhoneRecipient(candidate);
+    stateSetter(() {
+      final key = canonicalRecipientKey(prepared.email ?? '');
+      _currentListEmailAddress.removeWhere(
+        (e) => canonicalRecipientKey(e.email ?? '') == key,
+      );
+      _currentListEmailAddress.add(prepared);
+    });
+    _updateListEmailAddressAction();
+    if (isUnresolvedPhoneValue(prepared.email ?? '')) {
+      await widget.onResolvePhoneRecipientAction?.call(
+        widget.prefix,
+        prepared,
+      );
+    }
+  }
+
   void _handleSelectOptionAction(
     SuggestionEmailAddress suggestionEmailAddress,
     StateSetter stateSetter
   ) {
+    final address = suggestionEmailAddress.emailAddress;
+    if (suggestionEmailAddress.state == SuggestionEmailState.invalidPhone ||
+        (!address.emailAddress.contains('@') &&
+            isPhoneShaped(address.emailAddress))) {
+      unawaited(_commitPhoneRecipient(
+        candidate: EmailAddress(
+          address.displayName,
+          suggestionEmailAddress.rawPhone ?? address.emailAddress,
+        ),
+        stateSetter: stateSetter,
+      ));
+      return;
+    }
     if (!_isDuplicatedRecipient(suggestionEmailAddress.emailAddress.emailAddress)) {
       stateSetter(() => _currentListEmailAddress.add(suggestionEmailAddress.emailAddress));
       _updateListEmailAddressAction();
@@ -653,6 +691,13 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
 
   void _createMailTag(String value, StateSetter stateSetter) {
     final valueTrimmed = value.trim();
+    if (isPhoneShaped(valueTrimmed)) {
+      unawaited(_commitPhoneRecipient(
+        candidate: EmailAddress(null, valueTrimmed),
+        stateSetter: stateSetter,
+      ));
+      return;
+    }
     final namedAddresses = StringConvert.extractNamedAddresses(valueTrimmed);
     if (namedAddresses.isNotEmpty) {
       final emailAddressListFromNamed = namedAddresses
@@ -743,6 +788,14 @@ class _RecipientComposerWidgetState extends State<RecipientComposerWidget> {
   }
 
   void _onEmailAddressReceived(String input, StateSetter stateSetter) {
+    final trimmed = input.trim();
+    if (isPhoneShaped(trimmed)) {
+      unawaited(_commitPhoneRecipient(
+        candidate: EmailAddress(null, trimmed),
+        stateSetter: stateSetter,
+      ));
+      return;
+    }
     final emailAddressRecord = _generateEmailAddressFromString(input);
     if (!_isDuplicatedRecipient(emailAddressRecord.$1)) {
       stateSetter(() => _currentListEmailAddress.add(emailAddressRecord.$2));

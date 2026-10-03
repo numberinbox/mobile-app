@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:model/autocomplete/auto_complete_pattern.dart';
 import 'package:tmail_ui_user/features/composer/data/datasource_impl/contact_datasource_impl.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
 
@@ -69,6 +70,79 @@ void main() {
       });
 
       expect(() => dataSource.getAllContacts(), throwsA(isA<PlatformException>()));
+    });
+
+    test('preserves Somluck local number raw and dedups formatting variants', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'getContacts') {
+          return [
+            {
+              'displayName': 'Somluck',
+              'emails': [],
+              'phones': [
+                {'label': 'mobile', 'value': '029009119'},
+                {'label': 'home', 'value': '029-009-119'},
+                {'label': 'work', 'value': '+6629009119'},
+              ],
+            },
+            {
+              'displayName': 'NoDetails',
+              'emails': [],
+              'phones': [],
+            },
+          ];
+        }
+        return null;
+      });
+
+      final result = await dataSource.getAllContacts();
+
+      // Raw local and its formatting variant collapse to one raw row;
+      // the explicit international number stays a distinct resolved row.
+      expect(result.map((c) => c.email), ['029009119', '+6629009119@numberinbox.com']);
+      expect(result.map((c) => c.displayName), ['Somluck', 'Somluck']);
+    });
+  });
+
+  group('ContactDataSourceImpl::getContactSuggestions raw preservation', () {
+    test('returns raw local numbers unchanged for name and number queries', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'getContactsByEmailOrName') {
+          return [
+            {
+              'displayName': 'Somluck',
+              'emails': [],
+              'phones': [
+                {'label': 'mobile', 'value': '029009119'},
+                {'label': 'work', 'value': '+6629009119'},
+              ],
+            },
+          ];
+        }
+        return null;
+      });
+
+      for (final query in ['somluck', '029009119']) {
+        final result = await dataSource.getContactSuggestions(
+          AutoCompletePattern(word: query),
+        );
+
+        expect(
+          result.map((c) => c.email),
+          ['029009119', '+6629009119@numberinbox.com'],
+          reason: 'query "$query" must return the raw value unchanged',
+        );
+      }
+    });
+
+    test('returns empty list for empty query', () async {
+      final result = await dataSource.getContactSuggestions(
+        AutoCompletePattern(word: ''),
+      );
+
+      expect(result, isEmpty);
     });
   });
 }
