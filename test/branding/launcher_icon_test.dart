@@ -140,6 +140,28 @@ void main() {
     expect(File('web/favicon.svg').readAsStringSync(), contains('#F5F7EB'));
   });
 
+  test('store exports match the icons used by the app bundles', () {
+    final apple = File('docs/store/apple/icon-1024.png').readAsBytesSync();
+    final ios = File(
+      'ios/Runner/Assets.xcassets/AppIcon.appiconset/1024.png',
+    ).readAsBytesSync();
+    final play = File('docs/store/play/icon-512.png').readAsBytesSync();
+    final android = File(
+      'android/app/src/main/ic_launcher-playstore.png',
+    ).readAsBytesSync();
+
+    expect(apple, orderedEquals(ios));
+    expect(play, orderedEquals(android));
+    expect(
+      apple[25],
+      2,
+      reason: 'iOS marketing icon must be RGB, with no alpha',
+    );
+    expect(play[25], 6, reason: 'Google Play icon must be 32-bit RGBA');
+    expect(pngSize('docs/store/apple/icon-1024.png'), (1024, 1024));
+    expect(pngSize('docs/store/play/icon-512.png'), (512, 512));
+  });
+
   group('adaptive foreground safe geometry', () {
     const densities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
     const expectedDimensions = {
@@ -154,21 +176,25 @@ void main() {
         'android/app/src/main/res/drawable-$density/ic_launcher_foreground.png';
 
     Future<
-        ({
-          int width,
-          ByteData pixels,
-          double maxRadius,
-          int xmin,
-          int xmax,
-          int ymin,
-          int ymax,
-          int visible
-        })> foregroundGeometry(String path) async {
-      final codec =
-          await ui.instantiateImageCodec(File(path).readAsBytesSync());
+      ({
+        int width,
+        ByteData pixels,
+        double maxRadius,
+        int xmin,
+        int xmax,
+        int ymin,
+        int ymax,
+        int visible,
+      })
+    >
+    foregroundGeometry(String path) async {
+      final codec = await ui.instantiateImageCodec(
+        File(path).readAsBytesSync(),
+      );
       final image = (await codec.getNextFrame()).image;
-      final pixels =
-          (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      final pixels = (await image.toByteData(
+        format: ui.ImageByteFormat.rawRgba,
+      ))!;
       final width = image.width;
       image.dispose();
       codec.dispose();
@@ -195,15 +221,15 @@ void main() {
         xmax: xmax,
         ymin: ymin,
         ymax: ymax,
-        visible: visible
+        visible: visible,
       );
     }
 
     test('master foreground is 1024x1024', () {
-      expect(
-        pngSize(iconConfig['adaptive_icon_foreground'] as String),
-        (1024, 1024),
-      );
+      expect(pngSize(iconConfig['adaptive_icon_foreground'] as String), (
+        1024,
+        1024,
+      ));
     });
 
     test('generated densities have native dimensions', () {
