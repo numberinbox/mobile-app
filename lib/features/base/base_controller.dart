@@ -479,8 +479,22 @@ abstract class BaseController extends GetxController
     }
   }
 
-  void navigateToTwakeWelcomePage() {
-    popAndPush(AppRoutes.twakeWelcome);
+  /// Redirects to the phone-login welcome route, refusing a replacement when
+  /// that route is already visible so GetX cannot dispose the live welcome
+  /// controller (TextEditingController used after being disposed).
+  void navigateToTwakeWelcomePage({bool popAllRoute = false}) {
+    if (Get.currentRoute == AppRoutes.twakeWelcome) {
+      log(
+        '$runtimeType::navigateToTwakeWelcomePage: SKIPPED — already on welcome route',
+        webConsoleEnabled: true,
+      );
+      return;
+    }
+    if (popAllRoute) {
+      pushAndPopAll(AppRoutes.twakeWelcome);
+    } else {
+      popAndPush(AppRoutes.twakeWelcome);
+    }
   }
 
   void navigateToLoginPage() {
@@ -645,27 +659,7 @@ abstract class BaseController extends GetxController
   /// Several entry points call this, some without awaiting. Overlapping runs
   /// used to close Hive while another run was still writing to it, so they are
   /// serialised through a single shared future.
-  Future<void> clearAllData() => twakeAppManager.runClearDataOnce(_clearAllData);
-
-  Future<void> _clearAllData() async {
-    try {
-      await Future.wait([
-        if (isAuthenticatedWithOidc)
-          deleteAuthorityOidcInteractor.execute()
-        else
-          deleteCredentialInteractor.execute(),
-        cachingManager.clearAll(),
-        languageCacheManager.removeLanguage(),
-      ]);
-      authorizationInterceptors.clear();
-      authorizationIsolateInterceptors.clear();
-      await cachingManager.closeHive();
-    } catch (e) {
-      logWarning('BaseController::clearAllData: Cannot clear all data: $e');
-    } finally {
-      AttachmentKeywordConfigManager().clearCache();
-    }
-  }
+  Future<void> clearAllData() => twakeAppManager.runClearDataOnce(clearLocalSessionData);
 
   int getMinInputLengthAutocomplete({
     required Session session,
@@ -706,5 +700,33 @@ abstract class BaseController extends GetxController
       textColor: Colors.white,
       infinityToast: true,
     );
+  }
+}
+
+/// Clears local session data (credentials, caches, auth interceptors).
+///
+/// Lives outside [BaseController] so flows without a live controller — such
+/// as the account-deletion page after its dashboard controller was disposed —
+/// can run the exact same teardown, still serialised by callers through
+/// [TwakeAppManager.runClearDataOnce].
+Future<void> clearLocalSessionData() async {
+  final authorizationInterceptors = Get.find<AuthorizationInterceptors>();
+  final cachingManager = Get.find<CachingManager>();
+  try {
+    await Future.wait([
+      if (authorizationInterceptors.authenticationType == AuthenticationType.oidc)
+        Get.find<DeleteAuthorityOidcInteractor>().execute()
+      else
+        Get.find<DeleteCredentialInteractor>().execute(),
+      cachingManager.clearAll(),
+      Get.find<LanguageCacheManager>().removeLanguage(),
+    ]);
+    authorizationInterceptors.clear();
+    Get.find<AuthorizationInterceptors>(tag: BindingTag.isolateTag).clear();
+    await cachingManager.closeHive();
+  } catch (e) {
+    logWarning('clearLocalSessionData: Cannot clear all data: $e');
+  } finally {
+    AttachmentKeywordConfigManager().clearCache();
   }
 }

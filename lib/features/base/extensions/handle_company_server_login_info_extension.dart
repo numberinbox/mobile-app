@@ -39,10 +39,6 @@ extension HandleCompanyServerLoginInfoExtension on BaseController {
   }
 
   void handleGetCompanyServerLoginInfoFailure({bool popAllRoute = true}) {
-    if (popAllRoute) {
-      pushAndPopAll(AppRoutes.twakeWelcome);
-    } else {
-      popAndPush(AppRoutes.twakeWelcome);
-    }
+    navigateToTwakeWelcomePage(popAllRoute: popAllRoute);
   }
 }

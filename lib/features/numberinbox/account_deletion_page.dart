@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:core/utils/app_logger.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
+import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/manage_account_dashboard_controller.dart';
 import 'package:tmail_ui_user/features/numberinbox/account_deletion_client.dart';
@@ -11,6 +13,7 @@ import 'package:tmail_ui_user/features/numberinbox/auth/e164.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/main/routes/app_routes.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
+import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
 
 class AccountDeletionPage extends StatefulWidget {
@@ -198,8 +201,22 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
     await _storage.delete(key: _idempotencyKey);
     if (widget.onDeleted != null) {
       await widget.onDeleted!();
-    } else {
-      await Get.find<ManageAccountDashBoardController>().clearAllData();
+      return;
+    }
+    if (Get.isRegistered<ManageAccountDashBoardController>()) {
+      final dashboard = Get.find<ManageAccountDashBoardController>();
+      await dashboard.clearAllData();
+      if (!mounted) return;
+      dashboard.navigateToTwakeWelcomePage(popAllRoute: true);
+      return;
+    }
+    // Completed deletion must never silently stop: even when the dashboard
+    // controller is already gone, clear local session data and show login.
+    logWarning('AccountDeletionPage::_finish: dashboard controller not '
+        'registered; clearing session data directly');
+    await Get.find<TwakeAppManager>().runClearDataOnce(clearLocalSessionData);
+    if (!mounted) return;
+    if (Get.currentRoute != AppRoutes.twakeWelcome) {
       Get.offAllNamed(AppRoutes.twakeWelcome);
     }
   }
