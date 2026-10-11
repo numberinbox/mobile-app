@@ -1,0 +1,30 @@
+{
+  "captureDate": "YYYY-MM-DD",
+  "gitCommit": "<release-candidate-commit>",
+  "appVersion": "<version+build>",
+  "backendEnvironment": "production",
+  "apiBaseUrl": "<verified-public-API-URL>",
+  "jmapBaseUrl": "<verified-public-JMAP-URL>",
+  "reviewerLogin": {
+    "startsUsedThisWindow": 0,
+    "startSucceeded": false,
+    "noSmsConfirmed": false,
+    "verifySucceeded": false,
+    "mailboxLoaded": false
+  },
+  "seedMail": {
+    "controlledSenderIdentitiesConfirmed": false,
+    "sentCount": 0,
+    "deliveredCount": 0,
+    "attachmentChecked": false,
+    "outboundSentChecked": false
+  },
+  "sets": {
+    "playPhone": { "device": "", "os": "", "pixelSize": "1080x1920", "count": 0, "consoleAccepted": false },
+    "playTablet": { "device": "", "os": "", "pixelSize": "", "count": 0, "consoleAccepted": false },
+    "appleIphoneMedium": { "device": "iPhone 17", "os": "iOS 26.5", "pixelSize": "1206x2622", "count": 0, "consoleAccepted": false },
+    "appleIphoneLarge": { "device": "iPhone 17 Pro Max", "os": "iOS 26.5", "pixelSize": "1320x2868", "count": 0, "consoleAccepted": false },
+    "appleIpad13": { "device": "iPad Pro 13-inch (M5)", "os": "iOS 26.5", "pixelSize": "2064x2752", "count": 0, "consoleAccepted": false }
+  },
+  "qa": { "validatorPassed": false, "humanReviewPassed": false, "notes": "" }
+}
