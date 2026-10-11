@@ -1,4 +1,9 @@
+import 'dart:async';
+
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
+import 'package:core/presentation/state/failure.dart';
+import 'package:core/presentation/state/success.dart';
+import 'package:dartz/dartz.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
@@ -12,6 +17,9 @@ import 'package:get/get.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:jmap_dart_client/jmap/push/state_change.dart';
+import 'package:tmail_ui_user/features/home/domain/repository/session_repository.dart';
+import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_authority_oidc_interactor.dart';
@@ -41,6 +49,24 @@ class _MockGetAuthenticatedAccountInteractor extends Mock implements GetAuthenti
 class _MockGetOidcUserInfoInteractor extends Mock implements GetOidcUserInfoInteractor {}
 class _MockUpdateAccountCacheInteractor extends Mock implements UpdateAccountCacheInteractor {}
 class _MockGetSessionInteractor extends Mock implements GetSessionInteractor {}
+
+/// Session stream that stays open, so the Verify button can be observed while
+/// the mailbox is still loading.
+class _PendingGetSessionInteractor extends GetSessionInteractor {
+  _PendingGetSessionInteractor() : super(_MockSessionRepository());
+
+  final _controller = StreamController<Either<Failure, Success>>();
+
+  @override
+  Stream<Either<Failure, Success>> execute({StateChange? stateChange}) =>
+      _controller.stream;
+
+  void fail(Failure failure) => _controller.add(Left<Failure, Success>(failure));
+
+  Future<void> close() => _controller.close();
+}
+
+class _MockSessionRepository extends Mock implements SessionRepository {}
 class _MockAppToast extends Mock implements AppToast {}
 class _MockResponsiveUtils extends Mock implements ResponsiveUtils {}
 class _MockUuid extends Mock implements Uuid {}
@@ -268,6 +294,88 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('otp_code_field')), findsOneWidget);
+    });
+
+    testWidgets(
+        'Verify keeps spinning after OTP completes while the session loads',
+        (tester) async {
+      adapter.onPost('/v1/otp/start',
+          (server) => server.reply(200, {'ok': true}),
+          data: {'e164': '+66812345678'});
+      adapter.onPost('/v1/otp/verify', (server) => server.reply(200, {
+        'accessToken': 'jwt',
+        'jmap': {
+          'sessionUrl': 'https://localhost/.well-known/jmap',
+          'username': '+66812345678@numberinbox.test',
+          'credential': 'app_secret',
+        }
+      }), data: {'e164': '+66812345678', 'code': '123456'});
+
+      final session = _PendingGetSessionInteractor();
+      addTearDown(session.close);
+      registerStubs();
+      Get.replace<GetSessionInteractor>(session);
+
+      final controller = TwakeWelcomeController(authClient: client);
+      Get.put<TwakeWelcomeController>(controller);
+      controller.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+
+      await tester.pumpWidget(MaterialApp(
+        theme: testTheme,
+        home: const TwakeWelcomeView(),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
+      await tester.tap(find.byKey(const Key('otp_send_cta')));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byKey(const Key('otp_code_field')), '123456');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('otp_verify_cta')));
+      // Bounded pumps: an indeterminate spinner never settles, so
+      // pumpAndSettle() would time out here.
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      final progress = find.descendant(
+        of: find.byKey(const Key('otp_verify_cta')),
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(
+        progress,
+        findsOneWidget,
+        reason: 'the Verify spinner must survive OTP completion while the '
+            'session is still loading',
+      );
+      expect(
+        controller.verifying,
+        isTrue,
+      );
+      expect(
+        tester.widget<FilledButton>(find.byKey(const Key('otp_verify_cta'))).onPressed,
+        isNull,
+        reason: 'the button must not be tappable while sign-in is in flight',
+      );
+
+      // A session failure restores a usable button.
+      session.fail(GetSessionFailure(Exception('session unavailable')));
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+
+      expect(
+        controller.verifying,
+        isFalse,
+        reason: 'a session failure must not leave the button stuck loading',
+      );
+      expect(
+        tester.widget<FilledButton>(find.byKey(const Key('otp_verify_cta'))).onPressed,
+        isNotNull,
+      );
+      expect(find.text('Verify'), findsOneWidget);
     });
   });
 

@@ -97,6 +97,10 @@ class TwakeWelcomeController extends ReloadableController {
   }
 
   Future<void> verifyCode() async {
+    // A second tap while the first sign-in is still in flight must not start a
+    // parallel OTP request and session fetch.
+    if (_verifying) return;
+
     final code = codeController.text.trim();
     if (code.length != 6) {
       _error = 'Enter 6-digit code';
@@ -104,6 +108,12 @@ class TwakeWelcomeController extends ReloadableController {
       return;
     }
 
+    // The OTP request finishing is not the end of sign-in: _onOtpVerified only
+    // starts the JMAP session fetch, and the mailbox only opens once the
+    // session resolves, the account cache is updated, and handleReloaded
+    // navigates. Loading therefore stays on through that whole chain and is
+    // cleared by onDataFailureViewState if it breaks.
+    var sessionStarted = false;
     try {
       _verifying = true;
       _error = null;
@@ -113,7 +123,7 @@ class TwakeWelcomeController extends ReloadableController {
         deviceId = await Get.find<DeviceManager>().getDeviceId();
       } catch (_) {}
       final otpSession = await authClient.verifyOtp(fullE164, code, deviceId: deviceId);
-      await _onOtpVerified(otpSession);
+      sessionStarted = await _onOtpVerified(otpSession);
     } on OtpInvalidException {
       _error = 'Invalid code. Try again.';
     } on RateLimitedException {
@@ -121,8 +131,10 @@ class TwakeWelcomeController extends ReloadableController {
     } catch (e) {
       _error = 'Verification failed. Try again.';
     } finally {
-      _verifying = false;
-      update();
+      if (!sessionStarted) {
+        _verifying = false;
+        update();
+      }
     }
   }
 
@@ -131,7 +143,10 @@ class TwakeWelcomeController extends ReloadableController {
   /// 1. setDataToInterceptors (both main + isolate)
   /// 2. getSessionAction (fetch JMAP session)
   /// 3. handleReloaded navigates to dashboard
-  Future<void> _onOtpVerified(OtpSession otpSession) async {
+  ///
+  /// Returns whether the session operation was started, so [verifyCode] knows
+  /// whether the loading state has to survive past the OTP request.
+  Future<bool> _onOtpVerified(OtpSession otpSession) async {
     log('TwakeWelcomeController::_onOtpVerified: username=${otpSession.username}');
 
     final baseUrl = _sessionManager.baseUrlFromSession(otpSession);
@@ -150,6 +165,7 @@ class TwakeWelcomeController extends ReloadableController {
     );
 
     getSessionAction();
+    return true;
   }
 
   Future<void> _persistCredentials({
@@ -184,6 +200,18 @@ class TwakeWelcomeController extends ReloadableController {
       RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
       arguments: session,
     );
+  }
+
+  @override
+  void onDataFailureViewState(Failure failure) {
+    // Clearing here rather than in handleFailureViewState also covers the
+    // urgent branch: BaseController.onDataFailureViewState sends urgent
+    // exceptions straight to handleUrgentException and never reaches
+    // handleFailureViewState, which would otherwise leave the spinner running.
+    if (failure is GetSessionFailure) {
+      _verifying = false;
+    }
+    super.onDataFailureViewState(failure);
   }
 
   @override
