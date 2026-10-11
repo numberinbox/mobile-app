@@ -125,4 +125,12 @@ messages_*.dart
 *.mocks.dart
 test_bundle.dart
 playwright-report
-test-resultstest/features/starting_page/failures/
+test-results
+test/features/starting_page/failures/
+
+# Dart test runner JSONL event stream produced by local test runs.
+test-report-default.json
+
+# Local reviewer login for store screenshot capture (contains a reusable code).
+docs/store/.screenshot-reviewer-access.local.md
+docs/store/screenshots/capture-manifest.local.json
