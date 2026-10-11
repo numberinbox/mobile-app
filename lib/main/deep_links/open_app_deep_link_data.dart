@@ -26,6 +26,16 @@ class OpenAppDeepLinkData extends DeepLinkData {
     this.expiresIn,
   });
 
+  /// Whether an incoming deep link may start the auto sign-in flow.
+  ///
+  /// The mobile-web banner opens the app with a bare `openApp` URL that carries
+  /// no credentials. Such a link must land in the normal signed-in/sign-in
+  /// state instead of showing a loading dialog and signing in with empty
+  /// tokens, so the credential check is part of the decision.
+  static bool canAttemptAutoSignIn(DeepLinkData deepLinkData) =>
+      deepLinkData is OpenAppDeepLinkData &&
+      deepLinkData.isValidAuthentication();
+
   bool isValidAuthentication() =>
       accessToken.isNotEmpty &&
       username.isNotEmpty &&

@@ -299,14 +299,21 @@ class LoginController extends ReloadableController {
     _deepLinksManager?.handleDeepLinksWhenAppRunning(
       deepLinkData: deepLinkData,
       onSuccessCallback: (deepLinkData) {
-        if (deepLinkData is! OpenAppDeepLinkData) return;
+        // A credential-free link (for example the mobile-web banner) must not
+        // start a sign-in: there are no tokens to use.
+        if (!OpenAppDeepLinkData.canAttemptAutoSignIn(deepLinkData)) {
+          log('$runtimeType::_handlePendingDeepLinkDataStream:'
+              ' ignoring deep link without valid authentication');
+          return;
+        }
+        final openAppDeepLinkData = deepLinkData as OpenAppDeepLinkData;
 
         if (currentContext != null) {
           SmartDialog.showLoading(msg: AppLocalizations.of(currentContext!).loadingPleaseWait);
         }
 
         _deepLinksManager?.autoSignInViaDeepLink(
-          openAppDeepLinkData: deepLinkData,
+          openAppDeepLinkData: openAppDeepLinkData,
           onAutoSignInSuccessCallback: _handleAutoSignInViaDeepLinkSuccess,
           onFailureCallback: SmartDialog.dismiss,
         );

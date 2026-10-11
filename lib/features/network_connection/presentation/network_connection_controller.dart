@@ -13,17 +13,27 @@ class NetworkConnectionController extends GetxController {
   final _connectivityResult = Rxn<ConnectivityResult>();
   final _internetConnectionStatus = Rxn<InternetConnectionStatus>();
 
+  /// Whether the change stream has already reported a status. The startup
+  /// probe can resolve after the stream and report a stale `disconnected`
+  /// while requests actually succeed, so the probe must not overwrite the
+  /// stream once the stream has spoken.
+  var _hasInternetStatusFromStream = false;
+
   final Connectivity _connectivity;
 
-  final _internetConnectionChecker = InternetConnectionChecker.createInstance(
-    checkTimeout: _timeoutInternetConnection,
-    checkInterval: _timeIntervalInternetConnection
-  );
+  final InternetConnectionChecker _internetConnectionChecker;
 
   StreamSubscription<ConnectivityResult>? _subscription;
   StreamSubscription<InternetConnectionStatus>? _internetSubscription;
 
-  NetworkConnectionController(this._connectivity);
+  NetworkConnectionController(
+    this._connectivity, {
+    InternetConnectionChecker? internetConnectionChecker,
+  }) : _internetConnectionChecker = internetConnectionChecker ??
+            InternetConnectionChecker.createInstance(
+              checkTimeout: _timeoutInternetConnection,
+              checkInterval: _timeIntervalInternetConnection,
+            );
 
   @override
   void onInit() {
@@ -60,7 +70,10 @@ class NetworkConnectionController extends GetxController {
     }
 
     if (listConnectionResult[1] is InternetConnectionStatus) {
-      _setInternetConnectivityStatus(listConnectionResult[1] as InternetConnectionStatus);
+      _setInternetConnectivityStatus(
+        listConnectionResult[1] as InternetConnectionStatus,
+        isStartupProbe: true,
+      );
     }
   }
 
@@ -77,8 +90,8 @@ class NetworkConnectionController extends GetxController {
 
     _internetSubscription = _internetConnectionChecker.onStatusChange.listen(
       (status) {
-        log('NetworkConnectionController::_listenNetworkConnectionChanged()::onStatusChange: $status');
-        _setInternetConnectivityStatus(status);
+log('NetworkConnectionController::_listenNetworkConnectionChanged()::onStatusChange: $status');
+      _setInternetConnectivityStatusFromStream(status);
       },
       onError: (error, stackTrace) {
         logWarning('NetworkConnectionController::_listenNetworkConnectionChanged()::onStatusChange:error: $error | stackTrace: $stackTrace');
@@ -90,8 +103,23 @@ class NetworkConnectionController extends GetxController {
     _connectivityResult.value = newConnectivityResult;
   }
 
-  void _setInternetConnectivityStatus(InternetConnectionStatus newStatus) {
+  void _setInternetConnectivityStatus(
+    InternetConnectionStatus newStatus, {
+    bool isStartupProbe = false,
+  }) {
+    if (isStartupProbe && _hasInternetStatusFromStream) {
+      log('NetworkConnectionController::_setInternetConnectivityStatus:'
+          ' ignoring stale startup probe status: $newStatus');
+      return;
+    }
     _internetConnectionStatus.value = newStatus;
+  }
+
+  void _setInternetConnectivityStatusFromStream(
+    InternetConnectionStatus newStatus,
+  ) {
+    _hasInternetStatusFromStream = true;
+    _setInternetConnectivityStatus(newStatus);
   }
 
   bool isNetworkConnectionAvailable() {
