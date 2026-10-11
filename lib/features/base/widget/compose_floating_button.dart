@@ -47,7 +47,11 @@ class ComposeFloatingButton extends StatelessWidget {
         ),
         onPress: onTap,
         scrollController: scrollController,
-        color: AppColor.blue700,
+        // Light mode adopts the brand action green; dark mode keeps the prior
+        // blue so the existing dark-theme design is unchanged.
+        color: Theme.of(context).brightness == Brightness.dark
+            ? AppColor.blue700
+            : AppColor.colorComposeButton,
         width: 154,
         height: 60,
         animateIcon: false

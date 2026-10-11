@@ -1,5 +1,6 @@
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
@@ -301,6 +302,165 @@ void main() {
         isTrue,
         reason: 'Logo (bottom=${logo.bottom}) should be above phone field (top=${phoneField.top})',
       );
+    });
+  });
+
+  group('welcome flow primary action', () {
+    /// The branded decoration painted behind a welcome-flow CTA.
+    DecoratedBox brandedDecorationOf(WidgetTester tester, String key) {
+      final button = find.byKey(Key(key));
+      final decorationFinder = find.ancestor(
+        of: button,
+        matching: find.byWidgetPredicate(
+          (widget) => widget is DecoratedBox && widget.decoration is BoxDecoration,
+        ),
+      );
+      final boxes = tester.widgetList<DecoratedBox>(decorationFinder).toList();
+      for (final box in boxes.reversed) {
+        final decoration = box.decoration as BoxDecoration;
+        if (decoration.gradient != null) return box;
+      }
+      throw StateError('no gradient DecoratedBox found above $key');
+    }
+
+    List<Color> gradientStopsOf(WidgetTester tester, String key) {
+      final decoration =
+          brandedDecorationOf(tester, key).decoration as BoxDecoration;
+      return decoration.gradient!.colors.toList(growable: false);
+    }
+
+    double cornerRadiusOf(WidgetTester tester, String key) {
+      final decoration =
+          brandedDecorationOf(tester, key).decoration as BoxDecoration;
+      final radius = (decoration.borderRadius as BorderRadius?) ?? BorderRadius.zero;
+      return radius.topLeft.x;
+    }
+
+    Color labelColorOf(WidgetTester tester, String key) {
+      final button = tester.widget<FilledButton>(find.byKey(Key(key)));
+      return button.style!.foregroundColor!.resolve({})!;
+    }
+
+    Future<void> pumpCodePhase(WidgetTester tester) async {
+      adapter.onPost(
+        '/v1/otp/start',
+        (server) => server.reply(200, {'ok': true}),
+        data: {'e164': '+66812345678'},
+      );
+      await pumpScreen(tester);
+      Get.find<TwakeWelcomeController>().onCountrySelected(
+        countries.firstWhere((c) => c.code == 'TH'),
+      );
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
+      await tester.tap(find.byKey(const Key('otp_send_cta')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('otp_verify_cta')), findsOneWidget);
+    }
+
+    testWidgets('send code and verify share the branded gradient', (tester) async {
+      await pumpScreen(tester);
+      final sendStops = gradientStopsOf(tester, 'otp_send_cta');
+
+      await pumpCodePhase(tester);
+      final verifyStops = gradientStopsOf(tester, 'otp_verify_cta');
+
+      expect(
+        verifyStops,
+        sendStops,
+        reason: 'the Verify button must use the same gradient as Send code',
+      );
+      expect(sendStops, [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue]);
+    });
+
+    testWidgets('send code and verify share the same geometry', (tester) async {
+      await pumpScreen(tester);
+      final sendSize = tester.getSize(find.byKey(const Key('otp_send_cta')));
+      final sendRadius = cornerRadiusOf(tester, 'otp_send_cta');
+
+      await pumpCodePhase(tester);
+      final verifySize = tester.getSize(find.byKey(const Key('otp_verify_cta')));
+      final verifyRadius = cornerRadiusOf(tester, 'otp_verify_cta');
+
+      expect(verifySize.height, greaterThanOrEqualTo(54));
+      expect(verifySize.height, closeTo(sendSize.height, 0.5));
+      expect(verifySize.width, closeTo(sendSize.width, 0.5));
+      expect(sendRadius, 14);
+      expect(verifyRadius, sendRadius);
+    });
+
+    testWidgets('both phases render a white enabled label', (tester) async {
+      await pumpScreen(tester);
+      expect(labelColorOf(tester, 'otp_send_cta'), Colors.white);
+
+      await pumpCodePhase(tester);
+      expect(labelColorOf(tester, 'otp_verify_cta'), Colors.white);
+    });
+
+    testWidgets('loading state shows a white spinner and blocks repeat taps',
+        (tester) async {
+      var startCalls = 0;
+      // A long response delay keeps the request in flight, so the CTA stays in
+      // its loading state while the assertions run.
+      adapter.onPost(
+        '/v1/otp/start',
+        (server) {
+          startCalls++;
+          server.reply(
+            200,
+            {'ok': true},
+            delay: const Duration(seconds: 30),
+          );
+        },
+        data: {'e164': '+66812345678'},
+      );
+
+      await pumpScreen(tester);
+      Get.find<TwakeWelcomeController>().onCountrySelected(
+        countries.firstWhere((c) => c.code == 'TH'),
+      );
+      await tester.pump();
+      await tester.enterText(find.byKey(const Key('otp_phone_field')), '812345678');
+      await tester.tap(find.byKey(const Key('otp_send_cta')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(startCalls, 1);
+
+      final progress = find.descendant(
+        of: find.byKey(const Key('otp_send_cta')),
+        matching: find.byType(CircularProgressIndicator),
+      );
+      expect(progress, findsOneWidget);
+      final spinner = tester.widget<CircularProgressIndicator>(progress);
+      expect(
+        spinner.valueColor?.value,
+        Colors.white,
+        reason: 'the spinner must be visibly white on the branded background',
+      );
+      expect(
+        gradientStopsOf(tester, 'otp_send_cta'),
+        [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
+        reason: 'loading must keep the branded gradient, not fall back to a '
+            'neutral fill that would swallow the white spinner',
+      );
+      expect(
+        tester.widget<FilledButton>(find.byKey(const Key('otp_send_cta'))).onPressed,
+        isNull,
+        reason: 'a loading CTA must not be interactive',
+      );
+
+      await tester.tap(find.byKey(const Key('otp_send_cta')), warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(
+        startCalls,
+        1,
+        reason: 'a busy CTA must not send a second OTP request',
+      );
+
+      // Let the delayed response land so no request outlives the test.
+      await tester.pump(const Duration(seconds: 31));
+      await tester.pumpAndSettle();
     });
   });
 }

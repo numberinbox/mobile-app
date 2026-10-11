@@ -27,6 +27,14 @@ void main() {
       _rebuildingAStyleOnlyReplacesItsFallback,
     );
   });
+
+  group('ThemeUtils.buildAppTheme AppBar overlay', () {
+    test(
+      'white app bars request dark status bar icons',
+      _whiteAppBarRequestsDarkStatusBarIcons,
+    );
+  });
+
 }
 
 Future<void> _inheritsEveryTextThemeSlot(WidgetTester tester) =>
@@ -180,5 +188,26 @@ void _expectUsableFallback(String slot, TextStyle? style) {
     style?.fontFamilyFallback?.where((family) => family.startsWith('packages/')),
     isEmpty,
     reason: '$slot fallback was rewritten with a package prefix',
+  );
+}
+
+void _whiteAppBarRequestsDarkStatusBarIcons() {
+  final theme = ThemeUtils.buildAppTheme();
+  final overlayStyle = theme.appBarTheme.systemOverlayStyle;
+
+  expect(
+    overlayStyle,
+    isNotNull,
+    reason: 'a shared white AppBar must declare its status bar icon contrast',
+  );
+  expect(
+    overlayStyle!.statusBarIconBrightness,
+    Brightness.dark,
+    reason: 'dark icons are needed to stay readable on the white AppBar',
+  );
+  expect(
+    overlayStyle.statusBarBrightness,
+    Brightness.light,
+    reason: 'the status bar surface stays light, only the icons change',
   );
 }

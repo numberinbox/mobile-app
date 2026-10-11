@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/twake_welcome_controller.dart';
+import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/branded_action_button.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/app_utils.dart';
 
@@ -172,34 +173,11 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
   }
 
   Widget _buildSendCodeButton(BuildContext context, TwakeWelcomeController ctrl) {
-    return SizedBox(
-      width: double.infinity,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(colors: [
-            NumberInboxPalette.actionGreen,
-            NumberInboxPalette.actionBlue,
-          ]),
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: FilledButton(
-          key: const Key('otp_send_cta'),
-          style: FilledButton.styleFrom(
-            backgroundColor: Colors.transparent,
-            disabledBackgroundColor: Colors.transparent,
-            shadowColor: Colors.transparent,
-            minimumSize: const Size.fromHeight(54),
-          ),
-          onPressed: ctrl.sending ? null : () => ctrl.sendCode(),
-          child: ctrl.sending
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Send code'),
-        ),
-      ),
+    return BrandedActionButton(
+      buttonKey: const Key('otp_send_cta'),
+      label: 'Send code',
+      isLoading: ctrl.sending,
+      onPressed: ctrl.sendCode,
     );
   }
 
@@ -220,19 +198,11 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
   }
 
   Widget _buildVerifyButton(BuildContext context, TwakeWelcomeController ctrl) {
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton(
-        key: const Key('otp_verify_cta'),
-        onPressed: ctrl.verifying ? null : () => ctrl.verifyCode(),
-        child: ctrl.verifying
-            ? const SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              )
-            : const Text('Verify'),
-      ),
+    return BrandedActionButton(
+      buttonKey: const Key('otp_verify_cta'),
+      label: 'Verify',
+      isLoading: ctrl.verifying,
+      onPressed: ctrl.verifyCode,
     );
   }
 

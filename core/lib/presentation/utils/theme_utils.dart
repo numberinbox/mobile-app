@@ -401,7 +401,9 @@ class ThemeUtils {
   static final AppBarTheme _appBarTheme = AppBarTheme(
     backgroundColor: Colors.white,
     elevation: 0,
-    systemOverlayStyle: SystemUiOverlayStyle.light,
+    // A white app bar needs dark status bar icons to stay readable. Pages that
+    // paint a dark background under a Material AppBar override this locally.
+    systemOverlayStyle: SystemUiOverlayStyle.dark,
     iconTheme: const IconThemeData(color: NumberInboxPalette.navy),
     titleTextStyle: defaultTextStyleInterFont.copyWith(
       color: NumberInboxPalette.navy,
