@@ -212,6 +212,7 @@ void main() {
         'ios/Runner/Info.plist',
         'android/app/src/main/AndroidManifest.xml',
         'ios/TwakeCore/Network/TokenRefreshManager.swift',
+        'web/worker_service/worker_service.js',
       ];
       for (final path in schemeFiles) {
         final file = File(path);

@@ -1,6 +1,9 @@
+// Store fallbacks stay null until the matching listing is live and owned.
+// Sending users to an unrelated or nonexistent listing is worse than offering
+// no fallback at all: the deep link still opens the installed app.
 const androidStore = 'https://play.google.com/store/apps/details?id=com.numberinbox.app';
-const iosStore = 'https://apps.apple.com/app/twake-mail/id1587086189';
-const openAppDeepLink = 'twakemail.mobile://openapp';
+const iosStore = null;
+const openAppDeepLink = 'numberinbox.mobile://openApp';
 const iosPlatform = 'iOS';
 const androidPlatform = 'android';
 const otherPlatform = 'other';
@@ -47,8 +50,12 @@ function openNumberInboxApp() {
   window.addEventListener('pagehide', onPageHide);
 
   const tryOpen = (deeplink, storeUrl) => {
-    const start = Date.now();
     window.location.href = deeplink;
+
+    if (!storeUrl) {
+      console.info('[NumberInbox] No verified store listing yet — skip store redirect.');
+      return;
+    }
 
     // fallback only if still visible after 1500 ms AND page wasn’t hidden recently
     fallbackTimer = setTimeout(() => {

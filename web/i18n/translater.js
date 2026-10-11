@@ -2,7 +2,7 @@ const i18n = {};
 const languageDefault = 'en';
 const defaultEngText = {
   title: 'Download NumberInbox application',
-  description: 'Faster and more convenient',
+  description: 'Email, reimagined with your number.',
   open: 'Open'
 };
 
@@ -68,7 +68,11 @@ function setTextContent({id, text}) {
   document.getElementById(id).textContent = text;
 }
 
-document.addEventListener('DOMContentLoaded', function () {
+/**
+ * @description Apply the loaded resources to the smart banner text
+ * @returns {void}
+ */
+function applyLanguageResources() {
   const language = getUserLanguage();
 
   let languageResources = defaultEngText;
@@ -89,4 +93,18 @@ document.addEventListener('DOMContentLoaded', function () {
     id: 'open-button-id',
     text: languageResources.open
   });
-});
+}
+
+/**
+ * @description Load the banner translations once, apply them, then continue
+ * startup. `initialTmailApp` can render the banner, so the text has to be in
+ * place before the app starts; fetching here again would duplicate the request
+ * `web/index.html` already performs.
+ * @param {Function} onReady
+ * @returns {Promise<void>}
+ */
+function initializeLocalizedApp(onReady) {
+  return loadLanguageResources()
+    .then(applyLanguageResources)
+    .finally(onReady);
+}
