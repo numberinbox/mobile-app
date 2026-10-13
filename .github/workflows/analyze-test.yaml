@@ -1,10 +1,20 @@
 on:
   pull_request:
-    paths-ignore:
+    paths-ignore: &docs_only
       - ".github/**"
-      - "docs"
+      - "docs/**"
       - "Jenkinsfile"
       - "**/*.md"
+  push:
+    branches:
+      - master
+    paths-ignore: *docs_only
+
+# One analyze+test run per ref at a time: a newer push supersedes the run for
+# the previous commit instead of queueing behind it.
+concurrency:
+  group: analyze-test-${{ github.ref }}
+  cancel-in-progress: true
 
 name: Analyze and test
 
