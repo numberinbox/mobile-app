@@ -105,14 +105,6 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              const Text(
-                                'Your number. Your inbox.',
-                                style: TextStyle(
-                                  color: NumberInboxPalette.actionGreen,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
                             ],
                           ),
                         ),
