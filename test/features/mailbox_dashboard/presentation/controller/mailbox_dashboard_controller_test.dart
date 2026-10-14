@@ -4,7 +4,10 @@ import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
+import 'package:core/utils/sentry/sentry_manager.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart' hide State;
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
@@ -12,6 +15,7 @@ import 'package:jmap_dart_client/jmap/core/id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
 import 'package:mockito/annotations.dart';
@@ -21,11 +25,17 @@ import 'package:core/utils/platform_info.dart';
 import 'package:model/email/email_action_type.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:rxdart/subjects.dart';
+import 'package:server_settings/server_settings/tmail_server_settings.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tmail_ui_user/features/email/presentation/model/composer_arguments.dart';
 import 'package:tmail_ui_user/features/base/extensions/handle_mailbox_action_type_extension.dart';
 import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/send_email_interactor.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
 import 'package:tmail_ui_user/features/download/presentation/controllers/download_controller.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/delete_email_permanently_interactor.dart';
@@ -71,6 +81,8 @@ import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree.d
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree_builder.dart';
 import 'package:tmail_ui_user/features/mailbox_creator/domain/usecases/verify_name_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/get_all_recent_search_latest_interactor.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/data/model/composer_cache.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/domain/state/get_all_composer_cache_state.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/get_all_composer_cache_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/get_stored_email_sort_order_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/quick_search_email_interactor.dart';
@@ -90,12 +102,14 @@ import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/sear
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/search/search_email_filter.dart';
 import 'package:tmail_ui_user/features/search/email/domain/notifier/search_filter_notifier.dart';
 import 'package:tmail_ui_user/features/search/email/presentation/notifier/search_email_presentation_notifier.dart';
+import 'package:tmail_ui_user/features/server_settings/domain/state/get_server_setting_state.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_identities_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart'
     if (dart.library.html) 'package:tmail_ui_user/features/network_connection/presentation/web_network_connection_controller.dart';
+import 'package:tmail_ui_user/features/paywall/presentation/paywall_launcher.dart';
 import 'package:tmail_ui_user/features/sending_queue/domain/usecases/delete_sending_email_interactor.dart';
 import 'package:tmail_ui_user/features/sending_queue/domain/usecases/get_all_sending_email_interactor.dart';
 import 'package:tmail_ui_user/features/sending_queue/domain/usecases/store_sending_email_interactor.dart';
@@ -115,9 +129,12 @@ import 'package:tmail_ui_user/features/thread/domain/usecases/refresh_changes_em
 import 'package:tmail_ui_user/features/thread/domain/usecases/search_email_interactor.dart';
 import 'package:tmail_ui_user/features/thread/domain/usecases/search_more_email_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/handle_store_email_sort_order_extension.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/reopen_composer_cache_extension.dart';
 import 'package:tmail_ui_user/features/thread/presentation/extensions/handle_email_filter_extension.dart';
 import 'package:tmail_ui_user/features/thread/presentation/thread_controller.dart';
 import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
+import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart';
+import 'package:tmail_ui_user/main/localizations/localization_service.dart';
 import 'package:tmail_ui_user/main/utils/email_receive_manager.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
@@ -273,7 +290,7 @@ void main() {
   final logoutOidcInteractor = MockLogoutOidcInteractor();
   final deleteAuthorityOidcInteractor = MockDeleteAuthorityOidcInteractor();
   final appToast = MockAppToast();
-  final imagePaths = MockImagePaths();
+  final imagePaths = ImagePaths();
   final responsiveUtils = MockResponsiveUtils();
   final uuid = MockUuid();
   final mockToastManager = MockToastManager();
@@ -328,6 +345,23 @@ void main() {
       Session({}, {}, {}, UserName('data'), google, google, google, google, State('1'));
   final testMailboxId = MailboxId(Id('1'));
   final testAccountId = AccountId(Id('123'));
+
+  Future<void> pumpLocalizedApp(WidgetTester tester) async {
+    await tester.pumpWidget(
+      const GetMaterialApp(
+        locale: LocalizationService.defaultLocale,
+        supportedLocales: LocalizationService.supportedLocales,
+        localizationsDelegates: [
+          AppLocalizationsDelegate(),
+          GlobalMaterialLocalizations.delegate,
+          GlobalWidgetsLocalizations.delegate,
+          GlobalCupertinoLocalizations.delegate,
+        ],
+        home: SizedBox(),
+      ),
+    );
+    await tester.pump();
+  }
 
   setUp(() {
     Get.put<RemoveEmailDraftsInteractor>(removeEmailDraftsInteractor);
@@ -405,6 +439,167 @@ void main() {
       storeEmailSortOrderInteractor,
       getStoredEmailSortOrderInteractor,
     );
+  });
+
+  group('PaywallLauncher navigation', () {
+    const urlLauncherChannel = MethodChannel('plugins.flutter.io/url_launcher');
+    late List<String> launchedUrls;
+    late List<String> receivedMethods;
+    late PaywallLauncher paywallLauncher;
+
+    setUp(() {
+      launchedUrls = [];
+      receivedMethods = [];
+      paywallLauncher = const PaywallLauncher();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(urlLauncherChannel, (call) async {
+        receivedMethods.add(call.method);
+        if (call.method == 'launch' || call.method == 'launchUrl') {
+          final arguments = call.arguments as Map<dynamic, dynamic>;
+          launchedUrls.add(arguments['url'] as String);
+        }
+        return true;
+      });
+    });
+
+    tearDown(() {
+      PlatformInfo.isTestingForWeb = false;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(urlLauncherChannel, null);
+    });
+
+    testWidgets('should launch a resolved paywall destination',
+        (tester) async {
+      paywallLauncher.launch(Uri.parse('https://domain.tld/#/premium'));
+      await tester.pump();
+
+      expect(launchedUrls, ['https://domain.tld/#/premium']);
+    });
+
+    testWidgets('should reject an unsafe resolved destination',
+        (tester) async {
+      paywallLauncher.launch(Uri.parse('javascript:alert(1)'));
+      await tester.pump();
+
+      expect(launchedUrls, isEmpty);
+      // Rejected before any platform call, not by a failing launch.
+      expect(receivedMethods, isEmpty);
+    });
+  });
+
+  group('draft saved toast icon:', () {
+    testWidgets('uses the legacy action icon after creating a draft',
+        (tester) async {
+      await pumpLocalizedApp(tester);
+      clearInteractions(appToast);
+
+      mailboxDashboardController.handleSuccessViewState(
+        SaveEmailAsDraftsSuccess(EmailId(Id('draft-email')), null),
+      );
+
+      verify(
+        appToast.showToastMessage(
+          any,
+          any,
+          actionName: anyNamed('actionName'),
+          onActionClick: anyNamed('onActionClick'),
+          actionIcon: anyNamed('actionIcon'),
+          leadingSVGIcon: imagePaths.icMailboxDraftsAction,
+          leadingSVGIconColor: anyNamed('leadingSVGIconColor'),
+          backgroundColor: anyNamed('backgroundColor'),
+          textColor: anyNamed('textColor'),
+        ),
+      ).called(1);
+    });
+
+    testWidgets('uses the legacy action icon after updating a draft',
+        (tester) async {
+      await pumpLocalizedApp(tester);
+      clearInteractions(appToast);
+
+      mailboxDashboardController.handleSuccessViewState(
+        UpdateEmailDraftsSuccess(
+          emailId: EmailId(Id('draft-email')),
+          attachments: [],
+        ),
+      );
+
+      verify(
+        appToast.showToastMessage(
+          any,
+          any,
+          leadingSVGIcon: imagePaths.icMailboxDraftsAction,
+          leadingSVGIconColor: anyNamed('leadingSVGIconColor'),
+          backgroundColor: anyNamed('backgroundColor'),
+          textColor: anyNamed('textColor'),
+        ),
+      ).called(1);
+    });
+  });
+
+  group('send email failure toast:', () {
+    testWidgets('names the rejected addresses on an InvalidRecipientsException',
+        (tester) async {
+      await pumpLocalizedApp(tester);
+      clearInteractions(appToast);
+      mailboxDashboardController.sessionCurrent = testSession;
+      mailboxDashboardController.accountId.value = testAccountId;
+      when(deleteEmailPermanentlyInteractor.execute(any, any, any, any))
+          .thenAnswer((_) => const Stream.empty());
+
+      mailboxDashboardController.handleFailureViewState(
+        SendEmailFailure(
+          exception: InvalidRecipientsException(
+            {},
+            {'bad@linagora.com'},
+            createdEmailId: EmailId(Id('email-1')),
+          ),
+        ),
+      );
+
+      verify(
+        appToast.showToastErrorMessage(
+          any,
+          argThat(contains('bad@linagora.com')),
+          leadingSVGIcon: anyNamed('leadingSVGIcon'),
+        ),
+      ).called(1);
+      verify(deleteEmailPermanentlyInteractor.execute(
+        testSession,
+        testAccountId,
+        EmailId(Id('email-1')),
+        null,
+      )).called(1);
+    });
+  });
+
+  testWidgets('applies explicit Sentry opt-in and opt-out from server settings', (tester) async {
+    await pumpLocalizedApp(tester);
+    await tester.pumpAndSettle();
+    final sentryManager = SentryManager.instance
+      ..setSentryReportingDefault(false)
+      ..setSentryReportingConsent(null);
+    addTearDown(() {
+      sentryManager
+        ..setSentryReportingConsent(null)
+        ..setSentryReportingDefault(true);
+    });
+
+    mailboxDashboardController.handleSuccessViewState(
+      GetServerSettingSuccess(
+        TMailServerSettingOptions(sentryUserOptIn: true),
+      ),
+    );
+    expect(sentryManager.isSentryReportingAllowed, isTrue);
+    await tester.pumpAndSettle();
+
+    mailboxDashboardController.handleSuccessViewState(
+      GetServerSettingSuccess(
+        TMailServerSettingOptions(sentryUserOptIn: false),
+      ),
+    );
+    expect(sentryManager.isSentryReportingAllowed, isFalse);
+    await tester.pumpAndSettle();
   });
 
   group('search/sort/filter feature:', () {
@@ -823,6 +1018,27 @@ void main() {
       );
     });
 
+    test(
+      'WHEN the dashboard closes\n'
+      'THEN keeps the Sentry identity until the session is cleared',
+      () {
+        final sentryManager = SentryManager.instance
+          ..setSentryReportingDefault(true)
+          ..setSentryReportingConsent(true)
+          ..setUser(SentryUser(id: 'active-account'));
+        addTearDown(() {
+          sentryManager
+            ..clearUser()
+            ..setSentryReportingConsent(null)
+            ..setSentryReportingDefault(true);
+        });
+
+        mailboxDashboardController.onClose();
+
+        expect(sentryManager.userForScope?.id, 'active-account');
+      },
+    );
+
     tearDown(Get.deleteAll);
   });
 
@@ -1144,6 +1360,37 @@ void main() {
         ]);
 
         verifyNever(composerManager.addComposer(any));
+      },
+    );
+  });
+
+  group('handleGetAllComposerCacheSuccess:', () {
+    setUp(() {
+      when(mockTwakeAppManager.hasComposer).thenReturn(false);
+      mailboxDashboardController.sessionCurrent = testSession;
+      mailboxDashboardController.accountId.value = testAccountId;
+      clearInteractions(composerManager);
+      clearInteractions(removeAllComposerCacheInteractor);
+      clearInteractions(removeComposerCacheByIdInteractor);
+    });
+
+    test(
+      'reopens the cached composers by index and keeps their snapshots, so a '
+      'second reload during restore does not lose them',
+      () {
+        mailboxDashboardController.handleGetAllComposerCacheSuccess(
+          GetAllComposerCacheSuccess([
+            ComposerCache(composerId: 'second', composerIndex: 1),
+            ComposerCache(composerId: 'first', composerIndex: 0),
+          ]),
+        );
+
+        final reopened = verify(composerManager.addListComposer(captureAny))
+            .captured
+            .single as List<ComposerArguments>;
+        expect(reopened.map((arguments) => arguments.composerId), ['first', 'second']);
+        verifyNever(removeAllComposerCacheInteractor.execute(any, any));
+        verifyNever(removeComposerCacheByIdInteractor.execute(any, any, any));
       },
     );
   });

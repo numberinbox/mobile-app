@@ -29,9 +29,10 @@ import 'package:tmail_ui_user/features/email/presentation/extensions/presentatio
 import 'package:tmail_ui_user/features/email/presentation/extensions/validate_display_free_busy_message_extension.dart';
 import 'package:tmail_ui_user/features/email/presentation/styles/email_view_styles.dart';
 import 'package:tmail_ui_user/features/email/presentation/utils/email_action_reactor/email_action_reactor.dart';
-import 'package:tmail_ui_user/features/email/presentation/widgets/calendar_event/calendar_event_action_banner_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/calendar_event/calendar_event_detail_widget.dart';
-import 'package:tmail_ui_user/features/email/presentation/widgets/calendar_event/calendar_event_information_widget.dart';
+import 'package:tmail_ui_user/features/email/presentation/model/calendar_event_card_actions.dart';
+import 'package:tmail_ui_user/features/email/presentation/model/calendar_event_card_view_state.dart';
+import 'package:tmail_ui_user/features/email/presentation/widgets/calendar_event/ecosystem_calendar_event_card_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/email_attachments_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/email_subject_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/email_view_app_bar_widget.dart';
@@ -372,35 +373,38 @@ class EmailView extends GetWidget<SingleEmailController> {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Obx(() => CalendarEventInformationWidget(
+              Obx(() => EcosystemCalendarEventCardWidget(
+                accountId: controller.accountId,
+                jmapUrl: controller.dynamicUrlInterceptors.jmapUrl,
                 calendarEvent: calendarEvent,
-                imagePaths: controller.imagePaths,
-                onOpenComposerAction: controller.openNewComposerAction,
-                onOpenNewTabAction: controller.openNewTabAction,
-                onCalendarEventReplyActionClick: (eventActionType) =>
-                  controller.onCalendarEventReplyAction(
+                viewState: CalendarEventCardViewState(
+                  ownEmailAddress: controller.ownEmailAddress,
+                  listEmailAddressSender: emailAddressSender ?? [],
+                  attendanceStatus: controller.attendanceStatus.value,
+                  replying: controller.calendarEventProcessing,
+                  hasScheduleConflict: controller.isFreeBusyEnabled(
+                    emailAddressSender ?? [],
+                  ),
+                ),
+                actions: CalendarEventCardActions(
+                  onReply: (eventActionType) =>
+                    controller.onCalendarEventReplyAction(
                       eventActionType,
                       presentationEmail.id!,
+                    ),
+                  onMailToAttendees: () => controller.handleMailToAttendees(
+                    calendarEvent.organizer,
+                    calendarEvent.participants,
+                    calendarEvent.getMailToAttendeesEventTitle(
+                      AppLocalizations.of(context),
+                    ),
                   ),
-                calendarEventReplying: controller.calendarEventProcessing,
-                attendanceStatus: controller.attendanceStatus.value,
-                ownEmailAddress: controller.ownEmailAddress,
-                onMailtoAttendeesAction: controller.handleMailToAttendees,
-                openEmailAddressDetailAction: (_, emailAddress) => controller.openEmailAddressDialog(emailAddress),
-                isFreeBusyEnabled: controller.isFreeBusyEnabled(emailAddressSender ?? []),
-                listEmailAddressSender: emailAddressSender ?? [],
-                isPortraitMobile: controller
-                    .responsiveUtils
-                    .isPortraitMobile(context),
-              )),
-              if (_validateDisplayEventActionBanner(
-                  context: context,
-                  event: calendarEvent,
-                  emailAddressSender: emailAddressSender ?? []))
-                CalendarEventActionBannerWidget(
-                  calendarEvent: calendarEvent,
-                  listEmailAddressSender: emailAddressSender ?? []
+                  onOpenLink: controller.openNewTabAction,
+                  onCopyLink: (link) => AppUtils.copyLinkToClipboard(context, link),
+                  onOpenComposer: controller.openNewComposerAction,
+                  onOpenEmailAddress: controller.openEmailAddressDialog,
                 ),
+              )),
               Obx(() => CalendarEventDetailWidget(
                 calendarEvent: calendarEvent,
                 emailContent: controller.currentEmailLoaded.value?.htmlContent ?? '',
@@ -409,6 +413,7 @@ class EmailView extends GetWidget<SingleEmailController> {
                 scrollController: scrollController,
                 isInsideThreadDetailView: isInsideThreadDetailView,
                 onIFrameClickAction: controller.handleOnIFrameClick,
+                onBlockedLinkAction: (_) => controller.showBlockedLinkToast(),
               )),
             ],
           )
@@ -456,18 +461,48 @@ class EmailView extends GetWidget<SingleEmailController> {
                             key: PlatformInfo.isIntegrationTesting
                                 ? controller.htmlContentViewKey
                                 : null,
-                            contentHtml: allEmailContents,
-                            initialWidth: bodyConstraints.maxWidth,
-                            direction: AppUtils.getCurrentDirection(context),
-                            contentPadding: 0,
-                            useDefaultFontStyle: true,
-                            maxHtmlContentHeight: ConstantsUI.htmlContentMaxHeight,
-                            onMailtoDelegateAction: (uri) async => controller.openMailToLink(uri),
-                            onHtmlContentClippedAction: controller.onHtmlContentClippedAction,
-                            onScrollHorizontalEnd: controller.onScrollHorizontalEnd,
-                            keepAlive: isInsideThreadDetailView,
-                            enableQuoteToggle: true,
-                            fontSize: isMobileResponsive ? 16 : 14,
+                            configuration: HtmlContentViewerConfiguration(
+                              content: HtmlContentViewerContent(
+                                html: allEmailContents,
+                                direction: AppUtils.getCurrentDirection(context),
+                              ),
+                              layout: HtmlContentViewerLayout(
+                                viewport: HtmlContentViewerViewport(
+                                  constraints: BoxConstraints.tightFor(
+                                    width: bodyConstraints.maxWidth,
+                                  ),
+                                ),
+                                height: const HtmlContentViewerHeightConfiguration(
+                                  contentConstraints: BoxConstraints(
+                                    minHeight: ConstantsUI.htmlContentMinHeight,
+                                    maxHeight: ConstantsUI.htmlContentMaxHeight,
+                                  ),
+                                ),
+                                contentPadding: const HtmlContentViewerLength(0),
+                              ),
+                              typography: HtmlContentViewerTypography(
+                                fontStyle: HtmlContentViewerFontStyle.defaultStyle,
+                                textSize: HtmlContentViewerLength(
+                                  isMobileResponsive ? 16 : 14,
+                                ),
+                              ),
+                              behavior: HtmlContentViewerBehavior(features: {
+                                if (isInsideThreadDetailView)
+                                  HtmlContentViewerFeature.keepAlive,
+                                HtmlContentViewerFeature.quoteToggle,
+                                HtmlContentViewerFeature.mobileResponsiveLayout,
+                              }),
+                              callbacks: HtmlContentViewerCallbacks(
+                                onMailto: (uri) async => controller.openMailToLink(uri),
+                                onBlockedLink: (_) => controller.showBlockedLinkToast(),
+                                onContentClipped: (_) =>
+                                    controller.onHtmlContentClippedAction(true),
+                                onScrollHorizontalEnd: (direction) =>
+                                    controller.onScrollHorizontalEnd(
+                                      direction == HtmlContentViewerHorizontalDirection.left,
+                                    ),
+                              ),
+                            ),
                           ),
                         ),
                         Obx(() {
@@ -495,16 +530,40 @@ class EmailView extends GetWidget<SingleEmailController> {
                     key: PlatformInfo.isIntegrationTesting
                         ? controller.htmlContentViewKey
                         : null,
-                    contentHtml: allEmailContents,
-                    initialWidth: bodyConstraints.maxWidth,
-                    direction: AppUtils.getCurrentDirection(context),
-                    contentPadding: 0,
-                    useDefaultFontStyle: true,
-                    onMailtoDelegateAction: (uri) async => controller.openMailToLink(uri),
-                    keepAlive: isInsideThreadDetailView,
-                    enableQuoteToggle: true,
-                    onScrollHorizontalEnd: controller.onScrollHorizontalEnd,
-                    fontSize: isMobileResponsive ? 16 : 14,
+                    configuration: HtmlContentViewerConfiguration(
+                      content: HtmlContentViewerContent(
+                        html: allEmailContents,
+                        direction: AppUtils.getCurrentDirection(context),
+                      ),
+                      layout: HtmlContentViewerLayout(
+                        viewport: HtmlContentViewerViewport(
+                          constraints: BoxConstraints.tightFor(
+                            width: bodyConstraints.maxWidth,
+                          ),
+                        ),
+                        contentPadding: const HtmlContentViewerLength(0),
+                      ),
+                      typography: HtmlContentViewerTypography(
+                        fontStyle: HtmlContentViewerFontStyle.defaultStyle,
+                        textSize: HtmlContentViewerLength(
+                          isMobileResponsive ? 16 : 14,
+                        ),
+                      ),
+                      behavior: HtmlContentViewerBehavior(features: {
+                        if (isInsideThreadDetailView)
+                          HtmlContentViewerFeature.keepAlive,
+                        HtmlContentViewerFeature.quoteToggle,
+                        HtmlContentViewerFeature.mobileResponsiveLayout,
+                      }),
+                      callbacks: HtmlContentViewerCallbacks(
+                        onMailto: (uri) async => controller.openMailToLink(uri),
+                        onBlockedLink: (_) => controller.showBlockedLinkToast(),
+                        onScrollHorizontalEnd: (direction) =>
+                            controller.onScrollHorizontalEnd(
+                              direction == HtmlContentViewerHorizontalDirection.left,
+                            ),
+                      ),
+                    ),
                   )
                 );
               }
@@ -562,20 +621,6 @@ class EmailView extends GetWidget<SingleEmailController> {
         return const SizedBox.shrink();
       }
     });
-  }
-
-  bool _validateDisplayEventActionBanner({
-    required BuildContext context,
-    required CalendarEvent event,
-    required List<String> emailAddressSender
-  }) {
-    final usernameEvent = event.getUserNameEventAction(
-      context: context,
-      imagePaths: controller.imagePaths,
-      listEmailAddressSender: emailAddressSender);
-    final titleEvent = event.getTitleEventAction(context, emailAddressSender);
-
-    return usernameEvent.isNotEmpty && titleEvent.isNotEmpty;
   }
 
   Widget _buildMobileBodyWidget(

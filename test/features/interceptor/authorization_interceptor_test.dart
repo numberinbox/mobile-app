@@ -1,4 +1,5 @@
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:core/data/constants/constant.dart';
@@ -36,6 +37,27 @@ import '../../fixtures/capturing_log_handler.dart';
 import '../../fixtures/oidc_fixtures.dart';
 import 'authorization_interceptor_test.mocks.dart';
 
+/// Answers 401 to requests without Authorization, 200 otherwise; records each header.
+class _RecordingAdapter implements HttpClientAdapter {
+  final List<Object?> authHeaders = [];
+
+  @override
+  Future<ResponseBody> fetch(
+    RequestOptions options,
+    Stream<Uint8List>? requestStream,
+    Future<void>? cancelFuture,
+  ) async {
+    final auth = options.headers[HttpHeaders.authorizationHeader];
+    authHeaders.add(auth);
+    return ResponseBody.fromString('{}', auth == null ? 401 : 200, headers: {
+      Headers.contentTypeHeader: [Headers.jsonContentType],
+    });
+  }
+
+  @override
+  void close({bool force = false}) {}
+}
+
 @GenerateMocks([
   AuthenticationClientBase,
   TokenOidcCacheManager,
@@ -45,9 +67,9 @@ import 'authorization_interceptor_test.mocks.dart';
 void main() {
   late Dio dio;
   late DioAdapter dioAdapter;
-  late AuthenticationClientBase authenticationClient;
-  late TokenOidcCacheManager tokenOidcCacheManager;
-  late AccountCacheManager accountCacheManager;
+  late MockAuthenticationClientBase authenticationClient;
+  late MockTokenOidcCacheManager tokenOidcCacheManager;
+  late MockAccountCacheManager accountCacheManager;
   late IOSSharingManager iosSharingManager;
   late AuthorizationInterceptors authorizationInterceptors;
 
@@ -149,7 +171,7 @@ void main() {
       OIDCFixtures.oidcConfiguration.redirectUrl,
       OIDCFixtures.oidcConfiguration.discoveryUrl,
       OIDCFixtures.oidcConfiguration.scopes,
-      OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+      OIDCFixtures.tokenOidcExpiredTime,
     )).thenThrow(error);
   }
 
@@ -398,7 +420,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -412,7 +434,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
       },
     );
@@ -450,7 +472,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcNotExpiredYet.refreshToken,
+          OIDCFixtures.tokenOidcNotExpiredYet,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -464,7 +486,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcNotExpiredYet.refreshToken,
+          OIDCFixtures.tokenOidcNotExpiredYet,
         )).called(1);
       },
     );
@@ -488,7 +510,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.tokenOidcExpiredTime);
         stubAccountCache();
 
@@ -498,6 +520,44 @@ void main() {
             (e) => e.response?.statusCode == responseStatusCode401,
           )),
         );
+      },
+    );
+
+    test(
+      'WHEN a skipAuthorization request gets 401\n'
+      'THEN it is neither refreshed nor retried with a token',
+      () async {
+        final adapter = _RecordingAdapter();
+        dio.httpClientAdapter = adapter;
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcExpiredTime,
+        )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
+        stubAccountCache();
+
+        await expectLater(
+          dio.get(
+            'https://autodiscover.example.org/.well-known/webfinger',
+            options: Options(
+              extra: {AuthorizationInterceptors.skipAuthorizationKey: true},
+            ),
+          ),
+          throwsA(predicate<DioException>(
+            (e) => e.response?.statusCode == responseStatusCode401,
+          )),
+        );
+
+        expect(adapter.authHeaders, [null]);
+        verifyNever(authenticationClient.refreshingTokensOIDC(
+          any, any, any, any, any,
+        ));
       },
     );
   });
@@ -534,7 +594,7 @@ void main() {
         OIDCFixtures.oidcConfiguration.redirectUrl,
         OIDCFixtures.oidcConfiguration.discoveryUrl,
         OIDCFixtures.oidcConfiguration.scopes,
-        OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+        OIDCFixtures.tokenOidcExpiredTime,
       )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
       stubAccountCache();
     }
@@ -597,6 +657,74 @@ void main() {
             accountCacheManager.deleteCurrentAccount(AccountFixtures.aliceAccount.id));
       },
     );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared while the token is being persisted\n'
+      'THEN the account cache is never written\n'
+      'AND the token just persisted is deleted (detector undoes its own write)\n'
+      'SO a logout racing the persist step cannot be resurrected',
+      () async {
+        final persistGate = Completer<void>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) async => OIDCFixtures.newTokenOidc);
+        when(accountCacheManager.getCurrentAccount())
+            .thenAnswer((_) async => AccountFixtures.aliceAccount);
+        when(tokenOidcCacheManager.persistOneTokenOidc(any))
+            .thenAnswer((_) => persistGate.future);
+        when(tokenOidcCacheManager.deleteTokenOidc(any))
+            .thenAnswer((_) async {});
+
+        final pending = authorizationInterceptors.requestTokenRefresh();
+        await pumpEventQueue();
+        authorizationInterceptors.clear();
+        persistGate.complete();
+
+        await expectLater(pending, throwsA(isA<StaleSessionRefreshException>()));
+        verifyNever(accountCacheManager.setCurrentAccount(any));
+        verify(tokenOidcCacheManager.deleteTokenOidc(
+          OIDCFixtures.newTokenOidc.tokenIdHash,
+        )).called(1);
+      },
+    );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared while the account cache is being written\n'
+      'THEN the refresh surfaces as stale, not as a usable token\n'
+      'AND the account just written is deleted (detector undoes its own write)\n'
+      'SO the caller never treats an account write racing logout as success',
+      () async {
+        final setAccountGate = Completer<void>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) async => OIDCFixtures.newTokenOidc);
+        when(accountCacheManager.getCurrentAccount())
+            .thenAnswer((_) async => AccountFixtures.aliceAccount);
+        when(accountCacheManager.setCurrentAccount(any))
+            .thenAnswer((_) => setAccountGate.future);
+        when(accountCacheManager.deleteCurrentAccount(
+          OIDCFixtures.newTokenOidc.tokenIdHash,
+        )).thenAnswer((_) async {});
+
+        final pending = authorizationInterceptors.requestTokenRefresh();
+        await pumpEventQueue();
+        authorizationInterceptors.clear();
+        setAccountGate.complete();
+
+        await expectLater(pending, throwsA(isA<StaleSessionRefreshException>()));
+        verify(accountCacheManager.deleteCurrentAccount(
+          OIDCFixtures.newTokenOidc.tokenIdHash,
+        )).called(1);
+      },
+    );
   });
 
   // ============================================================
@@ -627,7 +755,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh400);
         stubAccountCache();
 
@@ -645,7 +773,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
 
         expect(
@@ -688,7 +816,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh401);
         stubAccountCache();
 
@@ -741,7 +869,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh403);
         stubAccountCache();
 
@@ -788,7 +916,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh500);
         stubAccountCache();
 
@@ -831,7 +959,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(const ServerError());
         stubAccountCache();
 
@@ -863,7 +991,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(const TemporarilyUnavailable());
         stubAccountCache();
 
@@ -896,7 +1024,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(AccessTokenInvalidException());
         stubAccountCache();
 
@@ -946,7 +1074,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(PlatformException(
           code: 'token_failed',
           message: 'Failed to get token: [error: null, description: Network error]',
@@ -1010,7 +1138,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         ));
       },
     );
@@ -1064,7 +1192,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         ));
       },
     );
@@ -1107,7 +1235,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         ));
       },
     );
@@ -1167,7 +1295,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1180,7 +1308,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
 
         expect(response1.statusCode, equals(HttpStatus.ok));
@@ -1224,7 +1352,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(AccessTokenInvalidException());
         stubAccountCache();
 
@@ -1240,7 +1368,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
       },
     );
@@ -1307,7 +1435,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1322,7 +1450,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
 
         expect(responses[0].statusCode, equals(HttpStatus.ok));
@@ -1381,7 +1509,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1397,7 +1525,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
 
         for (final response in responses) {
@@ -1451,7 +1579,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh400);
         stubAccountCache();
 
@@ -1518,7 +1646,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh400);
         stubAccountCache();
 
@@ -1559,7 +1687,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1); // only the first call
       },
     );
@@ -1606,7 +1734,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async {
           refreshCallCount++;
           return OIDCFixtures.tokenOidcExpiredTime; // same token → duplicate
@@ -1640,6 +1768,475 @@ void main() {
         // update _token, so second request can't detect the first's attempt).
         // Key assertion: no infinite loop — each request tries once and stops.
         expect(refreshCallCount, 2);
+        // The shared acquire step persists regardless of duplicate; only the
+        // retry decision is skipped — once per independent attempt.
+        verify(tokenOidcCacheManager.persistOneTokenOidc(any)).called(2);
+        verify(accountCacheManager.setCurrentAccount(any)).called(2);
+      },
+    );
+  });
+
+  // ============================================================
+  // requestTokenRefresh: concurrent callers dedup
+  // ============================================================
+  group('requestTokenRefresh: concurrent callers dedup', () {
+    test(
+      'GIVEN two concurrent direct callers of requestTokenRefresh\n'
+      'WHEN both call before the first refresh resolves\n'
+      'THEN refresh is invoked exactly once\n'
+      'AND both callers receive the same new token',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        final refreshCompleter = Completer<TokenOIDC>();
+        when(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcExpiredTime,
+        )).thenAnswer((_) => refreshCompleter.future);
+        stubAccountCache();
+
+        final firstCall = authorizationInterceptors.requestTokenRefresh();
+        final secondCall = authorizationInterceptors.requestTokenRefresh();
+        refreshCompleter.complete(OIDCFixtures.newTokenOidc);
+        final results = await Future.wait([firstCall, secondCall]);
+
+        verify(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcExpiredTime,
+        )).called(1);
+        expect(results[0].token, equals(OIDCFixtures.newTokenOidc.token));
+        expect(results[1].token, equals(OIDCFixtures.newTokenOidc.token));
+      },
+    );
+
+    test(
+      'GIVEN a lib request 401s through onError\n'
+      'AND an external caller (e.g. Workplace, on its own unwired Dio) calls\n'
+      '    requestTokenRefresh at the same time\n'
+      'WHEN both race before refresh resolves\n'
+      'THEN refresh is invoked exactly once\n'
+      'AND the external caller resolves to the same token used to retry the lib request',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+
+        dioAdapter.onPost(
+          baseUrl,
+          (server) => server.throws(responseStatusCode401, makeDioError401()),
+          headers: {
+            HttpHeaders.authorizationHeader:
+                'Bearer ${OIDCFixtures.tokenOidcExpiredTime.token}',
+          },
+        );
+        dioAdapter.onPost(
+          baseUrl,
+          (server) => server.reply(responseStatusCode200, dataRequestSuccessfully),
+          headers: {
+            HttpHeaders.authorizationHeader:
+                'Bearer ${OIDCFixtures.newTokenOidc.token}',
+          },
+        );
+
+        final refreshCompleter = Completer<TokenOIDC>();
+        when(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcExpiredTime,
+        )).thenAnswer((_) => refreshCompleter.future);
+        stubAccountCache();
+
+        // Workplace-style caller races the interceptor's reactive onError path.
+        final workplaceRefresh = authorizationInterceptors.requestTokenRefresh();
+        final libRequest = dio.post(baseUrl);
+        refreshCompleter.complete(OIDCFixtures.newTokenOidc);
+
+        final response = await libRequest;
+        final workplaceToken = await workplaceRefresh;
+
+        verify(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcExpiredTime,
+        )).called(1);
+        expect(response.statusCode, equals(HttpStatus.ok));
+        expect(workplaceToken.token, equals(OIDCFixtures.newTokenOidc.token));
+      },
+    );
+  });
+
+  // ============================================================
+  // requestTokenRefresh: owns the fatal-vs-transient decision
+  // ============================================================
+  group('requestTokenRefresh: owns the fatal-vs-transient decision', () {
+    void stubRefreshThrowing(Object error) {
+      authorizationInterceptors.setTokenAndAuthorityOidc(
+        newToken: OIDCFixtures.tokenOidcExpiredTime,
+        newConfig: OIDCFixtures.oidcConfiguration,
+      );
+      when(authenticationClient.refreshingTokensOIDC(
+        OIDCFixtures.oidcConfiguration.clientId,
+        OIDCFixtures.oidcConfiguration.redirectUrl,
+        OIDCFixtures.oidcConfiguration.discoveryUrl,
+        OIDCFixtures.oidcConfiguration.scopes,
+        OIDCFixtures.tokenOidcExpiredTime,
+      )).thenThrow(error);
+    }
+
+    test(
+      'GIVEN a direct caller (e.g. Workplace)\n'
+      'WHEN the token endpoint rejects the refresh token (invalid_grant)\n'
+      'THEN the session is cleared and RefreshTokenFailedException is thrown',
+      () async {
+        stubRefreshThrowing(const OAuthAuthorizationError(
+          error: 'invalid_grant',
+          errorDescription: 'The refresh token has been revoked',
+        ));
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenFailedException>()),
+        );
+
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.none);
+        verifyNever(tokenOidcCacheManager.persistOneTokenOidc(any));
+      },
+    );
+
+    test(
+      'GIVEN a direct caller (e.g. Workplace)\n'
+      'WHEN the refresh fails transiently\n'
+      'THEN the original error is rethrown and the session is kept',
+      () async {
+        const transient = ServerError();
+        stubRefreshThrowing(transient);
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(same(transient)),
+        );
+
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+        expect(authorizationInterceptors.currentToken, OIDCFixtures.tokenOidcExpiredTime);
+      },
+    );
+
+    test(
+      'GIVEN a JMAP 401 already cleared the session on a rejected refresh\n'
+      'WHEN a second caller (e.g. Workplace, whose 401 arrived moments later)\n'
+      '    calls requestTokenRefresh on the now-empty session\n'
+      'THEN it fails with RefreshTokenFailedException, not a raw TypeError\n'
+      'SO the Drive failure can be classified urgent and routed to logout',
+      () async {
+        stubRefreshThrowing(const OAuthAuthorizationError(
+          error: 'invalid_grant',
+          errorDescription: 'The refresh token has been revoked',
+        ));
+
+        // First caller: the JMAP 401 path kills the session.
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenFailedException>()),
+        );
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.none);
+
+        // Second caller races in after the session is already gone.
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenFailedException>()),
+        );
+      },
+    );
+
+    test(
+      'GIVEN a direct caller on web, where Drive attach ships\n'
+      'WHEN flutter_appauth_web rejects the refresh with a non-Dio ArgumentError\n'
+      'THEN the web classifier still calls it a server rejection\n'
+      'AND the session is cleared with RefreshTokenFailedException',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        stubRefreshThrowing(ArgumentError(
+          'Failed to get token: [error: token_failed, description: invalid_request]',
+        ));
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenFailedException>()),
+        );
+
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.none);
+        verifyNever(tokenOidcCacheManager.persistOneTokenOidc(any));
+      },
+    );
+
+    test(
+      'GIVEN a direct caller on web\n'
+      'WHEN the refresh fails with an error the web classifier does not own\n'
+      'THEN the original error is rethrown and the session is kept',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        final transient = ArgumentError('Failed to get token: [error: network_error]');
+        stubRefreshThrowing(transient);
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(same(transient)),
+        );
+
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+      },
+    );
+
+    test(
+      'GIVEN an OIDC session whose token carries no refresh token\n'
+      'WHEN a caller asks for a refresh\n'
+      'THEN nothing is sent and the session is kept\n'
+      'SO a Drive-only 401 cannot earn a server rejection that logs the user out',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTimeAndRefreshTokenEmpty,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenUnavailableException>()),
+        );
+
+        verifyNever(authenticationClient.refreshingTokensOIDC(any, any, any, any, any));
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+        expect(
+          authorizationInterceptors.currentToken,
+          OIDCFixtures.tokenOidcExpiredTimeAndRefreshTokenEmpty,
+        );
+      },
+    );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared before it resolves\n'
+      'THEN the token is dropped instead of re-arming a logged-out interceptor\n'
+      'AND nothing is persisted over the wiped caches',
+      () async {
+        final gate = Completer<TokenOIDC>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) => gate.future);
+
+        final pending = authorizationInterceptors.requestTokenRefresh();
+        authorizationInterceptors.clear();
+        gate.complete(OIDCFixtures.tokenOidcNotExpiredYet);
+
+        await expectLater(pending, throwsA(isA<StaleSessionRefreshException>()));
+        expect(authorizationInterceptors.currentToken, isNull);
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.none);
+        verifyNever(tokenOidcCacheManager.persistOneTokenOidc(any));
+        verifyNever(accountCacheManager.setCurrentAccount(any));
+      },
+    );
+
+    test(
+      'GIVEN a refresh whose new token already arrived\n'
+      'WHEN the session is cleared while the account cache is being read\n'
+      'THEN nothing is written back into the caches logout just wiped\n'
+      'SO the next launch cannot restore the account the user logged out of',
+      () async {
+        final accountGate = Completer<PersonalAccount>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) async => OIDCFixtures.tokenOidcNotExpiredYet);
+        when(accountCacheManager.getCurrentAccount())
+            .thenAnswer((_) => accountGate.future);
+
+        final pending = authorizationInterceptors.requestTokenRefresh();
+        await pumpEventQueue();
+        authorizationInterceptors.clear();
+        accountGate.complete(AccountFixtures.aliceAccount);
+
+        await expectLater(pending, throwsA(isA<StaleSessionRefreshException>()));
+        verifyNever(tokenOidcCacheManager.persistOneTokenOidc(any));
+        verifyNever(accountCacheManager.setCurrentAccount(any));
+      },
+    );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared and a new one signs in\n'
+      'THEN the next caller starts its own refresh instead of joining the dead one\n'
+      'AND the stale result does not kill the new session',
+      () async {
+        final gate = Completer<TokenOIDC>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) => gate.future);
+
+        final stale = authorizationInterceptors.requestTokenRefresh();
+        authorizationInterceptors.clear();
+
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) async => OIDCFixtures.tokenOidcNotExpiredYet);
+        when(accountCacheManager.getCurrentAccount())
+            .thenAnswer((_) async => AccountFixtures.aliceAccount);
+
+        final fresh = authorizationInterceptors.requestTokenRefresh();
+        gate.complete(OIDCFixtures.tokenOidcNotExpiredYet);
+
+        await expectLater(stale, throwsA(isA<StaleSessionRefreshException>()));
+        expect(await fresh, OIDCFixtures.tokenOidcNotExpiredYet);
+        verify(authenticationClient.refreshingTokensOIDC(any, any, any, any, any)).called(2);
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+      },
+    );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared, a new one signs in,\n'
+      '    and only then the token endpoint rejects the old refresh\n'
+      'THEN the rejection is not the new session\'s verdict\n'
+      'SO the freshly signed-in session is neither cleared nor logged out',
+      () async {
+        final gate = Completer<TokenOIDC>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) => gate.future);
+
+        final stale = authorizationInterceptors.requestTokenRefresh();
+        authorizationInterceptors.clear();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.newTokenOidc,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+
+        gate.completeError(const OAuthAuthorizationError(
+          error: 'invalid_grant',
+          errorDescription: 'The refresh token has been revoked',
+        ));
+
+        await expectLater(stale, throwsA(isA<StaleSessionRefreshException>()));
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+        expect(authorizationInterceptors.currentToken, OIDCFixtures.newTokenOidc);
+      },
+    );
+
+    test(
+      'GIVEN a refresh in flight\n'
+      'WHEN the session is cleared, a new one signs in,\n'
+      '    and only then the token endpoint answers 400 as a DioException\n'
+      'THEN the stale answer never reaches the mobile 400 logout mapping\n'
+      'SO the freshly signed-in session survives',
+      () async {
+        final gate = Completer<TokenOIDC>();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) => gate.future);
+
+        final stale = authorizationInterceptors.requestTokenRefresh();
+        authorizationInterceptors.clear();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.newTokenOidc,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+
+        gate.completeError(DioException(
+          requestOptions: RequestOptions(path: '/token'),
+          response: Response(
+            requestOptions: RequestOptions(path: '/token'),
+            statusCode: 400,
+            data: {'error': 'invalid_grant'},
+          ),
+          type: DioExceptionType.badResponse,
+        ));
+
+        await expectLater(stale, throwsA(isA<StaleSessionRefreshException>()));
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+        expect(authorizationInterceptors.currentToken, OIDCFixtures.newTokenOidc);
+      },
+    );
+
+    test(
+      'GIVEN a request that 401ed and is awaiting a refresh from its own session\n'
+      'WHEN the user logs out and a new session signs in before that refresh lands\n'
+      'THEN the leftover request fails without a session verdict\n'
+      'SO it cannot force the freshly signed-in session to log out.',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        dioAdapter.onPost(
+          baseUrl,
+          (server) => server.throws(responseStatusCode401, makeDioError401()),
+          headers: {
+            HttpHeaders.authorizationHeader:
+                'Bearer ${OIDCFixtures.tokenOidcExpiredTime.token}',
+          },
+        );
+
+        final gate = Completer<TokenOIDC>();
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenAnswer((_) => gate.future);
+
+        // The request is now parked inside onError, awaiting the refresh.
+        final leftoverRequest = dio.post(baseUrl).then<Object?>(
+              (_) => null,
+              onError: (Object e) => e,
+            );
+        await pumpEventQueue();
+
+        // The user logs out and someone else signs in on the same interceptor.
+        authorizationInterceptors.clear();
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.newTokenOidc,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        gate.complete(OIDCFixtures.tokenOidcNotExpiredYet);
+
+        final failure = await leftoverRequest;
+        final surfaced = failure is DioException ? failure.error : failure;
+
+        // Any of these three reaches BaseController.validateUrgentException and
+        // logs the new user out; a stale answer is not a session verdict.
+        expect(surfaced, isNot(isA<RefreshTokenFailedException>()));
+        expect(surfaced, isNot(isA<RefreshTokenDuplicatedException>()));
+        expect(surfaced, isNot(isA<BadCredentialsException>()));
+
+        // The new session must be untouched by the old request's failure.
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
+        expect(authorizationInterceptors.currentToken, OIDCFixtures.newTokenOidc);
       },
     );
   });
@@ -1685,7 +2282,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1700,7 +2297,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
       },
     );
@@ -1749,7 +2346,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1841,7 +2438,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -1886,7 +2483,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcNotExpiredYet.refreshToken,
+          OIDCFixtures.tokenOidcNotExpiredYet,
         )).thenAnswer((_) async {
           refreshCallCount++;
           return OIDCFixtures.tokenOidcNotExpiredYet; // same token → duplicate
@@ -1901,6 +2498,41 @@ void main() {
         );
 
         expect(refreshCallCount, 1);
+        // _refreshTokenThenRetry detects the duplicate itself (access token
+        // unchanged) AFTER the shared acquire step already persisted.
+        verify(tokenOidcCacheManager
+                .persistOneTokenOidc(OIDCFixtures.tokenOidcNotExpiredYet))
+            .called(1);
+        verify(accountCacheManager.setCurrentAccount(any)).called(1);
+      },
+    );
+
+    test(
+      'GIVEN a direct requestTokenRefresh caller (e.g. Workplace)\n'
+      'WHEN refresh returns the current access token\n'
+      'THEN the token is still returned and persisted\n'
+      'SO a caller comparing a different field (e.g. id token) is not blocked',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcNotExpiredYet,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(
+          OIDCFixtures.oidcConfiguration.clientId,
+          OIDCFixtures.oidcConfiguration.redirectUrl,
+          OIDCFixtures.oidcConfiguration.discoveryUrl,
+          OIDCFixtures.oidcConfiguration.scopes,
+          OIDCFixtures.tokenOidcNotExpiredYet,
+        )).thenAnswer((_) async => OIDCFixtures.tokenOidcNotExpiredYet);
+        stubAccountCache();
+
+        final refreshed = await authorizationInterceptors.requestTokenRefresh();
+
+        expect(refreshed, OIDCFixtures.tokenOidcNotExpiredYet);
+        verify(tokenOidcCacheManager
+                .persistOneTokenOidc(OIDCFixtures.tokenOidcNotExpiredYet))
+            .called(1);
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.oidc);
       },
     );
   });
@@ -1936,7 +2568,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(refreshTimeoutError);
 
         await expectLater(
@@ -1970,7 +2602,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcNotExpiredYet.refreshToken,
+          OIDCFixtures.tokenOidcNotExpiredYet,
         )).thenThrow(refreshTimeoutError);
 
         await expectLater(
@@ -2024,7 +2656,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2080,7 +2712,7 @@ void main() {
             OIDCFixtures.oidcConfiguration.redirectUrl,
             OIDCFixtures.oidcConfiguration.discoveryUrl,
             OIDCFixtures.oidcConfiguration.scopes,
-            OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+            OIDCFixtures.tokenOidcExpiredTime,
           )).thenThrow(platformNetworkException);
 
           await expectLater(
@@ -2118,7 +2750,7 @@ void main() {
             OIDCFixtures.oidcConfiguration.redirectUrl,
             OIDCFixtures.oidcConfiguration.discoveryUrl,
             OIDCFixtures.oidcConfiguration.scopes,
-            OIDCFixtures.tokenOidcNotExpiredYet.refreshToken,
+            OIDCFixtures.tokenOidcNotExpiredYet,
           )).thenThrow(platformNetworkException);
 
           await expectLater(
@@ -2156,7 +2788,7 @@ void main() {
             OIDCFixtures.oidcConfiguration.redirectUrl,
             OIDCFixtures.oidcConfiguration.discoveryUrl,
             OIDCFixtures.oidcConfiguration.scopes,
-            OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+            OIDCFixtures.tokenOidcExpiredTime,
           )).thenThrow(PlatformException(
             code: 'network_error',
             message: 'Failed to connect to token endpoint',
@@ -2197,7 +2829,7 @@ void main() {
             OIDCFixtures.oidcConfiguration.redirectUrl,
             OIDCFixtures.oidcConfiguration.discoveryUrl,
             OIDCFixtures.oidcConfiguration.scopes,
-            OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+            OIDCFixtures.tokenOidcExpiredTime,
           )).thenThrow(const OAuthAuthorizationError(
             error: 'invalid_grant',
             errorDescription: 'The refresh token has been revoked',
@@ -2264,7 +2896,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2280,7 +2912,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
 
         for (final response in responses) {
@@ -2329,7 +2961,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(refreshTimeoutError);
         stubAccountCache();
 
@@ -2387,7 +3019,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(PlatformException(
           code: 'network_error',
           message: 'Failed to connect to token endpoint',
@@ -2449,7 +3081,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenThrow(dioErrorRefresh400);
         stubAccountCache();
 
@@ -2532,7 +3164,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2561,7 +3193,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
       },
     );
@@ -2612,7 +3244,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         ));
       },
     );
@@ -2642,7 +3274,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         when(accountCacheManager.getCurrentAccount())
             .thenAnswer((_) async => AccountFixtures.aliceAccount);
@@ -2685,7 +3317,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
         final expectedPersonalAccount = PersonalAccount(
@@ -2714,11 +3346,13 @@ void main() {
   // ============================================================
   group('onError: upload retry with attachment extras', () {
     test(
-      'WHEN 401 on upload request with uploadAttachmentExtraKey + filePath\n'
+      'WHEN web receives 401 on upload request with uploadAttachmentExtraKey + filePath\n'
       'AND refresh succeeds\n'
       'THEN upload-specific retry path is taken (uses retryDio.request, not fetch)\n'
       'AND retry succeeds with 200',
       () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
         authorizationInterceptors.setTokenAndAuthorityOidc(
           newToken: OIDCFixtures.tokenOidcExpiredTime,
           newConfig: OIDCFixtures.oidcConfiguration,
@@ -2757,7 +3391,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2809,7 +3443,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2891,7 +3525,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         ));
       },
     );
@@ -2959,7 +3593,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -2971,7 +3605,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).called(1);
       },
     );
@@ -3463,7 +4097,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -3519,7 +4153,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -3621,7 +4255,7 @@ void main() {
           OIDCFixtures.oidcConfiguration.redirectUrl,
           OIDCFixtures.oidcConfiguration.discoveryUrl,
           OIDCFixtures.oidcConfiguration.scopes,
-          OIDCFixtures.tokenOidcExpiredTime.refreshToken,
+          OIDCFixtures.tokenOidcExpiredTime,
         )).thenAnswer((_) async => OIDCFixtures.newTokenOidc);
         stubAccountCache();
 
@@ -3685,7 +4319,7 @@ void main() {
         expect(errorRecords.single.rawMessage, contains('will_logout=true'));
         expect(
           errorRecords.single.rawMessage,
-          contains('_handleRefreshErrorOnWeb'),
+          contains('logFatalRefreshRejection'),
         );
         expect(
           errorRecords.any((r) => r.rawMessage.contains('onError:Exception')),
@@ -3734,6 +4368,50 @@ void main() {
   // adds its own generic event. Failures the handler does NOT classify keep
   // that generic event — it is their only trace.
   // ============================================================
+  // Workplace calls requestTokenRefresh directly, with no onError above it, so
+  // the fatal event has to come from the interceptor rather than the caller.
+  group('requestTokenRefresh: a direct caller gets the fatal event too', () {
+    late CapturingLogHandler logHandler;
+
+    setUp(() {
+      logHandler = CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logHandler);
+    });
+
+    tearDown(() => AppLoggerRegistry.instance.resetForTesting());
+
+    test(
+      'WHEN a direct refresh is rejected by the token endpoint\n'
+      'THEN exactly ONE error-level event is emitted (will_logout=true)\n'
+      'AND the caller adds none of its own',
+      () async {
+        authorizationInterceptors.setTokenAndAuthorityOidc(
+          newToken: OIDCFixtures.tokenOidcExpiredTime,
+          newConfig: OIDCFixtures.oidcConfiguration,
+        );
+        when(authenticationClient.refreshingTokensOIDC(any, any, any, any, any))
+            .thenThrow(const OAuthAuthorizationError(
+          error: 'invalid_grant',
+          errorDescription: 'The refresh token has been revoked',
+        ));
+
+        await expectLater(
+          authorizationInterceptors.requestTokenRefresh(),
+          throwsA(isA<RefreshTokenFailedException>()),
+        );
+
+        final errorRecords = logHandler.errorRecords;
+        expect(errorRecords.length, 1);
+        expect(errorRecords.single.rawMessage, contains('will_logout=true'));
+        expect(
+          errorRecords.single.extras,
+          containsPair('auth_error_type', 'token_endpoint_oauth_rejected'),
+        );
+        expect(authorizationInterceptors.authenticationType, AuthenticationType.none);
+      },
+    );
+  });
+
   group('onError: mobile refresh failure emits a single Sentry event', () {
     late CapturingLogHandler logHandler;
 

@@ -17,44 +17,13 @@ PODS:
     - Flutter
   - device_info_plus (0.0.1):
     - Flutter
-  - DKImagePickerController/Core (4.3.9):
-    - DKImagePickerController/ImageDataManager
-    - DKImagePickerController/Resource
-  - DKImagePickerController/ImageDataManager (4.3.9)
-  - DKImagePickerController/PhotoGallery (4.3.9):
-    - DKImagePickerController/Core
-    - DKPhotoGallery
-  - DKImagePickerController/Resource (4.3.9)
-  - DKPhotoGallery (0.0.19):
-    - DKPhotoGallery/Core (= 0.0.19)
-    - DKPhotoGallery/Model (= 0.0.19)
-    - DKPhotoGallery/Preview (= 0.0.19)
-    - DKPhotoGallery/Resource (= 0.0.19)
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Core (0.0.19):
-    - DKPhotoGallery/Model
-    - DKPhotoGallery/Preview
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Model (0.0.19):
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Preview (0.0.19):
-    - DKPhotoGallery/Model
-    - DKPhotoGallery/Resource
-    - SDWebImage
-    - SwiftyGif
-  - DKPhotoGallery/Resource (0.0.19):
-    - SDWebImage
-    - SwiftyGif
   - external_app_launcher (0.0.1):
     - Flutter
   - external_path (2.0.1):
     - Flutter
-  - file_picker (0.0.1):
-    - DKImagePickerController/PhotoGallery
+  - file_picker_darwin (1.0.0):
     - Flutter
+    - FlutterMacOS
   - Firebase/CoreOnly (12.12.0):
     - FirebaseCore (~> 12.12.0)
   - Firebase/Messaging (12.12.0):
@@ -101,6 +70,7 @@ PODS:
     - Flutter
   - flutter_image_compress_common (1.0.0):
     - Flutter
+    - Mantle
     - SDWebImage
     - SDWebImageWebPCoder
   - flutter_inappwebview_ios (0.0.1):
@@ -149,8 +119,6 @@ PODS:
   - GoogleUtilities/UserDefaults (8.1.0):
     - GoogleUtilities/Logger
     - GoogleUtilities/Privacy
-  - integration_test (0.0.1):
-    - Flutter
   - libwebp (1.5.0):
     - libwebp/demux (= 1.5.0)
     - libwebp/mux (= 1.5.0)
@@ -167,6 +135,9 @@ PODS:
   - lottie_native (0.0.1):
     - Flutter
     - lottie-ios (~> 4.4.1)
+  - Mantle (2.2.0):
+    - Mantle/extobjc (= 2.2.0)
+  - Mantle/extobjc (2.2.0)
   - nanopb (3.30910.0):
     - nanopb/decode (= 3.30910.0)
     - nanopb/encode (= 3.30910.0)
@@ -186,10 +157,10 @@ PODS:
     - CocoaAsyncSocket (~> 7.6)
     - Flutter
     - FlutterMacOS
-  - pdfrx (0.0.8):
+  - pdfrx (0.0.6):
     - Flutter
     - FlutterMacOS
-  - permission_handler_apple (9.4.8):
+  - permission_handler_apple (9.3.0):
     - Flutter
   - photo_manager (3.12.0):
     - Flutter
@@ -220,7 +191,6 @@ PODS:
     - FlutterMacOS
   - super_dns_client (0.0.1):
     - Flutter
-  - SwiftyGif (5.4.5)
   - UniversalDetector2 (2.0.1)
   - url_launcher_ios (0.0.1):
     - Flutter
@@ -233,7 +203,7 @@ DEPENDENCIES:
   - device_info_plus (from `.symlinks/plugins/device_info_plus/ios`)
   - external_app_launcher (from `.symlinks/plugins/external_app_launcher/ios`)
   - external_path (from `.symlinks/plugins/external_path/ios`)
-  - file_picker (from `.symlinks/plugins/file_picker/ios`)
+  - file_picker_darwin (from `.symlinks/plugins/file_picker_darwin/darwin`)
   - firebase_core (from `.symlinks/plugins/firebase_core/ios`)
   - firebase_messaging (from `.symlinks/plugins/firebase_messaging/ios`)
   - fk_user_agent (from `.symlinks/plugins/fk_user_agent/ios`)
@@ -249,7 +219,6 @@ DEPENDENCIES:
   - flutter_native_splash (from `.symlinks/plugins/flutter_native_splash/ios`)
   - flutter_secure_storage (from `.symlinks/plugins/flutter_secure_storage/ios`)
   - flutter_web_auth_2 (from `.symlinks/plugins/flutter_web_auth_2/ios`)
-  - integration_test (from `.symlinks/plugins/integration_test/ios`)
   - lottie_native (from `.symlinks/plugins/lottie_native/ios`)
   - objective_c (from `.symlinks/plugins/objective_c/ios`)
   - open_file_ios (from `.symlinks/plugins/open_file_ios/ios`)
@@ -273,8 +242,6 @@ SPEC REPOS:
   trunk:
     - AppAuth
     - CocoaAsyncSocket
-    - DKImagePickerController
-    - DKPhotoGallery
     - Firebase
     - FirebaseCore
     - FirebaseCoreInternal
@@ -284,6 +251,7 @@ SPEC REPOS:
     - GoogleUtilities
     - libwebp
     - lottie-ios
+    - Mantle
     - nanopb
     - OrderedSet
     - PromisesObjC
@@ -291,7 +259,6 @@ SPEC REPOS:
     - SDWebImage
     - SDWebImageWebPCoder
     - Sentry
-    - SwiftyGif
     - UniversalDetector2
 
 EXTERNAL SOURCES:
@@ -309,8 +276,8 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/external_app_launcher/ios"
   external_path:
     :path: ".symlinks/plugins/external_path/ios"
-  file_picker:
-    :path: ".symlinks/plugins/file_picker/ios"
+  file_picker_darwin:
+    :path: ".symlinks/plugins/file_picker_darwin/darwin"
   firebase_core:
     :path: ".symlinks/plugins/firebase_core/ios"
   firebase_messaging:
@@ -341,8 +308,6 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_secure_storage/ios"
   flutter_web_auth_2:
     :path: ".symlinks/plugins/flutter_web_auth_2/ios"
-  integration_test:
-    :path: ".symlinks/plugins/integration_test/ios"
   lottie_native:
     :path: ".symlinks/plugins/lottie_native/ios"
   objective_c:
@@ -385,12 +350,10 @@ SPEC CHECKSUMS:
   CocoaAsyncSocket: 065fd1e645c7abab64f7a6a2007a48038fdc6a99
   connectivity_plus: 4d5101c5877bedcda6cd1ccb825307911667d6b0
   contacts_service: 7c2ed10147f55891576c6a582f431e385d8de92d
-  device_info_plus: 8b1a7b1cce194cd48521ee7159feb70453ed4854
-  DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
-  DKPhotoGallery: b3834fecb755ee09a593d7c9e389d8b5d6deed60
+  device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   external_app_launcher: 3411245965270a74040a3de17e27bd02b8abb905
   external_path: fd37c654b69a1336e33a2403f48383ae6100e443
-  file_picker: a0560bc09d61de87f12d246fc47d2119e6ef37be
+  file_picker_darwin: 4c2b9a50ea44cb3b071381ea0cf48591bdd80251
   Firebase: aa154fee4e9b8eac17aa42344988865b3e857d33
   firebase_core: 552ed6765e96441f2af83b46ec42fa30126f3c88
   firebase_messaging: 15a0e132bcef6c0e19052222d9401174903bed42
@@ -401,9 +364,9 @@ SPEC CHECKSUMS:
   fk_user_agent: 137145b086229251761678fe034da53753f4ce59
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_appauth: d4abcf54856e5d8ba82ed7646ffc83245d4aa448
-  flutter_charset_detector_darwin: bfc256cedbf309db64b0800bafa7ff374bf021f2
+  flutter_charset_detector_darwin: 14f055ebeed6896144cc96b046749df51127a0a3
   flutter_file_dialog: ca8d7fbd1772d4f0c2777b4ab20a7787ef4e7dd8
-  flutter_image_compress_common: 11d5dcfb36f4ded92320bfa896261813a073240e
+  flutter_image_compress_common: 1697a328fd72bfb335507c6bca1a65fa5ad87df1
   flutter_inappwebview_ios: b89ba3482b96fb25e00c967aae065701b66e9b99
   flutter_keyboard_visibility: 4625131e43015dbbe759d9b20daaf77e0e3f6619
   flutter_local_notifications: ad39620c743ea4c15127860f4b5641649a988100
@@ -413,21 +376,21 @@ SPEC CHECKSUMS:
   flutter_web_auth_2: 5c8d9dcd7848b5a9efb086d24e7a9adcae979c80
   GoogleDataTransport: aae35b7ea0c09004c3797d53c8c41f66f219d6a7
   GoogleUtilities: 00c88b9a86066ef77f0da2fab05f65d7768ed8e1
-  integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
   libwebp: 02b23773aedb6ff1fd38cec7a77b81414c6842a8
   lottie-ios: fcb5e73e17ba4c983140b7d21095c834b3087418
   lottie_native: c2e590a297861fc32a0188cf8dab39aa97f86d81
+  Mantle: c5aa8794a29a022dfbbfc9799af95f477a69b62d
   nanopb: fad817b59e0457d11a5dfbde799381cd727c1275
   objective_c: 89e720c30d716b036faf9c9684022048eee1eee2
   open_file_ios: 46184d802ee7959203f6392abcfa0dd49fdb5be0
   OrderedSet: e539b66b644ff081c73a262d24ad552a69be3a94
-  package_info_plus: 580e9a5f1b6ca5594e7c9ed5f92d1dfb2a66b5e1
-  path_provider_foundation: bb55f6dbba17d0dccd6737fe6f7f34fbd0376880
+  package_info_plus: af8e2ca6888548050f16fa2f1938db7b5a5df499
+  path_provider_foundation: 080d55be775b7414fd5a5ef3ac137b97b097e564
   patrol: cea8074f183a2a4232d0ebd10569ae05149ada42
-  pdfrx: 04c7feb7d21c416d5ff89de5d7a9a35caa0c95c2
-  permission_handler_apple: 92d754bbaa7361d436db2d6c3c1c2a0fdcec462e
+  pdfrx: 310e84d01e06fd2af26e16507a0e48c27e99195c
+  permission_handler_apple: 4ed2196e43d0651e8ff7ca3483a069d469701f2d
   photo_manager: c303e4476f6c220274119f0212a7753e45edd4a2
-  pointer_interceptor_ios: da06a662d5bfd329602b45b2ab41bc0fb5fdb0f0
+  pointer_interceptor_ios: 6c19a55ea369c3f64424c9a95441e2b0e8beb8f3
   printing: 54ff03f28fe9ba3aa93358afb80a8595a071dd07
   PromisesObjC: f5707f49cb48b9636751c5b2e7d227e43fba9f47
   ReachabilitySwift: 32793e867593cfc1177f5d16491e3a197d2fccda
@@ -436,13 +399,12 @@ SPEC CHECKSUMS:
   SDWebImageWebPCoder: 0e06e365080397465cc73a7a9b472d8a3bd0f377
   Sentry: b53951377b78e21a734f5dc8318e333dbfc682d7
   sentry_flutter: 4c33648b7e83310aa1fdb1b10c5491027d9643f0
-  share_plus: de6030e33b4e106470e09322d87cf2a4258d2d1d
-  shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
+  share_plus: 50da8cb520a8f0f65671c6c6a99b3617ed10a58a
+  shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   super_dns_client: 03e8ebf4df47d1335d1027299f8d2365b7a7bb59
-  SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   UniversalDetector2: 7c9ffd935cf050eeb19edf7e90f6febe3743a1af
-  url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
+  url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
 
-PODFILE CHECKSUM: 1ed6cc61215dc9fe326d4fd673245ba9774310ce
+PODFILE CHECKSUM: 639565dd16e195fbe1f4882bf8f552747be00660
 
-COCOAPODS: 1.17.0
+COCOAPODS: 1.16.2

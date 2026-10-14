@@ -1509,11 +1509,15 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "unsubscribeMailDialogMessage": "An bhfuil tú cinnte gur mhaith leat stop a chur le teachtaireachtaí den chineál céanna a fháil ó",
+  "unsubscribeMailDialogMessage": "An bhfuil tú cinnte gur mhaith leat stop a chur le teachtaireachtaí den chineál céanna a fháil ó {senderName}?",
   "@unsubscribeMailDialogMessage": {
     "type": "text",
-    "placeholders_order": [],
-    "placeholders": {}
+    "placeholders_order": [
+      "senderName"
+    ],
+    "placeholders": {
+      "senderName": {}
+    }
   },
   "unsubscribedFromThisMailingList": "Díliostáilte ón liosta seoltaí seo",
   "@unsubscribedFromThisMailingList": {
@@ -5709,6 +5713,18 @@
   },
   "clearTrashSubfoldersFailed": "Theip ar fho-fhillteáin a scriosadh sa Bhruscar",
   "@clearTrashSubfoldersFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveAttachmentInDevelopment": "Tá an ghné 'cuir leis mar cheangaltán' fós á forbairt.",
+  "@driveAttachmentInDevelopment": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveNoValidAttachment": "Gan aon cheangaltán bailí",
+  "@driveNoValidAttachment": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

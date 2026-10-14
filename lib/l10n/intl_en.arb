@@ -209,7 +209,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "header_email_quoted": "On {sentDate}, from {emailAddress}",
+  "header_email_quoted": "On {sentDate}, {emailAddress} wrote:",
   "@header_email_quoted": {
     "type": "text",
     "placeholders_order": [
@@ -219,6 +219,18 @@
     "placeholders": {
       "sentDate": {},
       "emailAddress": {}
+    }
+  },
+  "header_email_quoted_date_time": "{date} at {time}",
+  "@header_email_quoted_date_time": {
+    "type": "text",
+    "placeholders_order": [
+      "date",
+      "time"
+    ],
+    "placeholders": {
+      "date": {},
+      "time": {}
     }
   },
   "prefix_reply_email": "Re:",
@@ -629,6 +641,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "folderNameContainsForbiddenCharacters": "Folder name cannot start with \"#\" nor contain \".\", \"%\", \"*\" or line breaks",
+  "@folderNameContainsForbiddenCharacters": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "this_folder_name_is_already_taken": "This folder name is already taken",
   "@this_folder_name_is_already_taken": {
     "type": "text",
@@ -997,7 +1015,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "toast_message_delete_multiple_email_permanently_success": "{count} Messages has been deleted forever",
+  "toast_message_delete_multiple_email_permanently_success": "{count,plural, =1{1 message has been deleted forever}other{{count} messages have been deleted forever}}",
   "@toast_message_delete_multiple_email_permanently_success": {
     "type": "text",
     "placeholders_order": [
@@ -1049,7 +1067,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "toast_message_empty_trash_folder_success": "All messages has been deleted forever",
+  "toast_message_empty_trash_folder_success": "All messages have been deleted forever",
   "@toast_message_empty_trash_folder_success": {
     "type": "text",
     "placeholders_order": [],
@@ -1195,7 +1213,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "identitiesSettingExplanation": "Select the identity or email address you want to use to send an emails",
+  "identitiesSettingExplanation": "Select the identity or email address you want to use to send emails",
   "@identitiesSettingExplanation": {
     "type": "text",
     "placeholders_order": [],
@@ -2645,6 +2663,16 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "sendMessageFailureWithInvalidRecipients": "Failure to send your message, because these recipients are invalid: {invalidRecipients}",
+  "@sendMessageFailureWithInvalidRecipients": {
+    "type": "text",
+    "placeholders_order": [
+      "invalidRecipients"
+    ],
+    "placeholders": {
+      "invalidRecipients": {}
+    }
+  },
   "saveEmailAsDraftFailure": "Failure to save your message as drafts.",
   "@saveEmailAsDraftFailure": {
     "type": "text",
@@ -2941,7 +2969,7 @@
       "maxSize": {}
     }
   },
-  "messageEventActionBannerOrganizerInvited": " has invited you in to a meeting",
+  "messageEventActionBannerOrganizerInvited": " has invited you to a meeting",
   "@messageEventActionBannerOrganizerInvited": {
     "type": "text",
     "placeholders_order": [],
@@ -3001,7 +3029,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "invitationMessageCalendarInformation": " has invited you in to a meeting:",
+  "invitationMessageCalendarInformation": " has invited you to a meeting:",
   "@invitationMessageCalendarInformation": {
     "type": "text",
     "placeholders_order": [],
@@ -3301,6 +3329,24 @@
   },
   "aiScribeToggleDescription": "Enable AI Scribe",
   "@aiScribeToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordRequired": "Password-protected PDF",
+  "@pdfPasswordRequired": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "incorrectPdfPassword": "Incorrect password, please try again",
+  "@incorrectPdfPassword": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordNotProvided": "This PDF is password-protected. You can still download it.",
+  "@pdfPasswordNotProvided": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

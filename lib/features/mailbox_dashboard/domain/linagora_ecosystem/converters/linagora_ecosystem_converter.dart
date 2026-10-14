@@ -33,6 +33,8 @@ class LinagoraEcosystemConverter {
         LinagoraEcosystemIdentifier.scribePromptUrl: ApiUrlLinagoraEcosystem.deserialize,
         LinagoraEcosystemIdentifier.sentryConfig: SentryConfigLinagoraEcosystem.deserialize,
         LinagoraEcosystemIdentifier.driveAttachment: DriveAttachmentLinagoraEcosystem.deserialize,
+        LinagoraEcosystemIdentifier.workplaceFqdnFallback: ApiUrlLinagoraEcosystem.deserialize,
+        LinagoraEcosystemIdentifier.calendarUrlTemplate: ApiUrlLinagoraEcosystem.deserialize,
       });
   }
 

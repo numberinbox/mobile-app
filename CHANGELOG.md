@@ -1,3 +1,128 @@
+## [0.40.1] - 2026-10-14
+### Fixed
+- Fix Android release build failing in R8 after the file_picker 13 upgrade
+
+## [0.40.0] - 2026-10-13
+### Added
+- #4827 Upload oversize attachments to Drive and attach them as a link
+- #4877 Prompt for a password when previewing an encrypted PDF
+- #4897 Open mailto links from the PDF viewer in the composer
+- #4871 Hide Outbox, Drafts and Templates from rule move targets
+
+### Fixed
+- #4862 No draft-save prompt when closing an unmodified composer
+- #4864 Localize the reply quote header date and time
+- #4867 Reject "." in folder names with a clear message
+- #4873 Scope email CSS in the EML preview to the email body
+- #4878 Keep the full file extension in middle-ellipsis attachment chips
+- #4883 Show the color picker value as #RRGGBB
+- #4886 Rule edit button reads "Save"; fix French rule update toast
+- #4888 Localize team mailbox system folder names
+- #4889 Neutralize the team mailbox root folder
+- #4894 Open the label picker on "Label as" click in the reading pane
+
+### Changed
+- Translate vi, ru, fr, mn
+- Place sender name naturally in the unsubscribe dialog translations
+
+## [0.39.4] - 2026-10-08
+### Fixed
+- Mobile can select another label in email view
+
+## [0.39.3] - 2026-10-07
+### Fixed
+- Send the Sentry log when user opts in to error reporting
+
+## [0.39.2] - 2026-10-07
+### Added 
+- Log when user toggle Sentry
+
+## [0.39.1] - 2026-10-06
+### Added
+- #4809 Add Sentry error reporting preference and consent handling
+- Add a twake-qa compatible QA environment
+
+### Fixed
+- Fix grammar in Profiles settings subtitle and permanent-delete toasts
+- Fix 'has invited you in to a meeting' typo in English strings
+- Use plural form for permanent-delete toast on a single message
+- 2509 Restrict which links open externally from email content
+- 2509 Allow sms, webcal and geo links and warn when a link is refused
+- 2509 Restrict openApp deep links to allow-listed hosts, require https
+- 2509 Sanitize nested CSS at-rules and drop remote url() inside them
+
+### Changed
+- Translate vi, ru, fr, mn
+- Bump tmail-backend docker image to 1.0.21.2
+
+## [0.39.0] - 2026-10-02
+### Added
+- Support iOS app builds on Xcode 27.0 and macOS Golden Gate 27.0
+- #4843 Handle EmailSubmission/set invalidRecipients in composer
+- #4672 Hide calendar button when ecosystem URL template is unset
+
+### Fixed
+- #4859 Validate iframe message shape in HTML viewer before handling
+- Support domainPart in URL templates
+- Gate premium CTA on being inside Cozy
+- Strip bidi and control characters from attachment names
+- Escape notification text; private lock-screen visibility
+- Never send credentials with WebFinger discovery requests
+- Escape header fields in EML preview; remove unused PDF viewer
+- Try DNS-over-HTTPS before system DNS for JMAP discovery
+- Return to app base, not host root, after logout
+- Drop redirect_uri handling from the logout callback
+- Pin pica/dotlottie at build time and serve CanvasKit locally
+
+### Changed
+- #4861 Localize file size formatter tests with Intl.defaultLocale
+- #4815 Test switched identity and signature survive web reload
+- #4837 Drop no-op selection-list reorder, add category order test
+- Translate vi, ru, fr, mn
+- Bump tmail-backend docker image to 1.0.21.1
+- Run every test in CI without registration
+
+## [0.38.0] - 2026-09-23
+### Fixed
+- #4802 Update Twake Calendar footer separator
+- #4838 Resolve Workplace FQDN from the Linagora ecosystem fallback
+- #4678 Fix sidebar header icon sizing and long-press on touch platforms
+
+### Changed
+- #4623 Integrate design system event card invitation
+- Translate vi, ru, fr, mn
+
+## [0.37.2] - 2026-09-15
+### Added
+- Allow workplace to refresh jmap token
+
+### Fixed
+- Hide the premium CTA when no paywall url is configured
+
+### Changed
+- #4817 Improve premium CTA ecosystem handling
+- Translate id, lb, de, ga, zh_Hans
+
+## [0.37.1] - 2026-09-14
+
+### Fixed
+- #4820 Change arrow size to 16
+
+## [0.37.0] - 2026-09-14
+### Added
+- Add Brazilian Portuguese localization
+- Implement fetchJson for workplace web
+
+### Fixed
+- #4790 Fix attachment upload failing to retry after a mobile 401
+- #4799 Fix HTML Mail being truncated in width
+- #4805 Clear iframes only when the SelectableRegion node itself takes focus
+- Restore legacy icons for mailbox actions
+- Hide Twake Calendar visio section when rendering ICS description
+
+### Changed
+- Translate vi, ru, fr, mn
+
 ## [0.36.0] - 2026-08-28
 ### Added
 - #4678 Deep sidebar tree navigation for mailboxes, no more horizontal scrolling

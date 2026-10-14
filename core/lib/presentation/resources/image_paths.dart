@@ -20,6 +20,7 @@ class ImagePaths {
   String get icChevronDown => _getImagePath('ic_chevron_down.svg');
   String get icFilter => _getImagePath('ic_filter.svg');
   String get icSearchBar => _getImagePath('ic_search_bar.svg');
+  String get icMagnifierNoBorder => _getImagePath('ic_magnifier_noborder.svg');
   String get icCompose => _getImagePath('ic_compose.svg');
   String get icRead => _getImagePath('ic_read.svg');
   String get icUnread => _getImagePath('ic_unread.svg');
@@ -37,6 +38,7 @@ class ImagePaths {
   String get icUnreadEmail => _getImagePath('ic_unread_email.svg');
   String get icCircleClose => _getImagePath('ic_circle_close.svg');
   String get icAddNewFolder => _getImagePath('ic_add_new_folder.svg');
+  String get icPlusNoBorder => _getImagePath('ic_plus_noborder.svg');
   String get icFolderMailbox => _getImagePath('ic_default_folder.svg');
   String get icMailboxInbox => _getImagePath('ic_inbox_folder.svg');
   String get icMailboxDrafts => _getImagePath('ic_draft_folder.svg');
@@ -46,6 +48,9 @@ class ImagePaths {
   String get icMailboxTrash => _getImagePath('ic_trash_folder.svg');
   String get icMailboxFavorite => _getImagePath('ic_starred_folder.svg');
   String get icMailboxActionRequired => _getImagePath('ic_action_required_folder.svg');
+  String get icMailboxArchivedAction => _getImagePath('ic_mailbox_archived_action.svg');
+  String get icMailboxDraftsAction => _getImagePath('ic_mailbox_drafts_action.svg');
+  String get icMailboxTrashAction => _getImagePath('ic_mailbox_trash_action.svg');
   String get icFilterSelected => _getImagePath('ic_filter_selected.svg');
   String get icFilterMessageAll => _getImagePath('ic_filter_message_all.svg');
   String get icFilterMessageAttachments => _getImagePath('ic_filter_message_attachments.svg');
@@ -200,9 +205,6 @@ class ImagePaths {
   String get icArrowRight => _getImagePath('ic_arrow_right.svg');
   String get icAddPicture => _getImagePath('ic_add_picture.svg');
   String get icCalendarEvent => _getImagePath('ic_calendar_event.svg');
-  String get icEventInvited => _getImagePath('ic_event_invited.svg');
-  String get icEventUpdated => _getImagePath('ic_event_updated.svg');
-  String get icEventCanceled => _getImagePath('ic_event_canceled.svg');
   String get icFormatQuote => _getImagePath('ic_format_quote.svg');
   String get icLogoWithText => _getImagePath('ic_logo_with_text.svg');
   String get icLogoWithTextBeta => _getImagePath('ic_logo_with_text_beta.svg');

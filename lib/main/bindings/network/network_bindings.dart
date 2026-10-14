@@ -3,7 +3,6 @@ import 'dart:io' as io;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:core/core.dart';
-import 'package:device_info_plus/device_info_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:dio/io.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
@@ -11,6 +10,7 @@ import 'package:get/get.dart';
 import 'package:jmap_dart_client/http/http_client.dart';
 import 'package:scribe/scribe/ai/data/service/prompt_service.dart';
 import 'package:tmail_ui_user/features/contact/data/network/contact_api.dart';
+import 'package:tmail_ui_user/features/email/data/local/html_analyzer.dart';
 import 'package:tmail_ui_user/features/email/data/network/email_api.dart';
 import 'package:tmail_ui_user/features/email/data/network/mdn_api.dart';
 import 'package:tmail_ui_user/features/home/data/network/session_api.dart';
@@ -37,10 +37,13 @@ import 'package:tmail_ui_user/features/push_notification/data/network/web_socket
 import 'package:tmail_ui_user/features/quotas/data/network/quotas_api.dart';
 import 'package:tmail_ui_user/features/server_settings/data/network/server_settings_api.dart';
 import 'package:tmail_ui_user/features/thread/data/network/thread_api.dart';
+import 'package:tmail_ui_user/features/upload/data/network/blob_upload_adapter.dart';
+import 'package:tmail_ui_user/features/upload/data/network/file_uploader.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/remote_exception_thrower.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/send_email_exception_thrower.dart';
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:workplace/data/workplace_dio.dart';
 
 class NetworkBindings extends Bindings {
 
@@ -52,6 +55,7 @@ class NetworkBindings extends Bindings {
     _bindingSharing();
     _bindingInterceptors();
     _bindingApi();
+    _bindingUploader();
     _bindingTransformer();
     _bindingServices();
     _bindingException();
@@ -72,6 +76,8 @@ class NetworkBindings extends Bindings {
     } else {
       configureProductionDio(dio);
     }
+    installBlobUploadAdapter(dio);
+    installBlobUploadAdapter(WorkplaceDio.instance);
     Get.put(dio);
     Get.put(DioClient(dio));
     Get.put(const FlutterAppAuth());
@@ -114,7 +120,7 @@ class NetworkBindings extends Bindings {
   void _bindingApi() {
     Get.put(HttpClient(Get.find<Dio>()));
     Get.put(DownloadClient(Get.find<DioClient>(), Get.find<CompressFileUtils>()));
-    Get.put(DownloadManager(Get.find<DownloadClient>(), Get.find<DeviceInfoPlugin>()));
+    Get.put(DownloadManager(Get.find<DownloadClient>()));
     Get.put(MailboxAPI(Get.find<HttpClient>(), Get.find<Uuid>()));
     Get.put(SessionAPI(Get.find<HttpClient>()));
     Get.put(ThreadAPI(Get.find<HttpClient>()));
@@ -149,13 +155,24 @@ class NetworkBindings extends Bindings {
   void _bindingTransformer() {
     Get.put(const HtmlEscape());
     Get.put(HtmlTransform(Get.find<DioClient>(), Get.find<HtmlEscape>()));
+    Get.put(HtmlAnalyzer(
+      Get.find<HtmlTransform>(),
+      Get.find<FileUploader>(),
+      Get.find<Uuid>(),
+    ));
+  }
+
+  void _bindingUploader() {
+    Get.put(FileUploader(
+      Get.find<DioClient>(),
+      Get.find<FileUtils>(),
+    ));
   }
 
   void _bindingServices() {
     Get.put(DnsLookupManager());
     Get.put(PromptService(Get.find<Dio>(tag: 'prompt')));
   }
-
   static void configureDebugDio(Dio dio) {
     dio.httpClientAdapter = IOHttpClientAdapter(
       createHttpClient: () {

@@ -1,3 +1,4 @@
+import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
@@ -44,6 +45,7 @@ void main() {
     OnResolvePhoneRecipientAction? onResolvePhoneRecipientAction,
     TextEditingController? textController,
     List<EmailAddress> recipients = const [],
+    Set<String> invalidRecipients = const {},
     double? width,
     double textScale = 1.0,
     bool rtl = false,
@@ -54,6 +56,7 @@ void main() {
     Widget row = RecipientComposerWidget(
       prefix: prefix,
       listEmailAddress: recipients,
+      invalidRecipients: invalidRecipients,
       imagePaths: ImagePaths(),
       maxWidth: width ?? 400,
       toState: toState,
@@ -155,6 +158,30 @@ void main() {
 
       expect(openedFor, PrefixEmailAddress.cc);
     });
+  });
+
+  testWidgets('server-rejected recipient is marked invalid without marking other chips',
+      (tester) async {
+    await pumpRow(
+      tester,
+      prefix: PrefixEmailAddress.to,
+      toState: PrefixRecipientState.enabled,
+      recipients: [
+        EmailAddress(null, 'Rejected@dev.com'),
+        EmailAddress(null, 'accepted@dev.com'),
+      ],
+      invalidRecipients: {'rejected@dev.com'},
+    );
+
+    Color borderColor(int index) {
+      final container = tester.widget<Container>(
+        find.byKey(Key('recipient_tag_item_to_$index')),
+      );
+      return ((container.decoration as BoxDecoration).border as Border).top.color;
+    }
+
+    expect(borderColor(0), AppColor.colorBorderEmailAddressInvalid);
+    expect(borderColor(1), AppColor.grayBackgroundColor);
   });
 
   group('RecipientComposerWidget layout constraints', () {

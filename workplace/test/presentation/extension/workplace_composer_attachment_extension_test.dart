@@ -15,17 +15,17 @@ import 'package:workplace/presentation/model/drive_pick_state.dart';
 import 'package:workplace/presentation/widget/drive_attachment_context_menu_tile.dart';
 import 'package:workplace/presentation/widget/drive_attachment_picker_button.dart';
 
-// Sentinel used by _SequentialAdapter to throw DioException on a given call.
+// Sentinel: _SequentialAdapter throws a network DioException for this item.
 class _Fail {
   const _Fail();
 }
 
 const _fail = _Fail();
 
-// Returns responses from a pre-defined queue, one per HTTP request.
-// Queue items are either a Map (returned as JSON) or _Fail (throws DioException).
+// Queued responses, one per HTTP request; a Map returns as JSON, _Fail throws.
 class _SequentialAdapter implements HttpClientAdapter {
   final List<dynamic> _queue;
+  final List<dynamic> capturedBodies = [];
   int _index = 0;
 
   _SequentialAdapter(this._queue);
@@ -36,6 +36,7 @@ class _SequentialAdapter implements HttpClientAdapter {
     Stream<Uint8List>? requestStream,
     Future? cancelFuture,
   ) async {
+    capturedBodies.add(options.data);
     final item = _queue[_index++];
     if (item is _Fail) {
       throw DioException(requestOptions: options, message: 'Network error');
@@ -48,50 +49,6 @@ class _SequentialAdapter implements HttpClientAdapter {
       },
     );
   }
-
-  @override
-  void close({bool force = false}) {}
-}
-
-// Returns queued responses like _SequentialAdapter, but also records each
-// request body so a test can assert on the outgoing JSON shape.
-class _CapturingAdapter implements HttpClientAdapter {
-  final List<dynamic> _queue;
-  final List<dynamic> capturedBodies = [];
-  int _index = 0;
-
-  _CapturingAdapter(this._queue);
-
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future? cancelFuture,
-  ) async {
-    capturedBodies.add(options.data);
-    final item = _queue[_index++];
-    return ResponseBody.fromString(
-      jsonEncode(item),
-      200,
-      headers: {
-        Headers.contentTypeHeader: ['application/json; charset=utf-8'],
-      },
-    );
-  }
-
-  @override
-  void close({bool force = false}) {}
-}
-
-// Always throws DioException to simulate a network failure.
-class _ErrorAdapter implements HttpClientAdapter {
-  @override
-  Future<ResponseBody> fetch(
-    RequestOptions options,
-    Stream<Uint8List>? requestStream,
-    Future? cancelFuture,
-  ) async =>
-      throw DioException(requestOptions: options, message: 'Network error');
 
   @override
   void close({bool force = false}) {}
@@ -123,15 +80,18 @@ final _intentResponse = {
 WorkplaceComposerAttachmentExtension _makeExtension(
   ValueListenable<Uri?> notifier, {
   String? oidcToken = 'oidc-token',
+  String? Function()? oidcTokenGetter,
   num? maxAttachmentSizeBytes,
   num? remainingAttachmentCapacityBytes,
   OnDrivePickStateChanged? onPickState,
   ValueGetter<bool>? uploadFromUrlSupported,
+  OidcRefreshTrigger? oidcRefreshTrigger,
 }) =>
     WorkplaceComposerAttachmentExtension(
       workplaceUri: notifier,
       uploadFromUrlSupported: uploadFromUrlSupported ?? () => true,
-      oidcTokenGetter: () => oidcToken,
+      oidcTokenGetter: oidcTokenGetter ?? () => oidcToken,
+      oidcRefreshTrigger: oidcRefreshTrigger ?? () async => null,
       maxAttachmentSizeBytesGetter: () => maxAttachmentSizeBytes,
       remainingAttachmentCapacityBytesGetter: (_) => remainingAttachmentCapacityBytes,
       onPickState: onPickState,
@@ -418,10 +378,11 @@ void main() {
     });
   });
 
-  // ── Group 3: _fetchIntent network flow ────────────────────────────────────
+  // ── Group 3: _fetchIntent delegates to WorkplaceAccessModeRunner ───────────
   //
-  // The private _fetchIntent is accessed indirectly via the onFetchIntent
-  // callback injected into DriveAttachmentPickerButton.
+  // Token-exchange/refresh/retry behaviour is now WorkplaceAccessModeRunner's
+  // own contract, tested directly in workplace_access_mode_runner_test.dart.
+  // This keeps only proof that the extension wires _fetchIntent to it.
 
   group('WorkplaceComposerAttachmentExtension::_fetchIntent::', () {
     late Dio originalDio;
@@ -450,70 +411,6 @@ void main() {
           .onFetchIntent;
     }
 
-    testWidgets('throws StateError when oidcTokenGetter returns null', (tester) async {
-      final notifier = ValueNotifier<Uri?>(_platformUri);
-      final ext = _makeExtension(notifier, oidcToken: null);
-      final callback = await extractCallback(tester, ext);
-
-      await expectLater(
-        callback(
-          filePickerConfig: const WorkplaceFilePickerConfigRequest(
-            sharingLink: WorkplaceActionConfigRequest(label: 'Link'),
-            downloadLink: WorkplaceActionConfigRequest(label: 'Attachment'),
-            theme: WorkplaceThemeConfigRequest(type: WorkplaceThemeType.light),
-          ),
-        ),
-        throwsA(isA<StateError>().having(
-          (e) => e.message, 'message', contains('OIDC token'),
-        )),
-      );
-    });
-
-    testWidgets('throws when token exchange fails', (tester) async {
-      WorkplaceDio.setInstance(Dio()..httpClientAdapter = _ErrorAdapter());
-
-      final notifier = ValueNotifier<Uri?>(_platformUri);
-      final ext = _makeExtension(notifier);
-      final callback = await extractCallback(tester, ext);
-
-      await tester.runAsync(() async {
-        await expectLater(
-          callback(
-          filePickerConfig: const WorkplaceFilePickerConfigRequest(
-            sharingLink: WorkplaceActionConfigRequest(label: 'Link'),
-            downloadLink: WorkplaceActionConfigRequest(label: 'Attachment'),
-            theme: WorkplaceThemeConfigRequest(type: WorkplaceThemeType.light),
-          ),
-        ),
-          throwsA(isA<DioException>()),
-        );
-      });
-    });
-
-    testWidgets('throws when intent creation fails after successful token exchange', (tester) async {
-      WorkplaceDio.setInstance(
-        Dio()
-          ..httpClientAdapter = _SequentialAdapter([_tokenResponse, _fail]),
-      );
-
-      final notifier = ValueNotifier<Uri?>(_platformUri);
-      final ext = _makeExtension(notifier);
-      final callback = await extractCallback(tester, ext);
-
-      await tester.runAsync(() async {
-        await expectLater(
-          callback(
-          filePickerConfig: const WorkplaceFilePickerConfigRequest(
-            sharingLink: WorkplaceActionConfigRequest(label: 'Link'),
-            downloadLink: WorkplaceActionConfigRequest(label: 'Attachment'),
-            theme: WorkplaceThemeConfigRequest(type: WorkplaceThemeType.light),
-          ),
-        ),
-          throwsA(isA<DioException>()),
-        );
-      });
-    });
-
     testWidgets('returns WorkplaceIntent when token exchange and intent creation both succeed', (tester) async {
       WorkplaceDio.setInstance(
         Dio()
@@ -539,7 +436,7 @@ void main() {
     });
 
     testWidgets('forwards downloadLink maxFileSize/availableSize from filePickerConfig into the request', (tester) async {
-      final adapter = _CapturingAdapter([_tokenResponse, _intentResponse]);
+      final adapter = _SequentialAdapter([_tokenResponse, _intentResponse]);
       WorkplaceDio.setInstance(Dio()..httpClientAdapter = adapter);
 
       final notifier = ValueNotifier<Uri?>(_platformUri);
@@ -560,14 +457,37 @@ void main() {
         ),
       );
 
-      // `_buildIntentRequest` doesn't fully explicitToJson-serialize nested
-      // request objects (only WorkplaceFilePickerConfigRequest does), so the
-      // captured body still holds the typed request graph at this depth.
       final intentBody = adapter.capturedBodies[1] as Map<String, dynamic>;
-      final requestData = intentBody['data'] as WorkplaceIntentDataRequest;
-      final downloadLink = requestData.attributes.data.downloadLink;
-      expect(downloadLink!.maxFileSize, equals(5000));
-      expect(downloadLink.availableSize, equals(5000));
+      final requestData = intentBody['data'] as Map<String, dynamic>;
+      final attributes = requestData['attributes'] as Map<String, dynamic>;
+      final filePickerData = attributes['data'] as Map<String, dynamic>;
+      final downloadLink = filePickerData['downloadLink'] as Map<String, dynamic>;
+      expect(downloadLink['maxFileSize'], equals(5000));
+      expect(downloadLink['availableSize'], equals(5000));
+    });
+
+    testWidgets('throws when intent creation fails after successful token exchange', (tester) async {
+      WorkplaceDio.setInstance(
+        Dio()
+          ..httpClientAdapter = _SequentialAdapter([_tokenResponse, _fail]),
+      );
+
+      final notifier = ValueNotifier<Uri?>(_platformUri);
+      final ext = _makeExtension(notifier);
+      final callback = await extractCallback(tester, ext);
+
+      await tester.runAsync(() async {
+        await expectLater(
+          callback(
+          filePickerConfig: const WorkplaceFilePickerConfigRequest(
+            sharingLink: WorkplaceActionConfigRequest(label: 'Link'),
+            downloadLink: WorkplaceActionConfigRequest(label: 'Attachment'),
+            theme: WorkplaceThemeConfigRequest(type: WorkplaceThemeType.light),
+          ),
+        ),
+          throwsA(isA<DioException>()),
+        );
+      });
     });
   });
 }

@@ -241,9 +241,17 @@ class AppLocalizations {
 
   String header_email_quoted(String sentDate, String emailAddress) {
     return Intl.message(
-        'On $sentDate, from $emailAddress',
+        'On $sentDate, $emailAddress wrote:',
         name: 'header_email_quoted',
         args: [sentDate, emailAddress]
+    );
+  }
+
+  String header_email_quoted_date_time(String date, String time) {
+    return Intl.message(
+        '$date at $time',
+        name: 'header_email_quoted_date_time',
+        args: [date, time]
     );
   }
 
@@ -411,6 +419,16 @@ class AppLocalizations {
     return Intl.message(
       'Can not upload this file as attachments',
       name: 'can_not_upload_this_file_as_attachments'
+    );
+  }
+
+  String cannotUploadFoldersAsAttachments(int count) {
+    return Intl.plural(
+      count,
+      one: 'Cannot upload this folder as attachment',
+      other: 'Cannot upload these folders as attachments',
+      name: 'cannotUploadFoldersAsAttachments',
+      args: [count],
     );
   }
 
@@ -659,6 +677,13 @@ class AppLocalizations {
     return Intl.message(
       'Folder name cannot contain special characters',
       name: 'folderNameCannotContainSpecialCharacters',
+    );
+  }
+
+  String get folderNameContainsForbiddenCharacters {
+    return Intl.message(
+      'Folder name cannot start with "#" nor contain ".", "%", "*" or line breaks',
+      name: 'folderNameContainsForbiddenCharacters',
     );
   }
 
@@ -1086,10 +1111,13 @@ class AppLocalizations {
   }
 
   String toast_message_delete_multiple_email_permanently_success(int count) {
-    return Intl.message(
-        '$count Messages has been deleted forever',
-        name: 'toast_message_delete_multiple_email_permanently_success',
-        args: [count]);
+    return Intl.plural(
+      count,
+      one: '1 message has been deleted forever',
+      other: '$count messages have been deleted forever',
+      name: 'toast_message_delete_multiple_email_permanently_success',
+      args: [count],
+    );
   }
 
   String get toast_message_delete_a_email_permanently_success {
@@ -1131,7 +1159,7 @@ class AppLocalizations {
 
   String get toast_message_empty_trash_folder_success {
     return Intl.message(
-        'All messages has been deleted forever',
+        'All messages have been deleted forever',
         name: 'toast_message_empty_trash_folder_success');
   }
 
@@ -1275,7 +1303,7 @@ class AppLocalizations {
 
   String get identitiesSettingExplanation {
     return Intl.message(
-      'Select the identity or email address you want to use to send an emails',
+      'Select the identity or email address you want to use to send emails',
       name: 'identitiesSettingExplanation');
   }
 
@@ -1548,6 +1576,27 @@ class AppLocalizations {
     );
   }
 
+  String get pdfPasswordRequired {
+    return Intl.message(
+      'Password-protected PDF',
+      name: 'pdfPasswordRequired',
+    );
+  }
+
+  String get incorrectPdfPassword {
+    return Intl.message(
+      'Incorrect password, please try again',
+      name: 'incorrectPdfPassword',
+    );
+  }
+
+  String get pdfPasswordNotProvided {
+    return Intl.message(
+      'This PDF is password-protected. You can still download it.',
+      name: 'pdfPasswordNotProvided',
+    );
+  }
+
   String get wrongUrlMessage {
     return Intl.message('Server URL is not valid, please try again',
         name: 'wrongUrlMessage');
@@ -1701,6 +1750,12 @@ class AppLocalizations {
     return Intl.message(
       'Italian',
       name: 'languageItalian');
+  }
+
+  String get languageBrazilianPortuguese {
+    return Intl.message(
+      'Portuguese (Brazil)',
+      name: 'languageBrazilianPortuguese');
   }
 
   String get messageDialogSendEmailUploadingAttachment {
@@ -2819,6 +2874,14 @@ class AppLocalizations {
     );
   }
 
+  String sendMessageFailureWithInvalidRecipients(String invalidRecipients) {
+    return Intl.message(
+      'Failure to send your message, because these recipients are invalid: $invalidRecipients',
+      name: 'sendMessageFailureWithInvalidRecipients',
+      args: [invalidRecipients],
+    );
+  }
+
   String get saveEmailAsDraftFailure {
     return Intl.message(
       'Failure to save your message as drafts.',
@@ -3159,7 +3222,7 @@ class AppLocalizations {
 
   String get messageEventActionBannerOrganizerInvited {
     return Intl.message(
-      ' has invited you in to a meeting',
+      ' has invited you to a meeting',
       name: 'messageEventActionBannerOrganizerInvited');
   }
 
@@ -3219,7 +3282,7 @@ class AppLocalizations {
 
   String get invitationMessageCalendarInformation {
     return Intl.message(
-      ' has invited you in to a meeting:',
+      ' has invited you to a meeting:',
       name: 'invitationMessageCalendarInformation');
   }
 
@@ -3245,6 +3308,30 @@ class AppLocalizations {
     return Intl.message(
       'Organizer',
       name: 'organizer');
+  }
+
+  String get attending {
+    return Intl.message(
+      'Attending?',
+      name: 'attending');
+  }
+
+  String get joinTheVideoConference {
+    return Intl.message(
+      'Join the video conference',
+      name: 'joinTheVideoConference');
+  }
+
+  String get copyLink {
+    return Intl.message(
+      'Copy link',
+      name: 'copyLink');
+  }
+
+  String get linkCopiedToClipboard {
+    return Intl.message(
+      'Link copied to clipboard',
+      name: 'linkCopiedToClipboard');
   }
 
   String get time {
@@ -3712,10 +3799,11 @@ class AppLocalizations {
     );
   }
 
-  String get unsubscribeMailDialogMessage {
+  String unsubscribeMailDialogMessage(String senderName) {
     return Intl.message(
-      'Are you sure you\'d like to stop receiving similar messages from',
+      'Are you sure you\'d like to stop receiving similar messages from $senderName?',
       name: 'unsubscribeMailDialogMessage',
+      args: [senderName],
     );
   }
 
@@ -4436,6 +4524,13 @@ class AppLocalizations {
     );
   }
 
+  String get linkCannotBeOpened {
+    return Intl.message(
+      'This link can\'t be opened',
+      name: 'linkCannotBeOpened',
+    );
+  }
+
   String get downloadAttachmentInEMLPreviewWarningMessage {
     return Intl.message(
       'Downloading attachment. You can only download one file at a time.',
@@ -4799,6 +4894,13 @@ class AppLocalizations {
     return Intl.message(
       'You are not invited to this event. Please contact the organizer.',
       name: 'youAreNotInvitedToThisEventPleaseContactTheOrganizer',
+    );
+  }
+
+  String get seeInYourCalendar {
+    return Intl.message(
+      'See in your Calendar',
+      name: 'seeInYourCalendar',
     );
   }
 
@@ -5618,6 +5720,27 @@ class AppLocalizations {
     );
   }
 
+  String get errorReporting {
+    return Intl.message(
+      'Error reporting',
+      name: 'errorReporting',
+    );
+  }
+
+  String get errorReportingSettingExplanation {
+    return Intl.message(
+      'Send crash and error reports so the support team can diagnose problems you run into. Your emails, their content and their recipients are never included.',
+      name: 'errorReportingSettingExplanation',
+    );
+  }
+
+  String get errorReportingToggleDescription {
+    return Intl.message(
+      'Send error reports',
+      name: 'errorReportingToggleDescription',
+    );
+  }
+
   String get driveAttachmentAddedSuccessfully {
     return Intl.message(
       'Files attached from Drive.',
@@ -5629,6 +5752,63 @@ class AppLocalizations {
     return Intl.message(
       'Failed to attach files from Drive.',
       name: 'driveAttachmentTransferFailed',
+    );
+  }
+
+  String get attachingFileTitle {
+    return Intl.message(
+      'Attaching file',
+      name: 'attachingFileTitle',
+    );
+  }
+
+  String driveOversizeDialogMessage(String maxSize) {
+    return Intl.message(
+        'Your file is larger than $maxSize. It will be uploaded to Twake Drive and attached as ',
+        name: 'driveOversizeDialogMessage',
+        args: [maxSize]
+    );
+  }
+
+  String get driveOversizeDialogMessageEmphasis {
+    return Intl.message(
+      'a link',
+      name: 'driveOversizeDialogMessageEmphasis',
+    );
+  }
+
+  String get driveUploadRowDone {
+    return Intl.message(
+      'Done',
+      name: 'driveUploadRowDone',
+    );
+  }
+
+  String get driveUploadRowFailed {
+    return Intl.message(
+      'Failed',
+      name: 'driveUploadRowFailed',
+    );
+  }
+
+  String get driveUploadRowCancelled {
+    return Intl.message(
+      'Canceled',
+      name: 'driveUploadRowCancelled',
+    );
+  }
+
+  String get driveOversizeUploadFailed {
+    return Intl.message(
+      'Some files could not be uploaded to Drive.',
+      name: 'driveOversizeUploadFailed',
+    );
+  }
+
+  String get driveOversizeUploadBusy {
+    return Intl.message(
+      'A Drive upload is already in progress. Try again when it finishes.',
+      name: 'driveOversizeUploadBusy',
     );
   }
 
@@ -5926,6 +6106,34 @@ class AppLocalizations {
     return Intl.message(
       'Failed to delete subfolders in Trash',
       name: 'clearTrashSubfoldersFailed',
+    );
+  }
+
+  String get deepLinkCannotBeOpened {
+    return Intl.message(
+      'This sign-in link isn\'t from Twake. Please sign in from the app.',
+      name: 'deepLinkCannotBeOpened',
+    );
+  }
+
+  String get linkTypeNotAllowed {
+    return Intl.message(
+      'This type of link is not allowed!',
+      name: 'linkTypeNotAllowed',
+    );
+  }
+
+  String get messageDialogSendEmailContentLoading {
+    return Intl.message(
+      'Your message could not be sent because its content is still loading. Please wait and try again.',
+      name: 'messageDialogSendEmailContentLoading',
+    );
+  }
+
+  String get messageDialogSendEmailContentLoadFailed {
+    return Intl.message(
+      'Your message could not be sent because its content failed to load. Please close the composer and open the email again.',
+      name: 'messageDialogSendEmailContentLoadFailed',
     );
   }
 }

@@ -1,8 +1,11 @@
-import 'package:core/utils/logging/app_logger_registry.dart';
-import 'package:core/data/network/config/dynamic_url_interceptors.dart';
+import 'dart:convert';
 import 'dart:async';
+import 'dart:io';
 
+import 'package:core/data/network/config/dynamic_url_interceptors.dart';
+import 'package:core/utils/logging/app_logger_registry.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/html_transformer/dom/normalize_line_height_in_style_transformer.dart';
@@ -10,10 +13,12 @@ import 'package:core/presentation/utils/html_transformer/transform_configuration
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:core/utils/platform_info.dart';
+import 'package:cross_file/cross_file.dart';
 import 'package:dartz/dartz.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
@@ -21,6 +26,7 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/error/set_error.dart';
 import 'package:jmap_dart_client/jmap/core/id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
+import 'package:jmap_dart_client/jmap/core/unsigned_int.dart';
 import 'package:jmap_dart_client/jmap/identities/identity.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
@@ -31,24 +37,33 @@ import 'package:mockito/mockito.dart';
 import 'package:model/email/attachment.dart';
 import 'package:model/email/email_action_type.dart';
 import 'package:model/email/presentation_email.dart';
+import 'package:model/email/prefix_email_address.dart';
+import 'package:model/extensions/account_id_extensions.dart';
 import 'package:model/extensions/session_extension.dart';
 import 'package:model/mailbox/expand_mode.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
-import 'package:model/email/prefix_email_address.dart';
+import 'package:model/upload/file_info.dart';
 import 'package:rich_text_composer/rich_text_composer.dart';
 import 'package:tmail_ui_user/features/base/before_reconnect_manager.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:tmail_ui_user/features/caching/utils/cache_utils.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/repository/composer_repository.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
+import 'package:tmail_ui_user/features/email/domain/exceptions/email_exceptions.dart';
 import 'package:tmail_ui_user/features/email/domain/state/transform_html_email_content_state.dart';
+import 'package:tmail_ui_user/features/email/domain/state/get_email_content_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/update_template_email_state.dart' show UpdateTemplateEmailSuccess;
 import 'package:tmail_ui_user/features/composer/domain/usecases/create_new_and_save_email_to_drafts_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/create_new_and_send_email_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/download_image_as_base64_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/save_composer_cache_interactor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/sanitize_signature_in_email_content_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/model/create_email_request.dart';
 import 'package:tmail_ui_user/features/upload/presentation/validator/attachment_upload_validation_service.dart';
 import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
@@ -58,6 +73,7 @@ import 'package:tmail_ui_user/features/composer/presentation/controller/rich_tex
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_mobile_auto_save_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_edit_recipient_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/remove_draggable_email_address_between_recipient_fields_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/get_draft_mailbox_id_for_composer_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/refresh_composer_attachments_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/auto_create_tag_for_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_recipients_collapsed_extensions.dart';
@@ -65,6 +81,9 @@ import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_em
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_selected_identity_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_handler.dart';
+import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
+import 'package:tmail_ui_user/features/composer/presentation/manager/web_composer_reload_cache_handler.dart';
+import 'package:tmail_ui_user/features/composer/presentation/manager/web_composer_reload_snapshot_builder.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/formatting_options_state.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/draggable_email_address.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/email_address_action_type.dart';
@@ -81,19 +100,26 @@ import 'package:tmail_ui_user/features/labels/presentation/label_controller.dart
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_authority_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_credential_interactor.dart';
-import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/remove_composer_cache_by_id_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/controller/mailbox_dashboard_controller.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/data/datasource_impl/composer_session_cache_datasource_impl.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/data/model/composer_cache.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/data/repository/composer_reload_cache_repository_impl.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/save_composer_reload_cache_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/draggable_app_state.dart';
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/preferences/ai_scribe_config.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_identities_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart';
+import 'package:tmail_ui_user/features/paywall/presentation/paywall_launcher.dart';
+import 'package:tmail_ui_user/features/paywall/presentation/providers/premium_cta_provider.dart';
 import 'package:tmail_ui_user/features/server_settings/domain/usecases/get_server_setting_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/usecases/local_file_picker_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/usecases/local_image_picker_interactor.dart';
 import 'package:tmail_ui_user/features/upload/presentation/controller/upload_controller.dart';
+import 'package:tmail_ui_user/features/upload/presentation/model/drive_oversize_transfer_state.dart';
 import 'package:tmail_ui_user/features/upload/presentation/model/upload_file_state.dart';
+import 'package:tmail_ui_user/features/upload/presentation/providers/drive_oversize_transfer_notifier.dart';
 import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/cache_exception_thrower.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
@@ -101,15 +127,24 @@ import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart
 import 'package:tmail_ui_user/main/localizations/localization_service.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
+import 'package:tmail_ui_user/main/universal_import/html_stub.dart' as html;
+import 'package:tmail_ui_user/main/providers/workplace/drive_attachment_uri_value_notifier_provider.dart';
+import 'package:tmail_ui_user/main/providers/workplace/drive_oversize_uploader_provider.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:universal_html/html.dart' as browser_html;
+import 'package:workplace/data/transport/workplace_access_mode_runner.dart';
 import 'package:workplace/domain/entity/drive_document.dart';
+import 'package:workplace/domain/repository/workplace_repository.dart';
+import 'package:workplace/domain/usecase/exchange_drive_token_interactor.dart';
+import 'package:workplace/domain/usecase/upload_drive_file_interactor.dart';
 import 'package:workplace/presentation/model/drive_pick_state.dart';
 
 import '../../../fixtures/account_fixtures.dart';
 import '../../../fixtures/capturing_log_handler.dart';
+import '../../../fixtures/recording_paywall_launcher.dart';
 import '../../../fixtures/session_fixtures.dart';
 import '../../../fixtures/widget_fixtures.dart';
 import '../../../mocks/mock_web_view_platform.dart';
@@ -157,23 +192,30 @@ class MockLabelController extends Mock implements LabelController {
 }
 
 class MockMailboxDashBoardController extends Mock implements MailboxDashBoardController {
+  ComposerManager? currentComposerManager;
+
+  @override
+  ComposerManager get composerManager => currentComposerManager!;
+
+  @override
+  final DynamicUrlInterceptors dynamicUrlInterceptors =
+      DynamicUrlInterceptors()..setJmapUrl('https://jmap.domain.tld');
+
   @override
   InternalFinalCallback<void> get onStart => mockControllerCallback();
   @override
   InternalFinalCallback<void> get onDelete => mockControllerCallback();
 
+  // Overridable so a test can reproduce a session torn down mid-logout.
   @override
-  Rxn<AccountId> get accountId => Rxn(AccountFixtures.aliceAccountId);
+  AccountId? currentAccountId = AccountFixtures.aliceAccountId;
   @override
-  Session? get sessionCurrent => SessionFixtures.aliceSession;
-
-  bool premiumAvailable = false;
-
-  @override
-  bool isPremiumAvailable({Session? session, AccountId? accountId}) => premiumAvailable;
+  Session? currentSession = SessionFixtures.aliceSession;
 
   @override
-  bool isAlreadyHighestSubscription({Session? session, AccountId? accountId}) => false;
+  Rxn<AccountId> get accountId => Rxn(currentAccountId);
+  @override
+  Session? get sessionCurrent => currentSession;
 
   @override
   RxString get ownEmailAddress => SessionFixtures.aliceSession.getOwnEmailAddressOrEmpty().obs;
@@ -222,7 +264,218 @@ class MockMailboxDashBoardController extends Mock implements MailboxDashBoardCon
   }
 
   @override
+  bool validateSendingEmailFailedWhenNetworkIsLostOnMobile(dynamic failure) => false;
+
+  @override
   LabelController get labelController => MockLabelController();
+}
+
+class _MockComposerManager extends Mock implements ComposerManager {
+  @override
+  int getComposerIndex(String id) => 0;
+}
+
+typedef _OverQuotaPremiumTestCase = ({
+  String description,
+  String? paywallTemplate,
+  bool shouldOfferIncreaseSpace,
+});
+
+typedef _OverQuotaDraftDependencies = ({
+  ComposerController controller,
+  MockRichTextWebController richTextWebController,
+  MockUploadController uploadController,
+  MockComposerRepository composerRepository,
+  MockCreateNewAndSaveEmailToDraftsInteractor saveDraftInteractor,
+  String emailContent,
+  Attachment attachment,
+});
+
+RecordingPaywallLauncher _arrangeOverQuotaDraftScenario(
+  _OverQuotaDraftDependencies dependencies,
+) {
+  PlatformInfo.isTestingForWeb = true;
+  addTearDown(() => PlatformInfo.isTestingForWeb = false);
+  InAppWebViewPlatform.instance = MockWebViewPlatform();
+  final paywallLauncher = RecordingPaywallLauncher();
+  when(dependencies.uploadController.uploadInlineViewState).thenReturn(
+    Rx(Right(UIState.idle)));
+  when(dependencies.uploadController.listUploadAttachments).thenReturn(
+    RxList<UploadFileState>());
+  when(dependencies.uploadController.attachmentsUploaded).thenReturn(
+    [dependencies.attachment],
+  );
+  when(dependencies.composerRepository.removeCollapsedExpandedSignatureEffect(
+    emailContent: anyNamed('emailContent'),
+  )).thenAnswer((_) async => dependencies.emailContent);
+  when(dependencies.saveDraftInteractor.execute(
+    createEmailRequest: anyNamed('createEmailRequest'),
+    cancelToken: anyNamed('cancelToken'),
+  )).thenAnswer((_) => Stream.value(
+    Left(SaveEmailAsDraftsFailure(SetMethodException({
+      Id('draft'): SetError(SetError.overQuota),
+    }))),
+  ));
+  return paywallLauncher;
+}
+
+Future<AppLocalizations> _pumpOverQuotaDraftFailure(
+  WidgetTester tester,
+  _OverQuotaDraftDependencies dependencies,
+  _OverQuotaPremiumTestCase testCase,
+  RecordingPaywallLauncher paywallLauncher,
+) async {
+  Get.put(dependencies.controller);
+  dependencies.controller.richTextWebController =
+      dependencies.richTextWebController;
+  dependencies.controller.setTextEditorWeb(dependencies.emailContent);
+  dependencies.controller.composerArguments.value = ComposerArguments();
+
+  final providerContainer = ProviderContainer(overrides: [
+    paywallLauncherProvider.overrideWithValue(paywallLauncher),
+    premiumCtaProvider.overrideWith((ref, _) {
+      final paywallTemplate = testCase.paywallTemplate;
+      return paywallTemplate == null
+          ? const PremiumCtaUnavailable(
+              PremiumCtaUnavailableReason.paywallNotConfigured,
+            )
+          : PremiumCtaAvailable(Uri.parse(paywallTemplate));
+    }),
+  ]);
+  addTearDown(providerContainer.dispose);
+  await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
+    child: const Stack(children: [ComposerView()]),
+    providerContainer: providerContainer,
+  ));
+  await tester.pump();
+
+  final saveAsDraftButton = find.ancestor(
+    of: find.byType(InkWell),
+    matching: find.byWidgetPredicate(
+      (widget) => widget is TMailButtonWidget
+        && widget.icon == ImagePaths().icSaveToDraft,
+    ),
+  );
+  await tester.tap(saveAsDraftButton);
+  await tester.pump();
+  await untilCalled(dependencies.saveDraftInteractor.execute(
+    createEmailRequest: anyNamed('createEmailRequest'),
+    cancelToken: anyNamed('cancelToken'),
+  ));
+  await tester.pumpAndSettle();
+
+  return AppLocalizations.of(tester.element(find.byType(ComposerView)));
+}
+
+Future<void> _verifyOverQuotaPremiumAction(
+  WidgetTester tester,
+  _OverQuotaPremiumTestCase testCase,
+  AppLocalizations appLocalizations,
+  RecordingPaywallLauncher paywallLauncher,
+) async {
+  expect(
+    find.text(appLocalizations.increaseYourSpace),
+    testCase.shouldOfferIncreaseSpace ? findsOneWidget : findsNothing,
+  );
+  expect(find.text(appLocalizations.edit), findsOneWidget);
+  expect(find.text(appLocalizations.closeAnyway), findsNothing);
+
+  await tester.tap(find.text(
+    testCase.shouldOfferIncreaseSpace
+        ? appLocalizations.increaseYourSpace
+        : appLocalizations.edit,
+  ));
+  await tester.pumpAndSettle();
+
+  expect(
+    paywallLauncher.launchCount,
+    testCase.shouldOfferIncreaseSpace ? 1 : 0,
+  );
+  expect(
+    paywallLauncher.launchedDestination,
+    testCase.paywallTemplate == null
+        ? null
+        : Uri.parse(testCase.paywallTemplate!),
+  );
+}
+
+/// Readable, so it is not a folder, but its size lookup fails.
+class _SizeFailingXFile extends XFile {
+  _SizeFailingXFile(super.path);
+
+  @override
+  Future<int> length() => Future.error(const FileSystemException('size lookup failed'));
+}
+
+/// Drops [files] on the composer and returns the error toast it shows,
+/// closing the loading dialog when the drop fails inside it.
+Future<String?> _dropAndCaptureErrorToast(
+  WidgetTester tester,
+  ComposerController controller,
+  MockAppToast appToast,
+  List<XFile> files,
+) async {
+  String? message;
+  when(appToast.showToastErrorMessage(any, any)).thenAnswer(
+    (invocation) => message = invocation.positionalArguments[1] as String,
+  );
+
+  await tester.runAsync(() async {
+    late BuildContext context;
+    await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
+      child: Builder(builder: (ctx) {
+        context = ctx;
+        return const SizedBox.shrink();
+      }),
+    ));
+    await tester.pump();
+
+    controller.onLocalFileDropZoneListener(
+      context: context,
+      details: DropDoneDetails(files: files, localPosition: Offset.zero, globalPosition: Offset.zero),
+      maxWidth: 600,
+    );
+
+    for (var i = 0; i < 100 && message == null; i++) {
+      await Future<void>.delayed(const Duration(milliseconds: 10));
+      await tester.pump();
+      if (find.text('Close').evaluate().isNotEmpty) await tester.tap(find.text('Close'));
+    }
+  });
+  return message;
+}
+
+/// Never reached: the runner below fails before any Workplace request.
+class _UnusedWorkplaceRepository extends Fake implements WorkplaceRepository {}
+
+/// Drive enabled, with a runner that has no OIDC token: the recovery takes
+/// over, then fails its batch before sending anything.
+ProviderContainer _buildDriveRecoveryContainer() {
+  final repository = _UnusedWorkplaceRepository();
+  return ProviderContainer(overrides: [
+    driveAttachmentUriValueProvider.overrideWithValue(
+      ValueNotifier<Uri?>(Uri.parse('https://platform.example.com')),
+    ),
+    driveOversizeUploaderProvider.overrideWithValue((
+      runner: WorkplaceAccessModeRunner(
+        exchangeTokenInteractor: ExchangeDriveTokenInteractor(repository),
+        oidcTokenGetter: () => null,
+        oidcRefreshTrigger: () async => null,
+      ),
+      interactor: UploadDriveFileInteractor(repository),
+    )),
+  ]);
+}
+
+/// The file names of every Drive batch the recovery starts in [container].
+List<List<String>> _recordStartedDriveBatches(ProviderContainer container) {
+  final batches = <List<String>>[];
+  container.listen<List<DriveOversizeTransferState>>(driveOversizeTransferProvider, (previous, rows) {
+    if ((previous?.isEmpty ?? true) && rows.isNotEmpty) {
+      batches.add(rows.map((row) => row.fileName).toList());
+    }
+  });
+  return batches;
 }
 
 @GenerateNiceMocks([
@@ -247,7 +500,6 @@ class MockMailboxDashBoardController extends Mock implements MailboxDashBoardCon
   MockSpec<GetEmailContentInteractor>(),
   MockSpec<GetAllIdentitiesInteractor>(),
   MockSpec<UploadController>(fallbackGenerators: fallbackGenerators),
-  MockSpec<RemoveComposerCacheByIdInteractor>(),
   MockSpec<SaveComposerCacheInteractor>(),
   MockSpec<DownloadImageAsBase64Interactor>(),
   MockSpec<TransformHtmlEmailContentInteractor>(),
@@ -292,7 +544,6 @@ void main() {
   late MockGetEmailContentInteractor mockGetEmailContentInteractor;
   late MockGetAllIdentitiesInteractor mockGetAllIdentitiesInteractor;
   late MockUploadController mockUploadController;
-  late MockRemoveComposerCacheByIdInteractor mockRemoveComposerCacheByIdInteractor;
   late MockSaveComposerCacheInteractor mockSaveComposerCacheInteractor;
   late MockDownloadImageAsBase64Interactor mockDownloadImageAsBase64Interactor;
   late MockTransformHtmlEmailContentInteractor mockTransformHtmlEmailContentInteractor;
@@ -313,6 +564,28 @@ void main() {
 
   // Declaration misc dependencies
   late MockHtmlEditorApi mockHtmlEditorApi;
+
+  ComposerController createComposerController({
+    String? composerId,
+    ComposerArguments? arguments,
+  }) => ComposerController(
+    mockLocalFilePickerInteractor,
+    mockLocalImagePickerInteractor,
+    mockGetEmailContentInteractor,
+    mockGetAllIdentitiesInteractor,
+    mockUploadController,
+    mockSaveComposerCacheInteractor,
+    mockDownloadImageAsBase64Interactor,
+    mockTransformHtmlEmailContentInteractor,
+    mockGetServerSettingInteractor,
+    mockCreateNewAndSendEmailInteractor,
+    mockCreateNewAndSaveEmailToDraftsInteractor,
+    mockPrintEmailInteractor,
+    mockComposerRepository,
+    mockSaveTemplateEmailInteractor,
+    composerId: composerId,
+    composerArgs: arguments,
+  );
 
   setUp(() {
     Get.testMode = true;
@@ -351,7 +624,6 @@ void main() {
     // Mock Getx controllers
     // Reset the shared drag state so it does not leak between tests.
     mockMailboxDashBoardController.localFileDraggableAppState.value = DraggableAppState.inActive;
-    mockMailboxDashBoardController.premiumAvailable = false;
     Get.put<MailboxDashBoardController>(mockMailboxDashBoardController);
     Get.put<NetworkConnectionController>(mockNetworkConnectionController);
     Get.put<BeforeReconnectManager>(mockBeforeReconnectManager);
@@ -364,7 +636,6 @@ void main() {
     mockGetEmailContentInteractor = MockGetEmailContentInteractor();
     mockGetAllIdentitiesInteractor = MockGetAllIdentitiesInteractor();
     mockUploadController = MockUploadController();
-    mockRemoveComposerCacheByIdInteractor = MockRemoveComposerCacheByIdInteractor();
     mockSaveComposerCacheInteractor = MockSaveComposerCacheInteractor();
     mockDownloadImageAsBase64Interactor = MockDownloadImageAsBase64Interactor();
     mockTransformHtmlEmailContentInteractor = MockTransformHtmlEmailContentInteractor();
@@ -375,23 +646,7 @@ void main() {
     mockComposerRepository = MockComposerRepository();
     mockSaveTemplateEmailInteractor = MockSaveTemplateEmailInteractor();
 
-    composerController = ComposerController(
-      mockLocalFilePickerInteractor,
-      mockLocalImagePickerInteractor,
-      mockGetEmailContentInteractor,
-      mockGetAllIdentitiesInteractor,
-      mockUploadController,
-      mockRemoveComposerCacheByIdInteractor,
-      mockSaveComposerCacheInteractor,
-      mockDownloadImageAsBase64Interactor,
-      mockTransformHtmlEmailContentInteractor,
-      mockGetServerSettingInteractor,
-      mockCreateNewAndSendEmailInteractor,
-      mockCreateNewAndSaveEmailToDraftsInteractor,
-      mockPrintEmailInteractor,
-      mockComposerRepository,
-      mockSaveTemplateEmailInteractor,
-    );
+    composerController = createComposerController();
 
     mockHtmlEditorApi = MockHtmlEditorApi();
   });
@@ -400,7 +655,7 @@ void main() {
     Get.reset();
     composerController = null;
   });
-  
+
   group('ComposerController test:', () {
     group('hash draft email test:', () {
       const emailContent = 'some email content';
@@ -669,70 +924,50 @@ void main() {
           });
         });
 
-        testWidgets(
-          'Should still offer increase space and edit\n'
-          'When save as draft fails because of over quota',
-        (tester) async {
-          await tester.runAsync(() async {
-            PlatformInfo.isTestingForWeb = true;
-            InAppWebViewPlatform.instance = MockWebViewPlatform();
-            mockMailboxDashBoardController.premiumAvailable = true;
+        final overQuotaPremiumCases = [
+          (
+            description: 'Should hide increase space on web when paywall is unavailable',
+            paywallTemplate: null,
+            shouldOfferIncreaseSpace: false,
+          ),
+          (
+            description: 'Should offer increase space on web when paywall is available',
+            paywallTemplate: 'https://domain.tld/premium',
+            shouldOfferIncreaseSpace: true,
+          ),
+        ];
 
-            when(mockUploadController.uploadInlineViewState).thenReturn(
-              Rx(Right(UIState.idle)));
-            when(mockUploadController.listUploadAttachments).thenReturn(
-              RxList<UploadFileState>());
-
-            Get.put(composerController!);
-            composerController?.richTextWebController = mockRichTextWebController;
-
-            composerController?.setTextEditorWeb(emailContent);
-            composerController?.composerArguments.value = ComposerArguments();
-            when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
-            when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
-              emailContent: anyNamed('emailContent'),
-            )).thenAnswer((_) async => emailContent);
-            when(
-              mockCreateNewAndSaveEmailToDraftsInteractor.execute(
-                createEmailRequest: anyNamed('createEmailRequest'),
-                cancelToken: anyNamed('cancelToken')))
-              .thenAnswer((_) => Stream.value(
-                Left(SaveEmailAsDraftsFailure(SetMethodException({
-                  Id('draft'): SetError(SetError.overQuota),
-                })))));
-
-            await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
-              child: const Stack(children: [ComposerView()])));
-            await tester.pump();
-
-            final saveAsDraftButton = find.ancestor(
-              of: find.byType(InkWell),
-              matching: find.byWidgetPredicate(
-                (widget) => widget is TMailButtonWidget
-                  && widget.icon == ImagePaths().icSaveToDraft));
-            await tester.tap(saveAsDraftButton);
-            await tester.pump();
-            await untilCalled(
-              mockCreateNewAndSaveEmailToDraftsInteractor.execute(
-                createEmailRequest: anyNamed('createEmailRequest'),
-                cancelToken: anyNamed('cancelToken')));
-            await tester.pumpAndSettle();
-
-            final appLocalizations = AppLocalizations.of(
-              tester.element(find.byType(ComposerView)));
-            expect(find.text(appLocalizations.increaseYourSpace), findsOneWidget);
-            expect(find.text(appLocalizations.edit), findsOneWidget);
-            expect(find.text(appLocalizations.closeAnyway), findsNothing);
-
-            await tester.tap(find.text(appLocalizations.edit));
-            await tester.pumpAndSettle();
-
-            expect(find.byType(ComposerView), findsOneWidget);
-            expect(find.text(appLocalizations.increaseYourSpace), findsNothing);
-
-            PlatformInfo.isTestingForWeb = false;
+        for (final testCase in overQuotaPremiumCases) {
+          testWidgets(testCase.description, (tester) async {
+            await tester.runAsync(() async {
+              final dependencies = (
+                controller: composerController!,
+                richTextWebController: mockRichTextWebController,
+                uploadController: mockUploadController,
+                composerRepository: mockComposerRepository,
+                saveDraftInteractor:
+                    mockCreateNewAndSaveEmailToDraftsInteractor,
+                emailContent: emailContent,
+                attachment: attachment,
+              );
+              final paywallLauncher = _arrangeOverQuotaDraftScenario(
+                dependencies,
+              );
+              final appLocalizations = await _pumpOverQuotaDraftFailure(
+                tester,
+                dependencies,
+                testCase,
+                paywallLauncher,
+              );
+              await _verifyOverQuotaPremiumAction(
+                tester,
+                testCase,
+                appLocalizations,
+                paywallLauncher,
+              );
+            });
           });
-        });
+        }
 
         testWidgets(
           'Should still offer to close the composer\n'
@@ -991,6 +1226,243 @@ void main() {
           );
         });
       });
+
+      for (final actionType in [
+        EmailActionType.reply,
+        EmailActionType.replyAll,
+        EmailActionType.replyToList,
+        EmailActionType.forward,
+        EmailActionType.editAsNewEmail,
+      ]) {
+        group('email action type is $actionType:', () {
+          test(
+            'Should update _savedEmailDraftHash\n'
+            'And not mark email as changed\n'
+            'When composer setup completes without user modification',
+          () async {
+            // arrange
+            final composerArguments = ComposerArguments(
+              emailActionType: actionType,
+              displayMode: ScreenDisplayMode.minimize,
+              identities: [identity],
+              selectedIdentityId: identity.id,
+            );
+            composerController?.composerArguments.value = composerArguments;
+            composerController?.richTextMobileTabletController = mockRichTextMobileTabletController;
+            composerController?.subjectEmail.value = emailSubject;
+            composerController?.listToEmailAddress = [toRecipient];
+            composerController?.listCcEmailAddress = [ccRecipient];
+            composerController?.listBccEmailAddress = [bccRecipient];
+            composerController?.listReplyToEmailAddress = [replyToRecipient];
+            composerController?.hasRequestReadReceipt.value = alwaysReadReceiptEnabled;
+            composerController?.isMarkAsImportant.value = isMarkAsImportant;
+            composerController?.screenDisplayMode.value = composerArguments.displayMode;
+            composerController?.currentEmailActionType = composerArguments.emailActionType;
+            composerController?.listFromIdentities.value = composerArguments.identities!;
+
+            when(mockRichTextMobileTabletController.htmlEditorApi).thenReturn(mockHtmlEditorApi);
+            when(mockHtmlEditorApi.getText()).thenAnswer((_) async => emailContent);
+            when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
+            when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+              emailContent: anyNamed('emailContent'),
+            )).thenAnswer((_) async => emailContent);
+
+            final savedEmailDraft = SavedComposingEmail(
+              content: emailContent,
+              subject: emailSubject,
+              toRecipients: {toRecipient},
+              ccRecipients: {ccRecipient},
+              bccRecipients: {bccRecipient},
+              replyToRecipients: {replyToRecipient},
+              identity: identity,
+              attachments: [attachment],
+              hasReadReceipt: alwaysReadReceiptEnabled,
+              isMarkAsImportant: isMarkAsImportant,
+            );
+
+            // act
+            await composerController?.setupSelectedIdentityWithoutApplySignature();
+            await composerController?.initEmailDraftHash();
+
+            // assert
+            expect(
+              composerController?.savedEmailDraftHash,
+              equals(savedEmailDraft.asString().hashCode),
+            );
+            expect(composerController?.isEmailChanged.value, isFalse);
+          });
+        });
+      }
+
+      test(
+        'Should update _savedEmailDraftHash on web\n'
+        'When email action type is editAsNewEmail\n'
+        'And identity is already selected from the email header',
+      () async {
+        // arrange
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+
+        composerController?.composerArguments.value = ComposerArguments(
+          emailActionType: EmailActionType.editAsNewEmail,
+          identities: [identity],
+        );
+        composerController?.currentEmailActionType = EmailActionType.editAsNewEmail;
+        composerController?.identitySelected.value = identity;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.subjectEmail.value = emailSubject;
+
+        when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((_) async => emailContent);
+
+        final savedEmailDraft = SavedComposingEmail(
+          content: emailContent,
+          subject: emailSubject,
+          toRecipients: {},
+          ccRecipients: {},
+          bccRecipients: {},
+          replyToRecipients: {},
+          identity: identity,
+          attachments: [attachment],
+          hasReadReceipt: false,
+          isMarkAsImportant: false,
+        );
+
+        // act
+        await composerController?.setupSelectedIdentity();
+        await untilCalled(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        ));
+        await Future.delayed(Duration.zero);
+
+        // assert
+        expect(
+          composerController?.savedEmailDraftHash,
+          equals(savedEmailDraft.asString().hashCode),
+        );
+        expect(composerController?.isEmailChanged.value, isFalse);
+      });
+
+      for (final actionType in [
+        EmailActionType.compose,
+        EmailActionType.reply,
+        EmailActionType.replyAll,
+        EmailActionType.replyToList,
+        EmailActionType.forward,
+        EmailActionType.editAsNewEmail,
+      ]) {
+        test(
+          'Should resynchronize _savedEmailDraftHash on web\n'
+          'When email action type is $actionType\n'
+          'And the signature is inserted after the initial hash',
+        () async {
+          // arrange
+          PlatformInfo.isTestingForWeb = true;
+          addTearDown(() => PlatformInfo.isTestingForWeb = false);
+
+          const contentWithSignature = '$emailContent'
+              '<div class="tmail-signature" style="clear: both; display: block;">signature</div>';
+
+          composerController?.composerArguments.value = ComposerArguments(
+            emailActionType: actionType,
+            identities: [identity],
+          );
+          composerController?.currentEmailActionType = actionType;
+          composerController?.identitySelected.value = identity;
+          composerController?.setTextEditorWeb(emailContent);
+          composerController?.subjectEmail.value = emailSubject;
+
+          when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
+          when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+            emailContent: anyNamed('emailContent'),
+          )).thenAnswer((invocation) async =>
+              invocation.namedArguments[#emailContent] as String);
+
+          await composerController?.initEmailDraftHash();
+
+          final savedEmailDraft = SavedComposingEmail(
+            content: contentWithSignature,
+            subject: emailSubject,
+            toRecipients: {},
+            ccRecipients: {},
+            bccRecipients: {},
+            replyToRecipients: {},
+            identity: identity,
+            attachments: [attachment],
+            hasReadReceipt: false,
+            isMarkAsImportant: false,
+          );
+
+          // act
+          composerController?.onChangeTextEditorWeb(contentWithSignature);
+          await Future.delayed(Duration.zero);
+
+          // assert
+          expect(
+            composerController?.savedEmailDraftHash,
+            equals(savedEmailDraft.asString().hashCode),
+          );
+          expect(composerController?.isEmailChanged.value, isFalse);
+        });
+      }
+
+      test(
+        'Should not resynchronize _savedEmailDraftHash on web\n'
+        'When the only signature is nested in quoted content',
+      () async {
+        // arrange
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+
+        const contentWithQuotedSignature = '$emailContent'
+            '<blockquote><div class="tmail-signature">quoted signature</div></blockquote>';
+
+        composerController?.composerArguments.value = ComposerArguments(
+          emailActionType: EmailActionType.reply,
+          identities: [identity],
+        );
+        composerController?.currentEmailActionType = EmailActionType.reply;
+        composerController?.identitySelected.value = identity;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.subjectEmail.value = emailSubject;
+
+        when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((invocation) async =>
+            invocation.namedArguments[#emailContent] as String);
+
+        await composerController?.initEmailDraftHash();
+        final initialDraftHash = composerController?.savedEmailDraftHash;
+
+        // act
+        composerController?.onChangeTextEditorWeb(contentWithQuotedSignature);
+        await Future.delayed(Duration.zero);
+
+        // assert
+        expect(composerController?.savedEmailDraftHash, equals(initialDraftHash));
+        expect(composerController?.synchronizeInitDraftHash, isFalse);
+      });
+
+      test(
+        'Should not restore the signature\n'
+        'When the loaded content already contains a top-level signature',
+      () async {
+        // arrange
+        const contentWithExpandedSignature = '$emailContent'
+            '<div class="tmail-signature">signature</div>';
+
+        // act
+        await composerController?.restoreCollapsibleSignatureButton(
+          contentWithExpandedSignature,
+        );
+
+        // assert
+        expect(composerController?.restoringSignatureButton, isFalse);
+        expect(composerController?.synchronizeInitDraftHash, isFalse);
+      });
     });
 
     group('applySignature test:', () {
@@ -1176,6 +1648,187 @@ void main() {
       });
     });
 
+    group('handleSendMessageResult test:', () {
+      Future<BuildContext> pumpContext(WidgetTester tester) async {
+        late BuildContext capturedContext;
+        await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
+          child: Builder(builder: (context) {
+            capturedContext = context;
+            return const SizedBox.shrink();
+          }),
+        ));
+        await tester.pump();
+        return capturedContext;
+      }
+
+      testWidgets(
+        'Should mark and toast the rejected addresses\n'
+        'When sending fails with InvalidRecipientsException',
+      (tester) async {
+        final context = await pumpContext(tester);
+        composerController?.invalidRecipients.value = {'stale@linagora.com'};
+
+        await composerController?.handleSendMessageResult(
+          context: context,
+          resultState: SendEmailFailure(
+            exception: InvalidRecipientsException(
+              {},
+              {'Bad@Linagora.com'},
+              createdEmailId: EmailId(Id('email-1')),
+            ),
+          ),
+        );
+
+        expect(composerController?.invalidRecipients.value, {'bad@linagora.com'});
+        verify(mockAppToast.showToastErrorMessage(
+          any,
+          argThat(contains('Bad@Linagora.com')),
+        )).called(1);
+        verify(mockMailboxDashBoardController
+            .deleteEmailPermanentlyInBackground(EmailId(Id('email-1'))))
+            .called(1);
+      });
+
+      testWidgets(
+        'Should clear the invalid marks\n'
+        'When sending fails with an exception other than InvalidRecipientsException',
+      (tester) async {
+        final context = await pumpContext(tester);
+        // Unmounted context skips the generic confirm dialog.
+        await tester.pumpWidget(const SizedBox.shrink());
+        composerController?.invalidRecipients.value = {'bad@linagora.com'};
+
+        await composerController?.handleSendMessageResult(
+          context: context,
+          resultState: SendEmailFailure(exception: SetMethodException({})),
+        );
+
+        expect(composerController?.invalidRecipients.value, isEmpty);
+      });
+    });
+
+    group('insertHtmlIntoEditor on mobile:', () {
+      const cardHtml = '<div class="file-card">a.zip</div>';
+
+      // The rich text mock is shared by the whole file: start and end each test clean.
+      setUp(() => reset(mockRichTextMobileTabletController));
+      tearDown(() => reset(mockRichTextMobileTabletController));
+
+      test(
+        'Should return false and insert nothing\n'
+        'When no mobile editor is attached',
+      () async {
+        composerController?.richTextMobileTabletController =
+            mockRichTextMobileTabletController;
+        when(mockRichTextMobileTabletController.htmlEditorApi).thenReturn(null);
+
+        final inserted = await composerController?.insertHtmlIntoEditor(cardHtml);
+
+        expect(inserted, isFalse);
+        verifyNever(mockRichTextMobileTabletController.restoreMobileEditorFocus());
+      });
+
+      testWidgets(
+        'Should restore the editor focus, insert the html once and return true\n'
+        'When a mobile editor is attached',
+      (tester) async {
+        composerController?.richTextMobileTabletController =
+            mockRichTextMobileTabletController;
+        when(mockRichTextMobileTabletController.htmlEditorApi)
+            .thenReturn(mockHtmlEditorApi);
+        final calls = <String>[];
+        when(mockRichTextMobileTabletController.restoreMobileEditorFocus())
+            .thenAnswer((_) async => calls.add('restoreFocus'));
+        when(mockHtmlEditorApi.insertHtml(any))
+            .thenAnswer((invocation) async => calls.add('insertHtml:${invocation.positionalArguments.single}'));
+
+        bool? inserted;
+        composerController!.insertHtmlIntoEditor(cardHtml).then((value) => inserted = value);
+        // The insert completes at the end of a frame scheduled after the mocks resolve.
+        for (var frame = 0; frame < 5 && inserted == null; frame++) {
+          await tester.pump();
+        }
+
+        expect(inserted, isTrue);
+        expect(calls, ['restoreFocus', 'insertHtml:$cardHtml']);
+      });
+    });
+
+    group('insertHtmlIntoEditor on web:', () {
+      const cardHtml = '<div class="file-card">a.zip</div>';
+
+      setUp(() {
+        PlatformInfo.isTestingForWeb = true;
+        // The web editor mock is shared by the whole file: start each test clean.
+        reset(mockRichTextWebController.editorController);
+      });
+      tearDown(() => PlatformInfo.isTestingForWeb = false);
+
+      test(
+        'Should return false\n'
+        'When no web editor is attached',
+      () async {
+        composerController?.richTextWebController = null;
+
+        final inserted = await composerController?.insertHtmlIntoEditor(cardHtml);
+
+        expect(inserted, isFalse);
+      });
+
+      testWidgets(
+        'Should insert the html once and return true\n'
+        'When a web editor is attached',
+      (tester) async {
+        composerController?.richTextWebController = mockRichTextWebController;
+
+        bool? inserted;
+        composerController!.insertHtmlIntoEditor(cardHtml).then((value) => inserted = value);
+        // The insert completes at the end of the next frame.
+        for (var frame = 0; frame < 5 && inserted == null; frame++) {
+          await tester.pump();
+        }
+
+        expect(inserted, isTrue);
+        verify(mockRichTextWebController.editorController.insertHtml(cardHtml)).called(1);
+      });
+    });
+
+    group('oversize files and the Drive recovery:', () {
+      testWidgets(
+        'Should hand the files to the Drive recovery and not upload them\n'
+        'When they exceed the server limit and Drive is enabled',
+      (tester) async {
+        when(mockMailboxDashBoardController.maxSizeAttachmentsPerEmail)
+            .thenReturn(UnsignedInt(100));
+        // The dashboard mock is shared by the whole file: drop the limit after the test.
+        addTearDown(() => when(mockMailboxDashBoardController.maxSizeAttachmentsPerEmail)
+            .thenReturn(null));
+        final container = _buildDriveRecoveryContainer();
+        addTearDown(container.dispose);
+        final startedBatches = _recordStartedDriveBatches(container);
+        await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
+          providerContainer: container,
+          child: const SizedBox.shrink(),
+        ));
+        // Lets the localizations load: the recovery's dialog reads them.
+        await tester.pumpAndSettle();
+        final context = tester.element(find.byType(SizedBox));
+        var allowed = false;
+
+        unawaited(composerController!.attachmentUploadValidationService.validateFiles(
+          context: context,
+          files: [
+            FileBytesInfo(fileName: 'big.zip', fileSize: 200, bytes: Uint8List(200)),
+          ],
+          onAllowed: () => allowed = true,
+        ));
+        await tester.pumpAndSettle();
+
+        expect(startedBatches, [['big.zip']]);
+        expect(allowed, isFalse);
+      });
+    });
+
     group('markCleanClose - platform guard:', () {
       test(
           'Should set isCleanClose flag in the notifier\n'
@@ -1193,7 +1846,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1235,7 +1887,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1290,6 +1941,616 @@ void main() {
       });
     });
 
+    // Runs when the app is forced to log out (e.g. rejected OIDC refresh) with
+    // a composer open: web saves the draft to cache before the redirect.
+    group('onBeforeReconnect:', () {
+      const emailContent = '<p>unsent draft</p>';
+
+      test(
+        'Should save the composer cache\n'
+        'When platform is web and account and session are available',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        composerController?.richTextWebController = mockRichTextWebController;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.composerArguments.value = ComposerArguments();
+        when(mockUploadController.attachmentsUploaded).thenReturn([]);
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((_) async => emailContent);
+        when(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        )).thenAnswer((_) async => Right(UIState.idle));
+
+        await composerController?.onBeforeReconnect();
+
+        final request = verify(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: captureAnyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        )).captured.single as CreateEmailRequest;
+        expect(request.emailContent, emailContent);
+        expect(request.accountId, AccountFixtures.aliceAccountId);
+      });
+
+      test(
+        'Should save the latest draft hash instead of the stale route one\n'
+        'When the draft hash changed after the composer opened',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        composerController?.richTextWebController = mockRichTextWebController;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.composerArguments.value =
+            ComposerArguments(savedDraftHash: 123);
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        when(mockUploadController.attachmentsUploaded).thenReturn([]);
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((_) async => emailContent);
+        when(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        )).thenAnswer((_) async => Right(UIState.idle));
+        await composerController?.initEmailDraftHash();
+        final latestHash = composerController?.savedEmailDraftHash;
+        expect(latestHash, isNot(123));
+
+        await composerController?.onBeforeReconnect();
+
+        final request = verify(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: captureAnyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        )).captured.single as CreateEmailRequest;
+        expect(request.savedDraftHash, latestHash);
+      });
+
+      test(
+        'Should do nothing\n'
+        'When platform is not web',
+      () async {
+        PlatformInfo.isTestingForWeb = false;
+        composerController?.composerArguments.value = ComposerArguments();
+
+        await composerController?.onBeforeReconnect();
+
+        verifyNever(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        ));
+      });
+
+      // The account/session guard runs on web too. If either is already gone
+      // when the forced logout starts, the draft is not written — logout still
+      // proceeds, so the draft is lost. Locked here so the skip stays a
+      // deliberate choice rather than a silent regression.
+      test(
+        'Should skip the save without throwing\n'
+        'When platform is web but the account is already gone',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        mockMailboxDashBoardController.currentAccountId = null;
+        addTearDown(() => mockMailboxDashBoardController.currentAccountId =
+            AccountFixtures.aliceAccountId);
+        composerController?.richTextWebController = mockRichTextWebController;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.composerArguments.value = ComposerArguments();
+
+        await composerController?.onBeforeReconnect();
+
+        verifyNever(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        ));
+      });
+
+      test(
+        'Should skip the save without throwing\n'
+        'When platform is web but the session is already gone',
+      () async {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        mockMailboxDashBoardController.currentSession = null;
+        addTearDown(() => mockMailboxDashBoardController.currentSession =
+            SessionFixtures.aliceSession);
+        composerController?.richTextWebController = mockRichTextWebController;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.composerArguments.value = ComposerArguments();
+
+        await composerController?.onBeforeReconnect();
+
+        verifyNever(mockSaveComposerCacheInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+          isPersistent: anyNamed('isPersistent'),
+        ));
+      });
+    });
+
+    group('browser reload listeners:', () {
+      String cacheKeyFor(String composerId) => TupleKey(
+            EmailActionType.reopenComposerBrowser.name,
+            AccountFixtures.aliceAccountId.asString,
+            SessionFixtures.aliceSession.username.value,
+            composerId,
+          ).toString();
+
+      ComposerSessionCacheDatasourceImpl createSessionDatasource(
+        String composerId,
+      ) {
+        final datasource = ComposerSessionCacheDatasourceImpl(
+          mockCacheExceptionThrower,
+        );
+        addTearDown(() async => datasource.removeComposerCacheById(
+              AccountFixtures.aliceAccountId,
+              SessionFixtures.aliceSession.username,
+              composerId,
+            ));
+        return datasource;
+      }
+
+      void registerReloadHandler(
+        ComposerController controller,
+        ComposerSessionCacheDatasourceImpl datasource,
+      ) {
+        controller.registerReloadCacheAction(
+          WebComposerReloadCacheHandler(
+            WebComposerReloadSnapshotBuilder(controller).build,
+            SaveComposerReloadCacheInteractor(
+              ComposerReloadCacheRepositoryImpl(datasource),
+            ),
+          ).saveBeforeUnload,
+        );
+      }
+
+      setUp(() {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        mockMailboxDashBoardController.currentComposerManager =
+            _MockComposerManager();
+        addTearDown(
+          () => mockMailboxDashBoardController.currentComposerManager = null,
+        );
+        when(mockUploadController.attachmentsUploaded).thenReturn([]);
+        when(mockUploadController.mapInlineAttachments).thenReturn({});
+      });
+
+      test(
+        'saves synchronously and restores composer content after reload',
+      () {
+        const composerId = 'reload-composer';
+        const emailContent = '<p>unsent draft<img src="cid:inline-1"></p>';
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.compose,
+          composerId: composerId,
+          savedDraftHash: 123,
+          savedActionType: EmailActionType.compose,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = arguments.emailActionType;
+        controller.savedActionType = arguments.savedActionType;
+        controller.subjectEmail.value = 'Unsent subject';
+        controller.listToEmailAddress = [
+          EmailAddress(null, 'recipient@example.com'),
+        ];
+        controller.toEmailAddressController.text = 'typed@example.com';
+        controller.listCcEmailAddress = [EmailAddress(null, 'cc@example.com')];
+        controller.listBccEmailAddress = [EmailAddress(null, 'bcc@example.com')];
+        controller.listReplyToEmailAddress = [
+          EmailAddress(null, 'reply-to@example.com'),
+        ];
+        controller.hasRequestReadReceipt.value = true;
+        controller.isMarkAsImportant.value = true;
+        controller.screenDisplayMode.value = ScreenDisplayMode.minimize;
+        controller.emailIdEditing = EmailId(Id('saved-draft'));
+        controller.currentTemplateEmailId = EmailId(Id('template'));
+        controller.setTextEditorWeb(emailContent);
+        when(mockUploadController.attachmentsUploaded).thenReturn([
+          Attachment(blobId: Id('blob-1'), name: 'note.txt'),
+        ]);
+        when(mockUploadController.mapInlineAttachments).thenReturn({
+          'inline-1': Attachment(
+            blobId: Id('inline-blob'),
+            cid: 'inline-1',
+            disposition: ContentDisposition.inline,
+          ),
+        });
+
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        // beforeunload cannot await a Future: storage must already be written.
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        final savedJson = browser_html.window.sessionStorage[
+            cacheKeyFor(composerId)];
+        expect(savedJson, isNotNull);
+
+        final cache = ComposerCache.fromJson(jsonDecode(savedJson!));
+        final restored = ComposerArguments.fromSessionStorageBrowser(cache);
+        expect(restored.emailContents, emailContent);
+        expect(restored.presentationEmail?.subject, 'Unsent subject');
+        expect(restored.presentationEmail?.to?.map((address) => address.email),
+            containsAll(['recipient@example.com', 'typed@example.com']));
+        expect(restored.presentationEmail?.cc?.single.email, 'cc@example.com');
+        expect(restored.presentationEmail?.bcc?.single.email, 'bcc@example.com');
+        expect(restored.presentationEmail?.replyTo?.single.email,
+            'reply-to@example.com');
+        expect(restored.attachments?.single.blobId, Id('blob-1'));
+        expect(restored.inlineImages?.single.blobId, Id('inline-blob'));
+        expect(restored.hasRequestReadReceipt, isTrue);
+        expect(restored.isMarkAsImportant, isTrue);
+        expect(restored.displayMode, ScreenDisplayMode.minimize);
+        expect(restored.savedEmailDraftId, EmailId(Id('saved-draft')));
+        expect(restored.savedEmailTemplateId, EmailId(Id('template')));
+        expect(restored.savedDraftMailboxId, isNull);
+        expect(restored.savedDraftHash, 123);
+        expect(restored.savedActionType, EmailActionType.compose);
+      });
+
+      group('inline images:', () {
+        const composerId = 'reload-inline-images';
+        final inlineImage = Attachment(
+          blobId: Id('inline-blob'),
+          cid: 'inline-1',
+          disposition: ContentDisposition.inline,
+        );
+
+        ComposerArguments reloadWithEditorContent(String editorContent) {
+          final arguments = ComposerArguments(
+            emailActionType: EmailActionType.compose,
+            composerId: composerId,
+          );
+          final controller = createComposerController(
+            composerId: composerId,
+            arguments: arguments,
+          )..composerArguments.value = arguments;
+          controller.currentEmailActionType = arguments.emailActionType;
+          controller.setTextEditorWeb(editorContent);
+          when(mockUploadController.mapInlineAttachments)
+              .thenReturn({'inline-1': inlineImage});
+          registerReloadHandler(controller, createSessionDatasource(composerId));
+
+          controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+          final savedJson = browser_html.window.sessionStorage[
+              cacheKeyFor(composerId)];
+          return ComposerArguments.fromSessionStorageBrowser(
+            ComposerCache.fromJson(jsonDecode(savedJson!)),
+          );
+        }
+
+        test(
+          'an uploaded image still in base64 in the editor restores as an '
+          'inline image, not as an outside attachment',
+        () {
+          final restored = reloadWithEditorContent(
+            '<p>hi<img id="cid:inline-1" src="data:image/png;base64,AAAA"></p>',
+          );
+
+          expect(restored.attachments, isEmpty);
+          expect(restored.inlineImages?.single.blobId, Id('inline-blob'));
+          expect(restored.emailContents, contains('src="cid:inline-1"'));
+          expect(restored.emailContents, isNot(contains('data:image')));
+        });
+
+        test(
+          'an uploaded image removed from the editor is dropped, not listed '
+          'as an outside attachment',
+        () {
+          final restored = reloadWithEditorContent('<p>no image left</p>');
+
+          expect(restored.attachments, isEmpty);
+          expect(restored.inlineImages, isEmpty);
+        });
+      });
+
+      test('uses the selected identity while its async setup is pending', () {
+        const composerId = 'reload-pending-identity';
+        final selectedIdentity = Identity(
+          id: IdentityId(Id('selected-identity')),
+          name: 'Work alias',
+          email: 'alias@example.com',
+        );
+        final otherIdentity = Identity(
+          id: IdentityId(Id('other-identity')),
+          email: 'other@example.com',
+        );
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.reopenComposerBrowser,
+          composerId: composerId,
+          selectedIdentityId: selectedIdentity.id,
+          savedActionType: EmailActionType.compose,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        controller.listFromIdentities.value = [otherIdentity, selectedIdentity];
+        controller.setTextEditorWeb('<p>edited content</p>');
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+        final savedJson = browser_html.window.sessionStorage[cacheKeyFor(composerId)];
+        final restored = ComposerArguments.fromSessionStorageBrowser(
+          ComposerCache.fromJson(jsonDecode(savedJson!)),
+        );
+        expect(restored.selectedIdentityId, selectedIdentity.id);
+        expect(restored.presentationEmail?.from?.single.email,
+            'alias@example.com');
+
+        final incomplete = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        incomplete.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        incomplete.setTextEditorWeb('<p>newer text, identity still unavailable</p>');
+        registerReloadHandler(incomplete, datasource);
+        incomplete.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        expect(browser_html.window.sessionStorage[cacheKeyFor(composerId)],
+            savedJson);
+      });
+
+      test('uses the default identity from arguments before setup begins', () {
+        const composerId = 'reload-default-identity';
+        final defaultIdentity = Identity(
+          id: IdentityId(Id('default-identity')),
+          email: 'default@example.com',
+        );
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.compose,
+          composerId: composerId,
+          identities: [defaultIdentity],
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.setTextEditorWeb('<p>early content</p>');
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+        final restored = ComposerArguments.fromSessionStorageBrowser(
+          ComposerCache.fromJson(jsonDecode(
+            browser_html.window.sessionStorage[cacheKeyFor(composerId)]!,
+          )),
+        );
+        expect(restored.selectedIdentityId, defaultIdentity.id);
+        expect(restored.presentationEmail?.from?.single.email,
+            'default@example.com');
+      });
+
+      test(
+        'keeps the identity the user switched to, and applies its signature, '
+        'after reload',
+      () async {
+        const composerId = 'reload-switched-identity';
+        final workIdentity = Identity(
+          id: IdentityId(Id('work-identity')),
+          email: 'work@example.com',
+          htmlSignature: Signature('<p>Work signature</p>'),
+        );
+        final personalIdentity = Identity(
+          id: IdentityId(Id('personal-identity')),
+          email: 'personal@example.com',
+          htmlSignature: Signature('<p>Personal signature</p>'),
+        );
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.compose,
+          composerId: composerId,
+          identities: [workIdentity, personalIdentity],
+          selectedIdentityId: workIdentity.id,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = EmailActionType.compose;
+        controller.listFromIdentities.value = [workIdentity, personalIdentity];
+        // The composer opened with the default identity, then the user
+        // switched From to the personal one.
+        controller.identitySelected.value = personalIdentity;
+        controller.setTextEditorWeb('<p>draft</p><p>Personal signature</p>');
+        registerReloadHandler(controller, createSessionDatasource(composerId));
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+        final restored = ComposerArguments.fromSessionStorageBrowser(
+          ComposerCache.fromJson(jsonDecode(
+            browser_html.window.sessionStorage[cacheKeyFor(composerId)]!,
+          )),
+        );
+        expect(restored.selectedIdentityId, personalIdentity.id);
+
+        // The default identity is still listed first after reload.
+        final reopened = createComposerController(
+          composerId: composerId,
+          arguments: restored,
+        )..composerArguments.value = restored;
+        reopened.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        reopened.savedActionType = restored.savedActionType;
+        reopened.listFromIdentities.value = [workIdentity, personalIdentity];
+        reopened.richTextWebController = mockRichTextWebController;
+        final editor =
+            mockRichTextWebController.editorController as MockHtmlEditorController;
+        clearInteractions(editor);
+        when(mockTransformHtmlEmailContentInteractor.execute(any, any))
+            .thenAnswer((_) => Stream.value(
+                Left(TransformHtmlEmailContentFailure(Exception()))));
+
+        await reopened.setupSelectedIdentity();
+
+        expect(reopened.identitySelected.value, personalIdentity);
+        verify(editor.insertSignature(
+          argThat(contains('Personal signature')),
+          allowCollapsed: false,
+        )).called(1);
+        verifyNever(editor.insertSignature(
+          argThat(contains('Work signature')),
+          allowCollapsed: anyNamed('allowCollapsed'),
+        ));
+      });
+
+      test('keeps reply threading through two reload snapshots', () {
+        const composerId = 'reload-reply';
+        final messageId = MessageIdsHeaderValue({'original@example.com'});
+        final references = MessageIdsHeaderValue({'ancestor@example.com'});
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.reply,
+          composerId: composerId,
+          messageId: messageId,
+          references: references,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = EmailActionType.reply;
+        controller.setTextEditorWeb('<p>reply body</p>');
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        final key = cacheKeyFor(composerId);
+        final firstCache = ComposerCache.fromJson(
+          jsonDecode(browser_html.window.sessionStorage[key]!),
+        );
+        final restored = ComposerArguments.fromSessionStorageBrowser(firstCache);
+        expect(restored.messageId, messageId);
+        expect(restored.references?.ids,
+            containsAll(['original@example.com', 'ancestor@example.com']));
+
+        final reopened = createComposerController(
+          composerId: composerId,
+          arguments: restored,
+        )..composerArguments.value = restored;
+        reopened.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        reopened.savedActionType = restored.savedActionType;
+        reopened.setTextEditorWeb('<p>edited reply body</p>');
+        registerReloadHandler(reopened, datasource);
+        reopened.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+        final secondCache = ComposerCache.fromJson(
+          jsonDecode(browser_html.window.sessionStorage[key]!),
+        );
+        expect(secondCache.email?.inReplyTo, messageId);
+        expect(secondCache.email?.references?.ids,
+            containsAll(['original@example.com', 'ancestor@example.com']));
+      });
+
+      test('keeps the original draft mailbox when reopening an edited draft', () {
+        const composerId = 'reload-edit-draft';
+        final draftMailboxId = MailboxId(Id('original-draft-mailbox'));
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.editDraft,
+          composerId: composerId,
+          savedDraftMailboxId: draftMailboxId,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = EmailActionType.editDraft;
+        controller.setTextEditorWeb('<p>edited draft</p>');
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        final cache = ComposerCache.fromJson(jsonDecode(
+          browser_html.window.sessionStorage[cacheKeyFor(composerId)]!,
+        ));
+        final restored = ComposerArguments.fromSessionStorageBrowser(cache);
+        expect(restored.savedDraftMailboxId, draftMailboxId);
+        expect(restored.savedActionType, EmailActionType.editDraft);
+
+        final reopened = createComposerController(
+          composerId: composerId,
+          arguments: restored,
+        )..composerArguments.value = restored;
+        reopened.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        expect(reopened.getDraftMailboxIdForComposer(), draftMailboxId);
+      });
+
+      test('uses the latest saved draft hash instead of stale route arguments',
+          () async {
+        const composerId = 'reload-new-draft-hash';
+        final arguments = ComposerArguments(
+          emailActionType: EmailActionType.editDraft,
+          composerId: composerId,
+          savedDraftHash: 123,
+        );
+        final controller = createComposerController(
+          composerId: composerId,
+          arguments: arguments,
+        )..composerArguments.value = arguments;
+        controller.currentEmailActionType = EmailActionType.editDraft;
+        controller.setTextEditorWeb('<p>saved content</p>');
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((invocation) async =>
+            invocation.namedArguments[#emailContent] as String);
+        await controller.initEmailDraftHash();
+        final latestHash = controller.savedEmailDraftHash;
+        expect(latestHash, isNot(123));
+        final datasource = createSessionDatasource(composerId);
+        registerReloadHandler(controller, datasource);
+
+        controller.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+
+        final cache = ComposerCache.fromJson(jsonDecode(
+          browser_html.window.sessionStorage[cacheKeyFor(composerId)]!,
+        ));
+        expect(cache.draftHash, latestHash);
+      });
+
+      test('keeps the previous snapshot when restored content is unavailable',
+          () {
+        const composerId = 'reload-incomplete';
+        final datasource = createSessionDatasource(composerId);
+        final initial = createComposerController(
+          composerId: composerId,
+          arguments: ComposerArguments(
+            emailActionType: EmailActionType.compose,
+            composerId: composerId,
+          ),
+        );
+        initial.composerArguments.value = initial.composerArgs;
+        initial.setTextEditorWeb('<p>old content</p>');
+        registerReloadHandler(initial, datasource);
+        initial.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        final key = cacheKeyFor(composerId);
+        final previous = browser_html.window.sessionStorage[key];
+        expect(previous, isNotNull);
+
+        final restored = createComposerController(
+          composerId: composerId,
+          arguments: ComposerArguments(
+            emailActionType: EmailActionType.reopenComposerBrowser,
+            composerId: composerId,
+          ),
+        );
+        restored.composerArguments.value = restored.composerArgs;
+        restored.currentEmailActionType = EmailActionType.reopenComposerBrowser;
+        registerReloadHandler(restored, datasource);
+        restored.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        expect(browser_html.window.sessionStorage[key], previous);
+
+        restored.setTextEditorWeb('<p>partial content</p>');
+        restored.emailContentsViewState.value =
+            Left(GetEmailContentFailure(StateError('restore failed')));
+        restored.onBeforeUnloadBrowserListener(html.Event('beforeunload'));
+        expect(browser_html.window.sessionStorage[key], previous);
+      });
+    });
+
     group('tearDownMobileAutoSave safety:', () {
       test(
           'periodicSnapshotTimer is active after initMobileAutoSave\n'
@@ -1300,7 +2561,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1328,7 +2588,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1356,7 +2615,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1384,7 +2642,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1552,7 +2809,6 @@ void main() {
           mockGetEmailContentInteractor,
           mockGetAllIdentitiesInteractor,
           mockUploadController,
-          mockRemoveComposerCacheByIdInteractor,
           mockSaveComposerCacheInteractor,
           mockDownloadImageAsBase64Interactor,
           mockTransformHtmlEmailContentInteractor,
@@ -1846,6 +3102,322 @@ void main() {
           // Let the asynchronous drop processing (loading dialog/toast) settle.
           await tester.pump(const Duration(seconds: 1));
         });
+      });
+
+      group('error toast:', () {
+        late Directory dropDir;
+
+        setUp(() => dropDir = Directory.systemTemp.createTempSync('composer-drop'));
+        tearDown(() => dropDir.deleteSync(recursive: true));
+
+        Directory folder(String name) => Directory('${dropDir.path}/$name')..createSync();
+
+        testWidgets('Should name the folder When only one folder is dropped', (tester) async {
+          final message = await _dropAndCaptureErrorToast(
+            tester, composerController!, mockAppToast, [XFile(folder('docs').path)]);
+
+          expect(message, 'Cannot upload this folder as attachment');
+        });
+
+        testWidgets('Should name the folders When only folders are dropped', (tester) async {
+          final message = await _dropAndCaptureErrorToast(
+            tester, composerController!, mockAppToast, [XFile(folder('docs').path), XFile(folder('photos').path)]);
+
+          expect(message, 'Cannot upload these folders as attachments');
+        });
+
+        testWidgets('Should show the file toast When nothing is dropped', (tester) async {
+          final message = await _dropAndCaptureErrorToast(tester, composerController!, mockAppToast, []);
+
+          expect(message, 'Can not upload this file as attachments');
+        });
+
+        testWidgets('Should show the file toast When a folder is dropped with a file that cannot be read', (tester) async {
+          final note = File('${dropDir.path}/note.txt')..writeAsStringSync('hello drop');
+
+          final message = await _dropAndCaptureErrorToast(
+            tester, composerController!, mockAppToast, [XFile(folder('docs').path), _SizeFailingXFile(note.path)]);
+
+          expect(message, 'Can not upload this file as attachments');
+        });
+
+        testWidgets('Should name the folder When a folder is dropped with a readable file', (tester) async {
+          final validationService = MockAttachmentUploadValidationService();
+          composerController!.attachmentUploadValidationService = validationService;
+          final note = File('${dropDir.path}/note.txt')..writeAsStringSync('hello drop');
+
+          final message = await _dropAndCaptureErrorToast(
+            tester, composerController!, mockAppToast, [XFile(folder('docs').path), XFile(note.path)]);
+
+          expect(message, 'Cannot upload this folder as attachment');
+          final files = verify(validationService.validateFiles(
+            context: anyNamed('context'),
+            files: captureAnyNamed('files'),
+            onAllowed: anyNamed('onAllowed'),
+          )).captured.single as List<FileInfo>;
+          expect(files.map((file) => file.fileName), ['note.txt']);
+        });
+      });
+    });
+
+    group('isEmailBodyNotReady test:', () {
+      final contentLoaded = Right<Failure, Success>(
+        GetEmailContentSuccess(htmlEmailContent: 'content'),
+      );
+
+      test(
+        'Should return true\n'
+        'When email content is still loading',
+      () {
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentLoading());
+
+        expect(composerController?.isEmailBodyNotReady, isTrue);
+      });
+
+      test(
+        'Should return true\n'
+        'When editor is not loaded on mobile',
+      () {
+        composerController?.isEmailBodyLoaded = false;
+        composerController?.emailContentsViewState.value = contentLoaded;
+
+        expect(composerController?.isEmailBodyNotReady, isTrue);
+      });
+
+      test(
+        'Should return false\n'
+        'When content is loaded and editor is loaded',
+      () {
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value = contentLoaded;
+
+        expect(composerController?.isEmailBodyNotReady, isFalse);
+      });
+
+      test(
+        'Should return false\n'
+        'When email content loading failed and editor is loaded',
+      () {
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value =
+          Left(GetEmailContentFailure(Exception('failure')));
+
+        expect(composerController?.isEmailBodyNotReady, isFalse);
+      });
+
+      test(
+        'Should return true\n'
+        'When editor is not loaded on web and composer content is visible',
+      () {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        composerController?.isEmailBodyLoaded = false;
+        composerController?.screenDisplayMode.value = ScreenDisplayMode.normal;
+        composerController?.emailContentsViewState.value = contentLoaded;
+
+        expect(composerController?.isEmailBodyNotReady, isTrue);
+      });
+
+      test(
+        'Should return false\n'
+        'When editor is not loaded on web and composer is minimized',
+      () {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        composerController?.isEmailBodyLoaded = false;
+        composerController?.screenDisplayMode.value = ScreenDisplayMode.minimize;
+        composerController?.emailContentsViewState.value = contentLoaded;
+
+        expect(composerController?.isEmailBodyNotReady, isFalse);
+      });
+    });
+
+    group('isEditedEmailContentLoadFailed test:', () {
+      const editingActionTypes = [
+        EmailActionType.editDraft,
+        EmailActionType.editAsNewEmail,
+        EmailActionType.reopenComposerBrowser,
+        EmailActionType.restoreComposerFromPersistentCache,
+      ];
+
+      for (final actionType in editingActionTypes) {
+        test(
+          'Should return true\n'
+          'When email content loading failed for $actionType',
+        () {
+          composerController?.currentEmailActionType = actionType;
+          composerController?.emailContentsViewState.value =
+            Left(GetEmailContentFailure(Exception('failure')));
+
+          expect(composerController?.isEditedEmailContentLoadFailed, isTrue);
+        });
+
+        test(
+          'Should return false\n'
+          'When email content is empty (EmptyEmailContentException) for $actionType',
+        () {
+          composerController?.currentEmailActionType = actionType;
+          composerController?.emailContentsViewState.value =
+            Left(GetEmailContentFailure(EmptyEmailContentException()));
+
+          expect(composerController?.isEditedEmailContentLoadFailed, isFalse);
+        });
+      }
+
+      test(
+        'Should return false\n'
+        'When email content loading failed for a non editing action type',
+      () {
+        composerController?.currentEmailActionType = EmailActionType.reply;
+        composerController?.emailContentsViewState.value =
+          Left(GetEmailContentFailure(Exception('failure')));
+
+        expect(composerController?.isEditedEmailContentLoadFailed, isFalse);
+      });
+
+      test(
+        'Should return false\n'
+        'When email content is loaded while editing a draft',
+      () {
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentSuccess(htmlEmailContent: 'content'));
+
+        expect(composerController?.isEditedEmailContentLoadFailed, isFalse);
+      });
+
+      test(
+        'Should return false\n'
+        'When email content is still loading while editing a draft',
+      () {
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentLoading());
+
+        expect(composerController?.isEditedEmailContentLoadFailed, isFalse);
+      });
+    });
+
+    group('handleClickSendButton guards on email body test:', () {
+      Future<BuildContext> pumpContext(WidgetTester tester) async {
+        late BuildContext capturedContext;
+        await tester.pumpWidget(WidgetFixtures.makeTestableWidget(
+          child: Builder(builder: (context) {
+            capturedContext = context;
+            return const SizedBox.shrink();
+          }),
+        ));
+        await tester.pump();
+        return capturedContext;
+      }
+
+      void arrangeOtherwiseSendableEmail() {
+        final validationService = MockAttachmentUploadValidationService();
+        when(validationService.isExceededMaxSizeAttachmentsPerEmail()).thenReturn(false);
+        when(mockUploadController.allUploadAttachmentsCompleted).thenReturn(true);
+        composerController!
+          ..attachmentUploadValidationService = validationService
+          ..isEnableEmailSendButton.value = true
+          ..subjectEmail.value = 'subject';
+      }
+
+      testWidgets(
+        'Should show the content loading dialog and not send the email\n'
+        'When send is clicked while email content is still loading',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentLoading());
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(AppLocalizations.of(context).messageDialogSendEmailContentLoading),
+          findsOneWidget,
+        );
+        verifyNever(mockCreateNewAndSendEmailInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+        ));
+      });
+
+      testWidgets(
+        'Should show the content load failed dialog and not send the email\n'
+        'When send is clicked after draft content failed to load',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        composerController?.emailContentsViewState.value =
+          Left(GetEmailContentFailure(Exception('failure')));
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(AppLocalizations.of(context).messageDialogSendEmailContentLoadFailed),
+          findsOneWidget,
+        );
+        verifyNever(mockCreateNewAndSendEmailInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+        ));
+      });
+
+      Future<void> expectGuardDialogShownAgainAfterDismiss(
+        WidgetTester tester,
+        BuildContext context,
+        String message,
+      ) async {
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(AppLocalizations.of(context).got_it));
+        await tester.pumpAndSettle();
+        expect(find.text(message), findsNothing);
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(find.text(message), findsOneWidget);
+      }
+
+      testWidgets(
+        'Should show the content loading dialog again\n'
+        'When send is clicked again after dismissing the content loading dialog',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentLoading());
+
+        await expectGuardDialogShownAgainAfterDismiss(
+          tester,
+          context,
+          AppLocalizations.of(context).messageDialogSendEmailContentLoading,
+        );
+      });
+
+      testWidgets(
+        'Should show the content load failed dialog again\n'
+        'When send is clicked again after dismissing the content load failed dialog',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        composerController?.emailContentsViewState.value =
+          Left(GetEmailContentFailure(Exception('failure')));
+
+        await expectGuardDialogShownAgainAfterDismiss(
+          tester,
+          context,
+          AppLocalizations.of(context).messageDialogSendEmailContentLoadFailed,
+        );
       });
     });
   });
@@ -2955,6 +4527,9 @@ void main() {
 
   group('real Send handler submission guard:', () {
     Future<BuildContext> pumpSendHarness(WidgetTester tester) async {
+      // The editor is ready when users can press Send. Upstream now guards
+      // sending while the editor loads, so this focused harness must model it.
+      composerController!.isEmailBodyLoaded = true;
       await tester.pumpWidget(const GetMaterialApp(
         localizationsDelegates: [
           AppLocalizationsDelegate(),

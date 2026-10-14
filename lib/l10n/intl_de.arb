@@ -11,7 +11,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "initializing_data": "Daten werden initialisiert...",
+  "initializing_data": "Daten werden initialisiert…",
   "@initializing_data": {
     "type": "text",
     "placeholders_order": [],
@@ -197,6 +197,18 @@
     "placeholders": {
       "sentDate": {},
       "emailAddress": {}
+    }
+  },
+  "header_email_quoted_date_time": "{date} um {time}",
+  "@header_email_quoted_date_time": {
+    "type": "text",
+    "placeholders_order": [
+      "date",
+      "time"
+    ],
+    "placeholders": {
+      "date": {},
+      "time": {}
     }
   },
   "prefix_reply_email": "Ant:",
@@ -1025,6 +1037,12 @@
   },
   "folderNameCannotContainSpecialCharacters": "Ordnername darf keine Sonderzeichen enthalten",
   "@folderNameCannotContainSpecialCharacters": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "folderNameContainsForbiddenCharacters": "Ordnername darf nicht mit \"#\" beginnen und weder \".\", \"%\", \"*\" noch Zeilenumbrüche enthalten",
+  "@folderNameContainsForbiddenCharacters": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -2631,11 +2649,15 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "unsubscribeMailDialogMessage": "Sind Sie sicher, dass Sie keine ähnlichen Nachrichten mehr erhalten möchten von",
+  "unsubscribeMailDialogMessage": "Sind Sie sicher, dass Sie keine ähnlichen Nachrichten mehr von {senderName} erhalten möchten?",
   "@unsubscribeMailDialogMessage": {
     "type": "text",
-    "placeholders_order": [],
-    "placeholders": {}
+    "placeholders_order": [
+      "senderName"
+    ],
+    "placeholders": {
+      "senderName": {}
+    }
   },
   "unsubscribedFromThisMailingList": "Von dieser Mailingliste abgemeldet",
   "@unsubscribedFromThisMailingList": {

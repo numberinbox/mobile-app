@@ -221,6 +221,18 @@
       "emailAddress": {}
     }
   },
+  "header_email_quoted_date_time": "{date} {time}",
+  "@header_email_quoted_date_time": {
+    "type": "text",
+    "placeholders_order": [
+      "date",
+      "time"
+    ],
+    "placeholders": {
+      "date": {},
+      "time": {}
+    }
+  },
   "prefix_reply_email": "Re:",
   "@prefix_reply_email": {
     "type": "text",
@@ -386,6 +398,16 @@
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
+  },
+  "cannotUploadFoldersAsAttachments": "{count,plural, =1{Энэ фолдерыг хавсралт болгон байршуулах боломжгүй}other{Эдгээр фолдеруудыг хавсралт болгон байршуулах боломжгүй}}",
+  "@cannotUploadFoldersAsAttachments": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "attachments_uploaded_successfully": "Хавсралтуудыг амжилттай байршууллаа",
   "@attachments_uploaded_successfully": {
@@ -625,6 +647,12 @@
   },
   "folderNameCannotContainSpecialCharacters": "Хавтасны нэр тусгай тэмдэгт агуулж болохгүй",
   "@folderNameCannotContainSpecialCharacters": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "folderNameContainsForbiddenCharacters": "Фолдерын нэр \"#\"-ээр эхэлж, \".\", \"%\", \"*\" эсвэл мөр таслагч агуулж болохгүй",
+  "@folderNameContainsForbiddenCharacters": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -1579,6 +1607,12 @@
   },
   "languageItalian": "Итали",
   "@languageItalian": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageBrazilianPortuguese": "Португал (Бразил)",
+  "@languageBrazilianPortuguese": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -2639,6 +2673,16 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "sendMessageFailureWithInvalidRecipients": "Дараах хүлээн авагчид буруу тул таны зурвасыг илгээж чадсангүй: {invalidRecipients}",
+  "@sendMessageFailureWithInvalidRecipients": {
+    "type": "text",
+    "placeholders_order": [
+      "invalidRecipients"
+    ],
+    "placeholders": {
+      "invalidRecipients": {}
+    }
+  },
   "saveEmailAsDraftFailure": "Таны мессежийг ноорог болгон хадгалж чадсангүй.",
   "@saveEmailAsDraftFailure": {
     "type": "text",
@@ -3021,6 +3065,30 @@
   },
   "organizer": "Зохион байгуулагч",
   "@organizer": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "attending": "Оролцох уу?",
+  "@attending": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "joinTheVideoConference": "Видео хуралд нэгдэх",
+  "@joinTheVideoConference": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "copyLink": "Холбоосыг хуулах",
+  "@copyLink": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "linkCopiedToClipboard": "Холбоос хуулагдлаа",
+  "@linkCopiedToClipboard": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -3705,11 +3773,15 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "unsubscribeMailDialogMessage": "Та үүнтэй төстэй мессеж хүлээн авахаа зогсоохдоо итгэлтэй байна уу?",
+  "unsubscribeMailDialogMessage": "Та {senderName}-с ирэх үүнтэй төстэй мессеж хүлээн авахаа зогсоохдоо итгэлтэй байна уу?",
   "@unsubscribeMailDialogMessage": {
     "type": "text",
-    "placeholders_order": [],
-    "placeholders": {}
+    "placeholders_order": [
+      "senderName"
+    ],
+    "placeholders": {
+      "senderName": {}
+    }
   },
   "unsubscribedFromThisMailingList": "Жагсаалтаас бүртгэл цуцлагдлаа",
   "@unsubscribedFromThisMailingList": {
@@ -4325,6 +4397,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "linkCannotBeOpened": "Энэ холбоосыг нээх боломжгүй",
+  "@linkCannotBeOpened": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "downloadAttachmentInEMLPreviewWarningMessage": "Хавсралтыг татаж байна. Нэг дор зөвхөн нэг файл татаж болно.",
   "@downloadAttachmentInEMLPreviewWarningMessage": {
     "type": "text",
@@ -4641,6 +4719,12 @@
   },
   "youAreNotInvitedToThisEventPleaseContactTheOrganizer": "Та энэ арга хэмжээнд урьгдаагүй байна. Зохион байгуулагчтай холбогдоно уу.",
   "@youAreNotInvitedToThisEventPleaseContactTheOrganizer": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "seeInYourCalendar": "Календарьдаа харах",
+  "@seeInYourCalendar": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5361,6 +5445,24 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "errorReporting": "Алдааны тайлан",
+  "@errorReporting": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "errorReportingSettingExplanation": "Дэмжлэгийн баг таны тааралдсан асуудлыг оношлох боломжтой болохын тулд гэмтэл болон алдааны тайлан илгээнэ үү. Таны имэйл, тэдгээрийн агуулга болон хүлээн авагчид хэзээ ч орохгүй.",
+  "@errorReportingSettingExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "errorReportingToggleDescription": "Алдааны тайлан илгээх",
+  "@errorReportingToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "driveAttachmentAddedSuccessfully": "Драйваас файлуудыг хавсаргалаа.",
   "@driveAttachmentAddedSuccessfully": {
     "type": "text",
@@ -5651,6 +5753,36 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "deepLinkCannotBeOpened": "Энэ нэвтрэх холбоос Twake-ээс ирээгүй байна. Аппаас нэвтэрнэ үү.",
+  "@deepLinkCannotBeOpened": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordRequired": "Нууц үгээр хамгаалагдсан PDF",
+  "@pdfPasswordRequired": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "incorrectPdfPassword": "Нууц үг буруу байна, дахин оролдоно уу",
+  "@incorrectPdfPassword": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordNotProvided": "Энэ PDF нууц үгээр хамгаалагдсан. Та үүнийг татаж авах боломжтой.",
+  "@pdfPasswordNotProvided": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "linkTypeNotAllowed": "Энэ төрлийн холбоосыг зөвшөөрөхгүй!",
+  "@linkTypeNotAllowed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "ssoRedirectFailedMessage": "Нэг удаагийн нэвтрэлтийн (SSO) чиглүүлэлтийг гүйцээж чадсангүй. Дахин оролдоно уу.",
   "@ssoRedirectFailedMessage": {
     "type": "text",
@@ -5671,6 +5803,58 @@
   },
   "driveAttachmentTransferFailed": "Драйваас файл хавсаргахад алдаа гарлаа.",
   "@driveAttachmentTransferFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "attachingFileTitle": "Файл хавсаргаж байна",
+  "@attachingFileTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeDialogMessage": "Таны файл {maxSize}-аас том байна. Файлыг Twake Drive-д байршуулж, дараах хэлбэрээр хавсаргана: ",
+  "@driveOversizeDialogMessage": {
+    "type": "text",
+    "placeholders_order": [
+      "maxSize"
+    ],
+    "placeholders": {
+      "maxSize": {}
+    }
+  },
+  "driveOversizeDialogMessageEmphasis": "холбоос",
+  "@driveOversizeDialogMessageEmphasis": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowDone": "Дууссан",
+  "@driveUploadRowDone": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowFailed": "Амжилтгүй",
+  "@driveUploadRowFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowCancelled": "Цуцлагдсан",
+  "@driveUploadRowCancelled": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeUploadFailed": "Зарим файлыг Drive-д байршуулж чадсангүй.",
+  "@driveOversizeUploadFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeUploadBusy": "Drive руу байршуулалт аль хэдийн явагдаж байна. Дууссаны дараа дахин оролдоно уу.",
+  "@driveOversizeUploadBusy": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

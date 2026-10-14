@@ -31,6 +31,31 @@ void main() {
   );
 
   group('create email request extension test:', () {
+    test('restored reply keeps threading headers when generating the email', () {
+      final messageId = MessageIdsHeaderValue({'original@example.com'});
+      final request = CreateEmailRequest(
+        session: SessionFixtures.aliceSession,
+        accountId: AccountFixtures.aliceAccountId,
+        emailActionType: EmailActionType.reopenComposerBrowser,
+        ownEmailAddress: 'alice@example.com',
+        subject: 'Re: subject',
+        emailContent: '<p>reply</p>',
+        messageId: messageId,
+        references: MessageIdsHeaderValue({'ancestor@example.com'}),
+      );
+
+      final email = request.generateEmail(
+        newEmailContent: request.emailContent,
+        newEmailAttachments: {},
+        userAgent: '',
+        partId: PartId('reply-body'),
+      );
+
+      expect(email.inReplyTo, messageId);
+      expect(email.references?.ids,
+          containsAll(['original@example.com', 'ancestor@example.com']));
+    });
+
     test(
       'should return email with identity header '
       'when generateEmail is called '
@@ -415,6 +440,50 @@ void main() {
       final result = request.createReplyToRecipients();
 
       expect(result, {EmailAddress('Alice Smith', ownEmail)});
+    });
+
+    test(
+      'should return identity email with display name '
+      'when identity has empty replyTo and email differs from ownEmailAddress',
+    () {
+      // Regression for #2651: empty reply-to must prefer the selected identity
+      // email over the account primary / default-identity address.
+      const bobEmail = 'bob@domain.tld';
+      const aliceEmail = 'alice@domain.tld';
+      final identity = Identity(
+        name: 'Alice',
+        email: aliceEmail,
+        replyTo: {},
+      );
+      final request = buildRequest(
+        identity: identity,
+        ownEmailAddress: bobEmail,
+      );
+
+      final result = request.createReplyToRecipients();
+
+      expect(result, {EmailAddress('Alice', aliceEmail)});
+    });
+
+    test(
+      'should preserve explicitly configured replyTo pointing at account primary '
+      'when identity replyTo is set to ownEmailAddress',
+    () {
+      const bobEmail = 'bob@domain.tld';
+      const aliceEmail = 'alice@domain.tld';
+      final identity = Identity(
+        name: 'Alice Smith',
+        email: aliceEmail,
+        replyTo: {EmailAddress(null, bobEmail)},
+      );
+      final request = buildRequest(
+        identity: identity,
+        ownEmailAddress: bobEmail,
+      );
+
+      final result = request.createReplyToRecipients();
+
+      expect(result, {EmailAddress('Alice Smith', bobEmail)});
     });
 
     test(

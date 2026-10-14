@@ -1,10 +1,15 @@
 import 'package:core/utils/application_manager.dart';
 import 'package:core/utils/build_utils.dart';
 import 'package:core/utils/app_logger.dart';
+import 'package:core/utils/platform_info.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 /// Holds configuration values for initializing Sentry.
 class SentryConfig {
+  static const String enabledEnvKey = 'SENTRY_ENABLED';
+  static const String dsnEnvKey = 'SENTRY_DSN';
+  static const String environmentEnvKey = 'SENTRY_ENVIRONMENT';
+
   // DSN (Data Source Name) endpoint for the Sentry project
   final String dsn;
 
@@ -34,6 +39,10 @@ class SentryConfig {
   // Check if Sentry is available
   final bool isAvailable;
 
+  // Whether this process may send reports. Persisted for background workers
+  // that cannot load the account's server settings before Sentry starts.
+  final bool isReportingAllowed;
+
   // The distribution version of the release.
   // In this project, it represents the Git SHA passed via `--dart-define=SENTRY_DIST`.
   // This must match the `--dist` parameter used when uploading source maps to Sentry.
@@ -61,22 +70,54 @@ class SentryConfig {
     this.isDebug = BuildUtils.isDebugMode,
     this.attachScreenshot = false,
     this.isAvailable = false,
+    this.isReportingAllowed = false,
     this.dist,
   });
+
+  SentryConfig withReportingAllowed(bool allowed) => SentryConfig(
+        dsn: dsn,
+        environment: environment,
+        release: release,
+        tracesSampleRate: tracesSampleRate,
+        profilesSampleRate: profilesSampleRate,
+        sessionSampleRate: sessionSampleRate,
+        onErrorSampleRate: onErrorSampleRate,
+        enableLogs: enableLogs,
+        enableFramesTracking: enableFramesTracking,
+        isDebug: isDebug,
+        attachScreenshot: attachScreenshot,
+        isAvailable: isAvailable,
+        isReportingAllowed: allowed,
+        dist: dist,
+      );
+
+  /// Any non-empty Sentry env value keeps web configuration env-owned. A
+  /// disabled or incomplete configuration cannot initialize Sentry or use
+  /// ecosystem fallback; fallback applies only when all three values are
+  /// absent or blank.
+  static bool get hasEnvironmentConfiguration {
+    if (!dotenv.isInitialized) return false;
+    final environment = dotenv.env;
+    return const [enabledEnvKey, dsnEnvKey, environmentEnvKey].any(
+      (key) => environment[key]?.trim().isNotEmpty == true,
+    );
+  }
 
   /// Loads configuration from loaded environment variables.
   static Future<SentryConfig?> load() async {
     // Note: Ensure EnvLoader.loadEnvFile() is called in main.dart before this.
-    final sentryAvailable = dotenv.get('SENTRY_ENABLED', fallback: 'false');
+    if (!dotenv.isInitialized) return null;
+    final isEnabled = dotenv.get(enabledEnvKey, fallback: 'false') == 'true';
+    if (!isEnabled) return null;
 
-    final isAvailable = sentryAvailable == 'true';
-    final sentryDSN = dotenv.get('SENTRY_DSN', fallback: '');
-    final sentryEnvironment = dotenv.get('SENTRY_ENVIRONMENT', fallback: '');
+    final sentryDSN = dotenv.get(dsnEnvKey, fallback: '');
+    final sentryEnvironment = dotenv.get(environmentEnvKey, fallback: '');
 
-    final isConfigValid = isAvailable
-        && sentryDSN.trim().isNotEmpty
+    final isConfigValid = sentryDSN.trim().isNotEmpty
         && sentryEnvironment.trim().isNotEmpty;
     if (!isConfigValid) return null;
+
+    final isWeb = PlatformInfo.isWeb;
 
     final release = await _resolveRelease();
 
@@ -91,7 +132,8 @@ class SentryConfig {
       dsn: sentryDSN,
       environment: sentryEnvironment,
       release: release,
-      isAvailable: isAvailable,
+      isAvailable: true,
+      isReportingAllowed: isWeb,
       dist: sentryDist.isNotEmpty ? sentryDist : null,
     );
   }
@@ -128,6 +170,7 @@ class SentryConfig {
       'isDebug': isDebug,
       'attachScreenshot': attachScreenshot,
       'isAvailable': isAvailable,
+      'isReportingAllowed': isReportingAllowed,
       'enableFramesTracking': enableFramesTracking,
     };
   }

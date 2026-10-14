@@ -16,7 +16,7 @@ class TokenOidcCacheManager extends CacheManagerInteraction {
     log('TokenOidcCacheManager::getTokenOidc(): tokenIdHash: $tokenIdHash');
     try {
       final tokenCache = await _tokenOidcCacheClient.getItem(tokenIdHash);
-      log('TokenOidcCacheManager::getTokenOidc(): tokenCache: $tokenCache');
+      log('TokenOidcCacheManager::getTokenOidc(): tokenCache found: ${tokenCache != null}');
       if (tokenCache == null) {
         throw NotFoundStoredTokenException();
       }
@@ -89,6 +89,11 @@ class TokenOidcCacheManager extends CacheManagerInteraction {
       log('TokenOidcCacheManager::_removeStaleTokens(): removing ${staleKeys.length} stale token(s)');
       await _tokenOidcCacheClient.deleteMultipleItem(staleKeys);
     }
+  }
+
+  Future<void> deleteTokenOidc(String tokenIdHash) {
+    log('TokenOidcCacheManager::deleteTokenOidc(): $tokenIdHash');
+    return _tokenOidcCacheClient.deleteItem(tokenIdHash);
   }
 
   Future<void> clear() async {

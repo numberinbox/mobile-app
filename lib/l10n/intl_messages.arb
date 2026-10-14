@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-08-31T22:32:23.906401",
+  "@@last_modified": "2026-10-01T11:49:34.038239",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
@@ -236,7 +236,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "header_email_quoted": "On {sentDate}, from {emailAddress}",
+  "header_email_quoted": "On {sentDate}, {emailAddress} wrote:",
   "@header_email_quoted": {
     "type": "text",
     "placeholders_order": [
@@ -246,6 +246,18 @@
     "placeholders": {
       "sentDate": {},
       "emailAddress": {}
+    }
+  },
+  "header_email_quoted_date_time": "{date} at {time}",
+  "@header_email_quoted_date_time": {
+    "type": "text",
+    "placeholders_order": [
+      "date",
+      "time"
+    ],
+    "placeholders": {
+      "date": {},
+      "time": {}
     }
   },
   "prefix_reply_email": "Re:",
@@ -413,6 +425,16 @@
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
+  },
+  "cannotUploadFoldersAsAttachments": "{count,plural, =1{Cannot upload this folder as attachment}other{Cannot upload these folders as attachments}}",
+  "@cannotUploadFoldersAsAttachments": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
   },
   "attachments_uploaded_successfully": "Attachments uploaded successfully",
   "@attachments_uploaded_successfully": {
@@ -652,6 +674,12 @@
   },
   "folderNameCannotContainSpecialCharacters": "Folder name cannot contain special characters",
   "@folderNameCannotContainSpecialCharacters": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "folderNameContainsForbiddenCharacters": "Folder name cannot start with \"#\" nor contain \".\", \"%\", \"*\" or line breaks",
+  "@folderNameContainsForbiddenCharacters": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -1064,7 +1092,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "toast_message_delete_multiple_email_permanently_success": "{count} Messages has been deleted forever",
+  "toast_message_delete_multiple_email_permanently_success": "{count,plural, =1{1 message has been deleted forever}other{{count} messages have been deleted forever}}",
   "@toast_message_delete_multiple_email_permanently_success": {
     "type": "text",
     "placeholders_order": [
@@ -1116,7 +1144,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "toast_message_empty_trash_folder_success": "All messages has been deleted forever",
+  "toast_message_empty_trash_folder_success": "All messages have been deleted forever",
   "@toast_message_empty_trash_folder_success": {
     "type": "text",
     "placeholders_order": [],
@@ -1256,7 +1284,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "identitiesSettingExplanation": "Select the identity or email address you want to use to send an emails",
+  "identitiesSettingExplanation": "Select the identity or email address you want to use to send emails",
   "@identitiesSettingExplanation": {
     "type": "text",
     "placeholders_order": [],
@@ -1682,6 +1710,12 @@
   },
   "languageItalian": "Italian",
   "@languageItalian": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageBrazilianPortuguese": "Portuguese (Brazil)",
+  "@languageBrazilianPortuguese": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -2760,6 +2794,16 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "sendMessageFailureWithInvalidRecipients": "Failure to send your message, because these recipients are invalid: {invalidRecipients}",
+  "@sendMessageFailureWithInvalidRecipients": {
+    "type": "text",
+    "placeholders_order": [
+      "invalidRecipients"
+    ],
+    "placeholders": {
+      "invalidRecipients": {}
+    }
+  },
   "saveEmailAsDraftFailure": "Failure to save your message as drafts.",
   "@saveEmailAsDraftFailure": {
     "type": "text",
@@ -3068,7 +3112,7 @@
       "maxSize": {}
     }
   },
-  "messageEventActionBannerOrganizerInvited": " has invited you in to a meeting",
+  "messageEventActionBannerOrganizerInvited": " has invited you to a meeting",
   "@messageEventActionBannerOrganizerInvited": {
     "type": "text",
     "placeholders_order": [],
@@ -3128,7 +3172,7 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "invitationMessageCalendarInformation": " has invited you in to a meeting:",
+  "invitationMessageCalendarInformation": " has invited you to a meeting:",
   "@invitationMessageCalendarInformation": {
     "type": "text",
     "placeholders_order": [],
@@ -3154,6 +3198,30 @@
   },
   "organizer": "Organizer",
   "@organizer": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "attending": "Attending?",
+  "@attending": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "joinTheVideoConference": "Join the video conference",
+  "@joinTheVideoConference": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "copyLink": "Copy link",
+  "@copyLink": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "linkCopiedToClipboard": "Link copied to clipboard",
+  "@linkCopiedToClipboard": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -3586,11 +3654,15 @@
     "placeholders_order": [],
     "placeholders": {}
   },
-  "unsubscribeMailDialogMessage": "Are you sure you'd like to stop receiving similar messages from",
+  "unsubscribeMailDialogMessage": "Are you sure you'd like to stop receiving similar messages from {senderName}?",
   "@unsubscribeMailDialogMessage": {
     "type": "text",
-    "placeholders_order": [],
-    "placeholders": {}
+    "placeholders_order": [
+      "senderName"
+    ],
+    "placeholders": {
+      "senderName": {}
+    }
   },
   "unsubscribedFromThisMailingList": "Unsubscribed from this mailing list",
   "@unsubscribedFromThisMailingList": {
@@ -4236,6 +4308,12 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "linkCannotBeOpened": "This link can't be opened",
+  "@linkCannotBeOpened": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "downloadAttachmentInEMLPreviewWarningMessage": "Downloading attachment. You can only download one file at a time.",
   "@downloadAttachmentInEMLPreviewWarningMessage": {
     "type": "text",
@@ -4552,6 +4630,12 @@
   },
   "youAreNotInvitedToThisEventPleaseContactTheOrganizer": "You are not invited to this event. Please contact the organizer.",
   "@youAreNotInvitedToThisEventPleaseContactTheOrganizer": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "seeInYourCalendar": "See in your Calendar",
+  "@seeInYourCalendar": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5290,6 +5374,24 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "errorReporting": "Error reporting",
+  "@errorReporting": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "errorReportingSettingExplanation": "Send crash and error reports so the support team can diagnose problems you run into. Your emails, their content and their recipients are never included.",
+  "@errorReportingSettingExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "errorReportingToggleDescription": "Send error reports",
+  "@errorReportingToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "driveAttachmentAddedSuccessfully": "Files attached from Drive.",
   "@driveAttachmentAddedSuccessfully": {
     "type": "text",
@@ -5298,6 +5400,58 @@
   },
   "driveAttachmentTransferFailed": "Failed to attach files from Drive.",
   "@driveAttachmentTransferFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "attachingFileTitle": "Attaching file",
+  "@attachingFileTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeDialogMessage": "Your file is larger than {maxSize}. It will be uploaded to Twake Drive and attached as ",
+  "@driveOversizeDialogMessage": {
+    "type": "text",
+    "placeholders_order": [
+      "maxSize"
+    ],
+    "placeholders": {
+      "maxSize": {}
+    }
+  },
+  "driveOversizeDialogMessageEmphasis": "a link",
+  "@driveOversizeDialogMessageEmphasis": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowDone": "Done",
+  "@driveUploadRowDone": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowFailed": "Failed",
+  "@driveUploadRowFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveUploadRowCancelled": "Canceled",
+  "@driveUploadRowCancelled": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeUploadFailed": "Some files could not be uploaded to Drive.",
+  "@driveOversizeUploadFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "driveOversizeUploadBusy": "A Drive upload is already in progress. Try again when it finishes.",
+  "@driveOversizeUploadBusy": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}
@@ -5588,6 +5742,48 @@
   },
   "clearTrashSubfoldersFailed": "Failed to delete subfolders in Trash",
   "@clearTrashSubfoldersFailed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "deepLinkCannotBeOpened": "This sign-in link isn't from Twake. Please sign in from the app.",
+  "@deepLinkCannotBeOpened": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordRequired": "Password-protected PDF",
+  "@pdfPasswordRequired": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "incorrectPdfPassword": "Incorrect password, please try again",
+  "@incorrectPdfPassword": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "pdfPasswordNotProvided": "This PDF is password-protected. You can still download it.",
+  "@pdfPasswordNotProvided": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "linkTypeNotAllowed": "This type of link is not allowed!",
+  "@linkTypeNotAllowed": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "messageDialogSendEmailContentLoading": "Your message could not be sent because its content is still loading. Please wait and try again.",
+  "@messageDialogSendEmailContentLoading": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "messageDialogSendEmailContentLoadFailed": "Your message could not be sent because its content failed to load. Please close the composer and open the email again.",
+  "@messageDialogSendEmailContentLoadFailed": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

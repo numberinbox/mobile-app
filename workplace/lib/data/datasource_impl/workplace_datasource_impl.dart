@@ -9,12 +9,16 @@ import '../model/workplace_enums.dart';
 import '../model/workplace_intent_request.dart';
 import '../model/workplace_intent_response.dart';
 import '../workplace_dio.dart';
-import '../../domain/entity/workplace_action_config.dart';
+import 'workplace_request_executor.dart';
 import '../../domain/entity/workplace_intent.dart';
-import '../../domain/entity/workplace_theme.dart';
+import '../../domain/entity/workplace_access_mode.dart';
+import '../../domain/entity/workplace_intent_config.dart';
 
 class WorkplaceDataSourceImpl implements WorkplaceDataSource {
-  WorkplaceDataSourceImpl();
+  WorkplaceDataSourceImpl({WorkplaceRequestExecutor? executor})
+      : _executor = executor ?? const WorkplaceRequestExecutor();
+
+  final WorkplaceRequestExecutor _executor;
 
   Map<String, dynamic> _asJsonMap(dynamic data) {
     if (data is Map<String, dynamic>) return data;
@@ -27,32 +31,21 @@ class WorkplaceDataSourceImpl implements WorkplaceDataSource {
   @override
   Future<WorkplaceIntent> createIntent({
     required Uri platformUrl,
-    required String accessToken,
-    required WorkplaceActionConfig addAsLink,
-    WorkplaceActionConfig? addAsAttachment,
-    required WorkplaceTheme theme,
+    required WorkplaceAccessMode accessMode,
+    required WorkplaceIntentConfig config,
   }) async {
-    final response = await WorkplaceDio.instance.post(
-      platformUrl.replace(
-        pathSegments: [
-          ...platformUrl.pathSegments.where((segment) => segment.isNotEmpty),
-          'intents',
-        ],
-        queryParameters: {
-          ...platformUrl.queryParameters,
-          'force_session_id': 'true',
-        },
-      ).toString(),
-      options: Options(
-        headers: {'Authorization': 'Bearer $accessToken'},
+    final data = await _executor.send(
+      context: WorkplaceRequestContext(
+        platformUrl: platformUrl,
+        accessMode: accessMode,
       ),
-      data: _buildIntentRequest(
-        addAsLink: addAsLink,
-        addAsAttachment: addAsAttachment,
-        theme: theme,
+      route: const WorkplaceRequestRoute(
+        method: 'POST',
+        pathSegments: ['intents'],
       ),
+      body: WorkplaceRequestBody(data: _buildIntentRequest(config)),
     );
-    return parseIntentResponse(response.data);
+    return parseIntentResponse(data);
   }
 
   WorkplaceIntent parseIntentResponse(
@@ -78,11 +71,8 @@ class WorkplaceDataSourceImpl implements WorkplaceDataSource {
     );
   }
 
-  Map<String, dynamic> _buildIntentRequest({
-    required WorkplaceActionConfig addAsLink,
-    WorkplaceActionConfig? addAsAttachment,
-    required WorkplaceTheme theme,
-  }) => WorkplaceIntentRequest(
+  Map<String, dynamic> _buildIntentRequest(WorkplaceIntentConfig config) =>
+      WorkplaceIntentRequest(
     data: WorkplaceIntentDataRequest(
       type: WorkplaceDataRequestType.intents,
       attributes: WorkplaceIntentAttributesRequest(
@@ -90,11 +80,11 @@ class WorkplaceDataSourceImpl implements WorkplaceDataSource {
         type: WorkplaceDocType.files,
         permissions: [WorkplacePermission.get],
         data: WorkplaceFilePickerConfigRequest(
-          sharingLink: WorkplaceActionConfigRequest.fromEntity(addAsLink),
-          downloadLink: addAsAttachment == null
+          sharingLink: WorkplaceActionConfigRequest.fromEntity(config.addAsLink),
+          downloadLink: config.addAsAttachment == null
               ? null
-              : WorkplaceActionConfigRequest.fromEntity(addAsAttachment),
-          theme: WorkplaceThemeConfigRequest.fromEntity(theme),
+              : WorkplaceActionConfigRequest.fromEntity(config.addAsAttachment!),
+          theme: WorkplaceThemeConfigRequest.fromEntity(config.theme),
         ),
       ),
     ),

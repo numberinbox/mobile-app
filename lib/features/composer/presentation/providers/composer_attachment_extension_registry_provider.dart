@@ -3,9 +3,9 @@ import 'package:core/utils/app_logger.dart';
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
-import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/controller/mailbox_dashboard_controller.dart';
 import 'package:tmail_ui_user/main/providers/workplace/drive_attachment_uri_value_notifier_provider.dart';
+import 'package:tmail_ui_user/main/providers/workplace/workplace_oidc_token.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:workplace/presentation/extension/workplace_composer_attachment_extension.dart';
@@ -19,18 +19,9 @@ ComposerAttachmentExtensionRegistry composerAttachmentExtensionRegistry(Ref ref)
   return ComposerAttachmentExtensionRegistry([
     WorkplaceComposerAttachmentExtension(
       workplaceUri: uriNotifier,
-      // Read at picker-open time, so it's always the current session's answer.
-      uploadFromUrlSupported: () {
-        final dashboard = getBinding<MailboxDashBoardController>();
-        final jmapUrl = dashboard?.dynamicUrlInterceptors.jmapUrl;
-        if (jmapUrl == null || jmapUrl.isEmpty) return false;
-        return dashboard?.sessionCurrent?.isUploadFromUrlSupported(
-              dashboard.accountId.value,
-              jmapUrl: jmapUrl,
-            ) ??
-            false;
-      },
-      oidcTokenGetter: () => getBinding<AuthorizationInterceptors>()?.currentOidcIdToken,
+      uploadFromUrlSupported: _isUploadFromUrlSupported,
+      oidcTokenGetter: currentWorkplaceOidcToken,
+      oidcRefreshTrigger: refreshWorkplaceOidcToken,
       maxAttachmentSizeBytesGetter: () =>
           getBinding<MailboxDashBoardController>()?.maxSizeAttachmentsPerEmail?.value,
       // Read at picker-open time from the composer that owns the picker.
@@ -38,23 +29,44 @@ ComposerAttachmentExtensionRegistry composerAttachmentExtensionRegistry(Ref ref)
           getBinding<ComposerController>(tag: composerId)
               ?.attachmentUploadValidationService
               .remainingCapacityBytes,
-      onPickState: (composerId, state) async {
-        if (state is DrivePickResult) {
-          final composer = getBinding<ComposerController>(tag: composerId);
-          if (composer == null) {
-            // Composer closed or wrong tag — the pick has nowhere to land.
-            logError('ComposerAttachmentExtensionRegistry::onPickState: no ComposerController for tag=$composerId, drive pick discarded');
-            getBinding<ToastManager>()?.showMessageFailure(
-              DrivePickFailure(Exception('ComposerController unavailable')),
-            );
-            return;
-          }
-          // No catch here: handleDrivePickResult swallows and toasts its own errors.
-          await composer.handleDrivePickResult(state.documents);
-        } else if (state is DrivePickFailure) {
-          getBinding<ToastManager>()?.showMessageFailure(state);
-        }
-      },
+      onPickState: _onDrivePickState,
     ),
   ]);
+}
+
+/// Read at picker-open time, so it's always the current session's answer.
+bool _isUploadFromUrlSupported() {
+  final dashboard = getBinding<MailboxDashBoardController>();
+  final jmapUrl = dashboard?.dynamicUrlInterceptors.jmapUrl;
+  if (jmapUrl == null || jmapUrl.isEmpty) return false;
+  return dashboard?.sessionCurrent?.isUploadFromUrlSupported(
+        dashboard.accountId.value,
+        jmapUrl: jmapUrl,
+      ) ??
+      false;
+}
+
+Future<void> _onDrivePickState(String? composerId, DrivePickState state) async {
+  if (state is DrivePickResult) {
+    final composer = getBinding<ComposerController>(tag: composerId);
+    if (composer == null) {
+      // Composer closed or wrong tag — the pick has nowhere to land.
+      logError('ComposerAttachmentExtensionRegistry::onPickState: no ComposerController for tag=$composerId, drive pick discarded');
+      getBinding<ToastManager>()?.showMessageFailure(
+        DrivePickFailure(Exception('ComposerController unavailable')),
+      );
+      return;
+    }
+    // No catch here: handleDrivePickResult swallows and toasts its own errors.
+    await composer.handleDrivePickResult(state.documents);
+  } else if (state is DrivePickFailure) {
+    final dashboard = getBinding<MailboxDashBoardController>();
+    final error = state.error;
+    if (dashboard != null && error is Exception && dashboard.validateUrgentException(error)) {
+      // Session-level failures take BaseController's standard path (logout, reconnect).
+      dashboard.handleUrgentException(failure: state, exception: error);
+      return;
+    }
+    getBinding<ToastManager>()?.showMessageFailure(state);
+  }
 }

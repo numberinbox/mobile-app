@@ -34,6 +34,7 @@ class RecipientTagItemWidget extends StatelessWidget {
   final bool isTestingForWeb;
   final String? composerId;
   final bool isMobile;
+  final bool isRejectedByServer;
   final VoidCallback? onClearFocusAction;
 
   const RecipientTagItemWidget({
@@ -46,6 +47,7 @@ class RecipientTagItemWidget extends StatelessWidget {
     @visibleForTesting this.isTestingForWeb = false,
     this.isTagFocused = false,
     this.isMobile = false,
+    this.isRejectedByServer = false,
     this.onDeleteTagAction,
     this.onEditRecipientAction,
     this.maxWidth,
@@ -212,11 +214,16 @@ class RecipientTagItemWidget extends StatelessWidget {
     if (name.isEmpty) return raw;
     return '$name, $raw';
   }
+  /// An address is invalid when it is malformed, or when the server rejected it
+  /// as an `invalidRecipients` of the last `EmailSubmission/set`.
+  bool get _isEmailAddressValid =>
+      !isRejectedByServer &&
+      EmailUtils.isValidEmail(currentEmailAddress.emailAddress);
 
   Color _getTagBackgroundColor() {
     if (isTagFocused) {
       return AppColor.colorItemRecipientSelected;
-    } else if (EmailUtils.isValidEmail(currentEmailAddress.emailAddress)) {
+    } else if (_isEmailAddressValid) {
       return AppColor.grayBackgroundColor;
     } else {
       return Colors.white;
@@ -229,7 +236,7 @@ class RecipientTagItemWidget extends StatelessWidget {
         width: 1,
         color: AppColor.primaryColor,
       );
-    } else if (EmailUtils.isValidEmail(currentEmailAddress.emailAddress)) {
+    } else if (_isEmailAddressValid) {
       return Border.all(
         width: 1,
         color: AppColor.grayBackgroundColor,

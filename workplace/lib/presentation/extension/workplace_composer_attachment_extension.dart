@@ -1,24 +1,28 @@
 import 'package:core/presentation/extensions/composer_attachment_plugin.dart';
 import 'package:core/presentation/extensions/composer_toolbar_button_style.dart';
 import 'package:core/presentation/resources/image_paths.dart';
-import 'package:core/presentation/state/failure.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:workplace/data/datasource_impl/workplace_datasource_impl.dart';
+import 'package:workplace/data/datasource_impl/workplace_drive_datasource_impl.dart';
 import 'package:workplace/data/model/workplace_enums.dart';
 import 'package:workplace/data/model/workplace_intent_request.dart';
 import 'package:workplace/data/repository_impl/workplace_repository_impl.dart';
 import 'package:workplace/domain/entity/workplace_action_config.dart';
 import 'package:workplace/domain/entity/workplace_intent.dart';
+import 'package:workplace/domain/entity/workplace_intent_config.dart';
 import 'package:workplace/domain/entity/workplace_theme.dart';
-import 'package:workplace/domain/exceptions/workplace_exceptions.dart';
 import 'package:workplace/presentation/model/drive_pick_state.dart';
 import 'package:workplace/presentation/model/drive_picker_session.dart';
-import 'package:workplace/domain/state/workplace_intent_state.dart';
+import 'package:workplace/domain/usecase/create_drive_intent_call.dart';
 import 'package:workplace/domain/usecase/create_drive_intent_interactor.dart';
 import 'package:workplace/domain/usecase/exchange_drive_token_interactor.dart';
+import 'package:workplace/data/transport/workplace_access_mode_runner.dart';
 import 'package:workplace/presentation/widget/drive_attachment_context_menu_tile.dart';
 import 'package:workplace/presentation/widget/drive_attachment_picker_button.dart';
+
+export 'package:workplace/data/transport/workplace_access_mode_runner.dart'
+    show OidcRefreshTrigger;
 
 typedef OnDrivePickStateChanged =
     Future<void> Function(String? composerId, DrivePickState state);
@@ -29,23 +33,30 @@ class WorkplaceComposerAttachmentExtension implements ComposerAttachmentPlugin {
   /// Read when the picker opens, so the JMAP capability is always current.
   final ValueGetter<bool> uploadFromUrlSupported;
   final String? Function() oidcTokenGetter;
+
+  final OidcRefreshTrigger oidcRefreshTrigger;
   final num? Function() maxAttachmentSizeBytesGetter;
 
   /// Per-composer: the remainder depends on what that composer already holds.
   final num? Function(String? composerId) remainingAttachmentCapacityBytesGetter;
   final OnDrivePickStateChanged? onPickState;
 
-  late final _dataSource = WorkplaceDataSourceImpl();
-  late final _repository = WorkplaceRepositoryImpl(_dataSource);
+  late final _repository = WorkplaceRepositoryImpl(
+    WorkplaceDataSourceImpl(),
+    WorkplaceDriveDataSourceImpl(),
+  );
   late final _createIntentInteractor = CreateDriveIntentInteractor(_repository);
-  late final _exchangeTokenInteractor = ExchangeDriveTokenInteractor(
-    _repository,
+  late final _accessModeRunner = WorkplaceAccessModeRunner(
+    exchangeTokenInteractor: ExchangeDriveTokenInteractor(_repository),
+    oidcTokenGetter: oidcTokenGetter,
+    oidcRefreshTrigger: oidcRefreshTrigger,
   );
 
   WorkplaceComposerAttachmentExtension({
     required this.workplaceUri,
     required this.uploadFromUrlSupported,
     required this.oidcTokenGetter,
+    required this.oidcRefreshTrigger,
     required this.maxAttachmentSizeBytesGetter,
     required this.remainingAttachmentCapacityBytesGetter,
     this.onPickState,
@@ -54,76 +65,30 @@ class WorkplaceComposerAttachmentExtension implements ComposerAttachmentPlugin {
   Future<WorkplaceIntent> _fetchIntent(
     Uri platformUrl, {
     required WorkplaceFilePickerConfigRequest filePickerConfig,
-  }) async {
-    final oidcToken = oidcTokenGetter();
-    if (oidcToken == null) throw StateError('OIDC token is unavailable');
-    final accessToken = await _exchangeAccessToken(platformUrl, oidcToken);
-    if (accessToken == null) throw StateError('Drive access token exchange failed');
-    return _createIntent(
-      platformUrl,
-      accessToken,
-      filePickerConfig: filePickerConfig,
-    );
-  }
+  }) => _accessModeRunner.run(
+        platformUrl,
+        CreateDriveIntentCall(
+          _createIntentInteractor,
+          platformUrl,
+          _toIntentConfig(filePickerConfig),
+        ),
+      );
 
-  Future<String?> _exchangeAccessToken(
-    Uri platformUrl,
-    String oidcToken,
-  ) async {
-    String? accessToken;
-    await for (final either in _exchangeTokenInteractor.execute(
-      platformUrl,
-      oidcToken,
-    )) {
-      either.fold(
-        (failure) {
-          // reported by DriveIntentMessageHandlerMixin._failWith, the single funnel.
-          throw failure is FeatureFailure ? failure.exception : WorkplaceExchangeTokenException();
-        },
-        (success) {
-          if (success is ExchangeWorkplaceTokenSuccess) {
-            accessToken = success.accessToken;
-          }
+  WorkplaceIntentConfig _toIntentConfig(WorkplaceFilePickerConfigRequest filePickerConfig) =>
+      WorkplaceIntentConfig(
+        addAsLink: WorkplaceActionConfig(label: filePickerConfig.sharingLink.label),
+        addAsAttachment: filePickerConfig.downloadLink == null
+            ? null
+            : WorkplaceActionConfig(
+                label: filePickerConfig.downloadLink!.label,
+                maxFileSize: filePickerConfig.downloadLink!.maxFileSize,
+                availableSize: filePickerConfig.downloadLink!.availableSize,
+              ),
+        theme: switch (filePickerConfig.theme.type) {
+          WorkplaceThemeType.light => WorkplaceTheme.light,
+          WorkplaceThemeType.dark => WorkplaceTheme.dark,
         },
       );
-    }
-    return accessToken;
-  }
-
-  Future<WorkplaceIntent> _createIntent(
-    Uri platformUrl,
-    String accessToken, {
-    required WorkplaceFilePickerConfigRequest filePickerConfig,
-  }) async {
-    WorkplaceIntent? intent;
-    await for (final either in _createIntentInteractor.execute(
-      platformUrl,
-      accessToken,
-      addAsLink: WorkplaceActionConfig(label: filePickerConfig.sharingLink.label),
-      addAsAttachment: filePickerConfig.downloadLink == null
-          ? null
-          : WorkplaceActionConfig(
-              label: filePickerConfig.downloadLink!.label,
-              maxFileSize: filePickerConfig.downloadLink!.maxFileSize,
-              availableSize: filePickerConfig.downloadLink!.availableSize,
-            ),
-      theme: switch (filePickerConfig.theme.type) {
-        WorkplaceThemeType.light => WorkplaceTheme.light,
-        WorkplaceThemeType.dark => WorkplaceTheme.dark,
-      },
-    )) {
-      either.fold(
-        (failure) {
-          // reported by DriveIntentMessageHandlerMixin._failWith, the single funnel.
-          throw failure is FeatureFailure ? failure.exception : WorkplaceCreateIntentException();
-        },
-        (success) {
-          if (success is CreateWorkplaceIntentSuccess) intent = success.intent;
-        },
-      );
-    }
-    return intent!;
-  }
 
   @override
   Widget buildToolbarButton(

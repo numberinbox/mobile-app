@@ -21,12 +21,13 @@ void main() {
       FlutterSecureStorage.setMockInitialValues({});
     });
 
-    test('WHEN saveSentryConfig called \n'
-        'THEN stores JSON under sentryConfigKeyChain key', () async {
+    test('WHEN explicitly allowed Sentry config is saved \n'
+        'THEN stores allowed JSON under sentryConfigKeyChain key', () async {
       final config = SentryConfig(
         dsn: 'https://test@sentry.io/123',
         environment: 'production',
         release: '1.0.0',
+        isReportingAllowed: true,
       );
 
       await keychainSharingManager.saveSentryConfig(config);
@@ -39,6 +40,44 @@ void main() {
       expect(decoded['dsn'], equals('https://test@sentry.io/123'));
       expect(decoded['environment'], equals('production'));
       expect(decoded['release'], equals('1.0.0'));
+      expect(decoded['isReportingAllowed'], isTrue);
+    });
+
+    test('WHEN reporting consent is not available \n'
+        'THEN stores the denied default for the notification extension', () async {
+      final config = SentryConfig(
+        dsn: 'https://test@sentry.io/123',
+        environment: 'production',
+        release: '1.0.0',
+      );
+
+      await keychainSharingManager.saveSentryConfig(config);
+
+      final stored = await flutterSecureStorage.read(
+        key: SentryConfig.sentryConfigKeyChain,
+      );
+      final decoded = jsonDecode(stored!) as Map<String, dynamic>;
+      expect(decoded['isReportingAllowed'], isFalse);
+    });
+
+    test('WHEN deleting Sentry config \n'
+        'THEN removes only the Sentry configuration key', () async {
+      const accountKey = 'account-id';
+      FlutterSecureStorage.setMockInitialValues({
+        SentryConfig.sentryConfigKeyChain: 'sentry-config',
+        accountKey: 'account-session',
+      });
+
+      await keychainSharingManager.deleteSentryConfig();
+
+      expect(
+        await flutterSecureStorage.read(key: SentryConfig.sentryConfigKeyChain),
+        isNull,
+      );
+      expect(
+        await flutterSecureStorage.read(key: accountKey),
+        'account-session',
+      );
     });
 
     test('WHEN SentryConfig has no dist \n'

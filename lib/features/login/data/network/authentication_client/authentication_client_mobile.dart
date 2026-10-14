@@ -40,7 +40,7 @@ class AuthenticationClientMobile with AuthenticationClientInteractionMixin
     final authorizationTokenResponse = await _appAuth.authorizeAndExchangeCode(
       authorizationTokenRequest,
     );
-    log('$runtimeType::getTokenOIDC(): token: ${authorizationTokenResponse.accessToken}');
+    log('$runtimeType::getTokenOIDC(): token received');
     final tokenOIDC = authorizationTokenResponse.toTokenOIDC();
     if (tokenOIDC.isTokenValid()) {
       return tokenOIDC;
@@ -71,21 +71,19 @@ class AuthenticationClientMobile with AuthenticationClientInteractionMixin
     String redirectUrl,
     String discoveryUrl,
     List<String> scopes,
-    String refreshToken,
+    TokenOIDC currentToken,
   ) async {
     try {
       final tokenRequest = getRefreshTokenRequest(
         clientId,
         redirectUrl,
         discoveryUrl,
-        refreshToken,
+        currentToken.refreshToken,
         scopes,
       );
       final tokenResponse = await _appAuth.token(tokenRequest);
-      log('$runtimeType::refreshingTokensOIDC():Token: ${tokenResponse.accessToken}');
-      final tokenOIDC = tokenResponse.toTokenOIDC(
-        maybeAvailableRefreshToken: refreshToken,
-      );
+      log('$runtimeType::refreshingTokensOIDC(): token refreshed');
+      final tokenOIDC = tokenResponse.toTokenOIDC(currentToken: currentToken);
       if (tokenOIDC.isTokenValid()) {
         return tokenOIDC;
       } else {
@@ -112,7 +110,7 @@ class AuthenticationClientMobile with AuthenticationClientInteractionMixin
         intentFlags: ephemeralIntentFlags,
       ),
     );
-    log('$runtimeType::signInTwakeWorkplace():Uri = $uri');
+    log('$runtimeType::signInTwakeWorkplace(): callback received');
     return TokenOIDC.fromUri(uri);
   }
 
@@ -125,7 +123,7 @@ class AuthenticationClientMobile with AuthenticationClientInteractionMixin
         intentFlags: ephemeralIntentFlags,
       ),
     );
-    log('$runtimeType::signUpTwakeWorkplace():Uri = $uri');
+    log('$runtimeType::signUpTwakeWorkplace(): callback received');
     return TokenOIDC.fromUri(uri);
   }
 }

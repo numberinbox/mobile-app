@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:patrol/patrol.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/base/widget/labels/tag_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/attachment_item_widget.dart';
+import 'package:tmail_ui_user/features/email/presentation/widgets/calendar_event/calendar_event_card_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/email_subject_widget.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/email_view_back_button.dart';
 import 'package:tmail_ui_user/features/email/presentation/widgets/information_sender_and_receiver_builder.dart';
@@ -10,9 +12,22 @@ import 'package:tmail_ui_user/features/labels/presentation/widgets/label_widget.
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
 import '../base/core_robot.dart';
+import 'abstract/abstract_email_assertion_robot.dart';
+import 'abstract/abstract_email_label_robot.dart';
+import 'email_assertion_robot.dart';
+import 'email_label_robot.dart';
 
 class EmailRobot extends CoreRobot {
-  EmailRobot(super.$);
+  final AbstractEmailAssertionRobot assertion;
+  final AbstractEmailLabelRobot label;
+
+  EmailRobot(
+    PatrolIntegrationTester $, {
+    AbstractEmailAssertionRobot? assertionRobot,
+    AbstractEmailLabelRobot? labelRobot,
+  })  : assertion = assertionRobot ?? EmailAssertionRobot($),
+        label = labelRobot ?? EmailLabelRobot($),
+        super($);
 
   Future<void> onTapForwardEmail() async {
     await $(#forward_email_button).tap();
@@ -104,7 +119,11 @@ class EmailRobot extends CoreRobot {
     await $(#delete_thread_button).tap();
   }
 
-  Future<void> tapMailToAttendeesEventActionButton() async {
-    await $(#mailToAttendees_event_action_button).tap();
+  Future<void> tapMailToAttendeesEventActionButton(
+    AppLocalizations appLocalizations,
+  ) async {
+    await $(CalendarEventCardWidget)
+        .$(appLocalizations.mailToAttendees)
+        .tap();
   }
 }

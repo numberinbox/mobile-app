@@ -12,6 +12,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:filesize/filesize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
@@ -39,6 +40,7 @@ import 'package:tmail_ui_user/features/base/mixin/message_dialog_action_manager.
 import 'package:tmail_ui_user/features/base/state/base_ui_state.dart';
 import 'package:tmail_ui_user/features/base/state/button_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/compose_email_exception.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/extensions/set_method_exception_description_extension.dart';
 import 'package:tmail_ui_user/features/composer/domain/model/contact_permission.dart';
@@ -72,6 +74,7 @@ import 'package:tmail_ui_user/features/composer/presentation/extensions/get_sent
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_keyboard_shortcut_actions_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_message_failure_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_recipients_collapsed_extensions.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/invalid_recipients_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/list_identities_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/sanitize_signature_in_email_content_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_attachments_extension.dart';
@@ -98,6 +101,7 @@ import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/from
 import 'package:tmail_ui_user/features/composer/presentation/widgets/saving_message_dialog_view.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/saving_template_dialog_view.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/sending_message_dialog_view.dart';
+import 'package:tmail_ui_user/features/email/domain/exceptions/email_exceptions.dart';
 import 'package:tmail_ui_user/features/email/domain/state/get_email_content_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/save_template_email_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/transform_html_email_content_state.dart';
@@ -110,17 +114,17 @@ import 'package:tmail_ui_user/features/email/presentation/extensions/presentatio
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
 import 'package:tmail_ui_user/features/email/presentation/model/composer_arguments.dart';
 import 'package:tmail_ui_user/features/mailbox/domain/model/create_new_mailbox_request.dart';
-import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/remove_composer_cache_by_id_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/controller/mailbox_dashboard_controller.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/open_and_close_composer_extension.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/premium_cta_context_extension.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/update_text_formatting_menu_state_extension.dart';
-import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/validate_premium_storage_extension.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/draggable_app_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/state/get_all_identities_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_identities_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/extensions/identity_extension.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart'
   if (dart.library.html) 'package:tmail_ui_user/features/network_connection/presentation/web_network_connection_controller.dart';
+import 'package:tmail_ui_user/features/paywall/presentation/extensions/premium_cta_ref_extension.dart';
 import 'package:tmail_ui_user/features/server_settings/domain/usecases/get_server_setting_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/exceptions/pick_file_exception.dart';
 import 'package:tmail_ui_user/features/upload/domain/exceptions/upload_exception.dart';
@@ -145,11 +149,14 @@ import 'package:tmail_ui_user/features/contact/presentation/model/contact_argume
 import 'package:tmail_ui_user/main/universal_import/html_stub.dart' as html;
 import 'package:workplace/domain/entity/drive_document.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_handler.dart';
+import 'package:tmail_ui_user/features/composer/presentation/manager/drive_oversize_attachment_recovery.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/concurrency_gate.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_transfer_runner.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:workplace/presentation/model/drive_pick_state.dart';
+
+typedef ComposerReloadCacheAction = void Function();
 
 class ComposerController extends BaseController
     with
@@ -176,6 +183,10 @@ class ComposerController extends BaseController
   final replyToRecipientState = PrefixRecipientState.disabled.obs;
   final recipientsCollapsedState = PrefixRecipientState.disabled.obs;
   final prefixRootState = PrefixEmailAddress.to.obs;
+
+  /// Lower-cased addresses the server reported as `invalidRecipients` on the
+  /// last send attempt, highlighted as invalid until the user fixes them.
+  final invalidRecipients = Rx<Set<String>>({});
   final identitySelected = Rxn<Identity>();
   final listFromIdentities = RxList<Identity>();
   final isEmailChanged = Rx<bool>(false);
@@ -188,7 +199,6 @@ class ComposerController extends BaseController
   final GetEmailContentInteractor _getEmailContentInteractor;
   final GetAllIdentitiesInteractor _getAllIdentitiesInteractor;
   final UploadController uploadController;
-  final RemoveComposerCacheByIdInteractor _removeComposerCacheByIdInteractor;
   final SaveComposerCacheInteractor _saveComposerCacheInteractor;
   final DownloadImageAsBase64Interactor _downloadImageAsBase64Interactor;
   final TransformHtmlEmailContentInteractor _transformHtmlEmailContentInteractor;
@@ -207,6 +217,10 @@ class ComposerController extends BaseController
         stateSource: ComposerAttachmentUploadStateSource.fromServerCapability(
           uploadController: uploadController,
           maxSizeAttachmentsPerEmail: () => mailboxDashBoardController.maxSizeAttachmentsPerEmail?.value,
+        ),
+        recoveryBuilder: (context) => DriveOversizeAttachmentRecovery(
+          context: context,
+          insertHtml: insertHtmlIntoEditor,
         ),
       );
 
@@ -366,6 +380,7 @@ class ComposerController extends BaseController
   StreamSubscription<html.Event>? _subscriptionOnDrop;
   StreamSubscription<html.Event>? _subscriptionOnBlur;
   StreamSubscription<String>? _composerCacheListener;
+  ComposerReloadCacheAction? _reloadCacheAction;
 
   RichTextMobileTabletController? richTextMobileTabletController;
   RichTextWebController? richTextWebController;
@@ -399,7 +414,6 @@ class ComposerController extends BaseController
   Timer? inactiveGuardTimer;
   bool isRestoringFromCache = false;
 
-  @visibleForTesting
   int? get savedEmailDraftHash => _savedEmailDraftHash;
 
   GetEmailContentInteractor get getEmailContentInteractor => _getEmailContentInteractor;
@@ -425,13 +439,18 @@ class ComposerController extends BaseController
   late Worker uploadInlineImageWorker;
   late bool _isEmailBodyLoaded;
 
+  void registerReloadCacheAction(ComposerReloadCacheAction action) =>
+      _reloadCacheAction = action;
+
+  @visibleForTesting
+  set isEmailBodyLoaded(bool value) => _isEmailBodyLoaded = value;
+
   ComposerController(
     this._localFilePickerInteractor,
     this._localImagePickerInteractor,
     this._getEmailContentInteractor,
     this._getAllIdentitiesInteractor,
     this.uploadController,
-    this._removeComposerCacheByIdInteractor,
     this._saveComposerCacheInteractor,
     this._downloadImageAsBase64Interactor,
     this._transformHtmlEmailContentInteractor,
@@ -483,13 +502,13 @@ class ComposerController extends BaseController
   }
 
   @override
-  @override
   void onClose() {
     // Invalidate in-flight phone resolution first: queue workers capture
     // this generation and discard results when it changes, so a closed
     // composer never commits or prompts again.
     _phoneResolutionGeneration++;
     _isResolvingPickerPhones = false;
+    _reloadCacheAction = null;
     _textEditorWeb = null;
     savedActionType = null;
     _savedEmailDraftHash = null;
@@ -593,18 +612,9 @@ class ComposerController extends BaseController
   }
 
   @override
-  Future<void> onUnloadBrowserListener(html.Event event) async {
-    if (!PlatformInfo.isWeb) return;
-    final username = mailboxDashBoardController.sessionCurrent?.username;
-    final accountId = mailboxDashBoardController.accountId.value;
-    if (composerId != null && username != null && accountId != null) {
-      await _removeComposerCacheByIdInteractor.execute(
-        accountId,
-        username,
-        composerId!,
-      );
-    }
-    await _saveComposerSessionCache();
+  Future<void> onBeforeUnloadBrowserListener(html.Event event) {
+    _reloadCacheAction?.call();
+    return Future.value();
   }
 
   void _listenStreamEvent() {
@@ -726,7 +736,7 @@ class ComposerController extends BaseController
       uploadUri: uploadUri,
       composerIndex: composerIndex,
       composerId: composerId,
-      savedDraftHash: arguments.savedDraftHash ?? _savedEmailDraftHash,
+      savedDraftHash: _savedEmailDraftHash ?? arguments.savedDraftHash,
       savedActionType: savedActionType ?? currentEmailActionType,
       savedEmailDraftId: emailIdEditing,
       templateEmailId: currentTemplateEmailId,
@@ -943,6 +953,32 @@ class ComposerController extends BaseController
 
     final appLocalizations = AppLocalizations.of(context);
 
+    if (isEditedEmailContentLoadFailed) {
+      MessageDialogActionManager().showConfirmDialogAction(
+        context,
+        appLocalizations.messageDialogSendEmailContentLoadFailed,
+        appLocalizations.got_it,
+        title: appLocalizations.sending_failed,
+        showAsBottomSheet: true,
+        hasCancelButton: false,
+        dialogMargin: MediaQuery.paddingOf(context).add(const EdgeInsets.only(bottom: 12)),
+      ).whenComplete(() => _sendButtonState = ButtonState.enabled);
+      return;
+    }
+
+    if (isEmailBodyNotReady) {
+      MessageDialogActionManager().showConfirmDialogAction(
+        context,
+        appLocalizations.messageDialogSendEmailContentLoading,
+        appLocalizations.got_it,
+        title: appLocalizations.sending_failed,
+        showAsBottomSheet: true,
+        hasCancelButton: false,
+        dialogMargin: MediaQuery.paddingOf(context).add(const EdgeInsets.only(bottom: 12)),
+      ).whenComplete(() => _sendButtonState = ButtonState.enabled);
+      return;
+    }
+
     if (!isEnableEmailSendButton.value) {
       MessageDialogActionManager().showConfirmDialogAction(context,
         appLocalizations.message_dialog_send_email_without_recipient,
@@ -1011,6 +1047,34 @@ class ComposerController extends BaseController
 
     _prepareToSendMessages(context);
   }
+
+  bool get isEmailBodyNotReady {
+    final isContentLoading = emailContentsViewState.value?.fold(
+      (_) => false,
+      (success) => success is GetEmailContentLoading,
+    ) ?? false;
+    final isEditorNotLoaded = PlatformInfo.isWeb
+      ? !_isEmailBodyLoaded && !screenDisplayMode.value.isNotContentVisible()
+      : !_isEmailBodyLoaded;
+    return isContentLoading || isEditorNotLoaded;
+  }
+
+  bool get isEditedEmailContentLoadFailed {
+    final isEditingExistingEmail = const {
+      EmailActionType.editDraft,
+      EmailActionType.editAsNewEmail,
+      EmailActionType.reopenComposerBrowser,
+      EmailActionType.restoreComposerFromPersistentCache,
+    }.contains(currentEmailActionType);
+    final isContentLoadFailed = emailContentsViewState.value?.fold(
+      (failure) => !_isEmptyEmailContentFailure(failure),
+      (_) => false,
+    ) ?? false;
+    return isEditingExistingEmail && isContentLoadFailed;
+  }
+
+  bool _isEmptyEmailContentFailure(Failure failure) =>
+    failure is GetEmailContentFailure && failure.exception is EmptyEmailContentException;
 
   Future<String> getContentInEditor() async {
     try {
@@ -1116,6 +1180,16 @@ class ComposerController extends BaseController
       uploadUri: uploadUri,
     );
 
+    // handleSendMessageResult only uses context after its own mounted check.
+    // ignore: use_build_context_synchronously
+    await handleSendMessageResult(context: context, resultState: resultState);
+  }
+
+  @visibleForTesting
+  Future<void> handleSendMessageResult({
+    required BuildContext context,
+    required dynamic resultState,
+  }) async {
     if (resultState is SendEmailSuccess ||
         mailboxDashBoardController
             .validateSendingEmailFailedWhenNetworkIsLostOnMobile(resultState)) {
@@ -1123,9 +1197,18 @@ class ComposerController extends BaseController
       _closeComposerAction(result: resultState);
     } else if (resultState is SendEmailFailure ||
         resultState is GenerateEmailFailure) {
-      if (resultState.exception is BadCredentialsException) {
+      final exception = resultState.exception;
+      // Drops marks from a prior invalidRecipients failure so they do not
+      // linger on addresses this failure says nothing about.
+      if (exception is! InvalidRecipientsException) {
+        invalidRecipients.value = {};
+      }
+      if (exception is BadCredentialsException) {
         _sendButtonState = ButtonState.enabled;
         handleBadCredentialsException();
+      } else if (exception is InvalidRecipientsException) {
+        _sendButtonState = ButtonState.enabled;
+        handleInvalidRecipientsFailure(exception);
       } else if (context.mounted) {
         await _showConfirmDialogWhenSendMessageFailure(
           context: context,
@@ -1139,24 +1222,31 @@ class ComposerController extends BaseController
     }
   }
 
+  Future<bool> insertHtmlIntoEditor(String html) async {
+    if (PlatformInfo.isWeb) {
+      final editorController = richTextWebController?.editorController;
+      if (editorController == null) return false;
+      editorController.insertHtml(html);
+      // insertHtml posts to the iframe and returns immediately; getText() shares
+      // an uncorrelated message channel with other callers (e.g.
+      // displayScreenTypeComposerAction), so it can't safely confirm the insert
+      // landed. endOfFrame mirrors the mobile branch below instead.
+      await SchedulerBinding.instance.endOfFrame;
+      return true;
+    }
+    final editorApi = htmlEditorApi;
+    if (editorApi == null) return false;
+    await richTextMobileTabletController?.restoreMobileEditorFocus();
+    await editorApi.insertHtml(html);
+    await SchedulerBinding.instance.endOfFrame;
+    return true;
+  }
+
   Future<void> handleDrivePickResult(List<DriveDocument> result) async {
     try {
       await Get.find<DriveAttachmentHandler>().handleDrivePickResult(
         result,
-        insertHtml: (html) async {
-          if (PlatformInfo.isWeb) {
-            final editorController = richTextWebController?.editorController;
-            if (editorController == null) return false;
-            editorController.insertHtml(html);
-            return true;
-          }
-          final editorApi = htmlEditorApi;
-          if (editorApi == null) return false;
-          await richTextMobileTabletController?.restoreMobileEditorFocus();
-          await editorApi.insertHtml(html);
-          await SchedulerBinding.instance.endOfFrame;
-          return true;
-        },
+        insertHtml: insertHtmlIntoEditor,
         transferDriveDocuments: (docs) => _transferDriveDocuments(docs),
         appLocalizations: currentContext != null ? AppLocalizations.of(currentContext!) : null,
       );
@@ -1291,11 +1381,10 @@ class ComposerController extends BaseController
       exception: failure.exception,
     );
 
-    final isIncreaseMySpaceIsDisabled =
-        !mailboxDashBoardController.validatePremiumIsAvailable() ||
-            mailboxDashBoardController.validateUserHasIsAlreadyHighestSubscription();
-
-    final needIncreaseMySpace = !isIncreaseMySpaceIsDisabled &&
+    final providerContainer = ProviderScope.containerOf(context, listen: false);
+    final needIncreaseMySpace = providerContainer.isPremiumCtaAvailable(
+          mailboxDashBoardController.currentPremiumCtaContext,
+        ) &&
         messageRecord.errorType == SetError.overQuota;
 
     await MessageDialogActionManager().showConfirmDialogAction(
@@ -1316,7 +1405,9 @@ class ComposerController extends BaseController
         popBack();
 
         if (needIncreaseMySpace) {
-          mailboxDashBoardController.paywallController?.navigateToPaywall();
+          providerContainer.openPremiumCta(
+            mailboxDashBoardController.currentPremiumCtaContext,
+          );
         } else {
           _autoFocusFieldWhenLauncher();
         }
@@ -1531,8 +1622,7 @@ class ComposerController extends BaseController
 
     final oldSavedDraftHash = composerArguments.value?.savedDraftHash;
 
-    if (currentEmailActionType == EmailActionType.compose ||
-        currentEmailActionType == EmailActionType.editDraft) {
+    if (_isNewComposition || currentEmailActionType == EmailActionType.editDraft) {
       _savedEmailDraftHash = currentDraftHash;
     } else if (currentEmailActionType == EmailActionType.reopenComposerBrowser) {
       _savedEmailDraftHash = oldSavedDraftHash;
@@ -1541,6 +1631,15 @@ class ComposerController extends BaseController
 
     isEmailChanged.value = currentDraftHash != _savedEmailDraftHash;
   }
+
+  bool get _isNewComposition => const {
+    EmailActionType.compose,
+    EmailActionType.reply,
+    EmailActionType.replyAll,
+    EmailActionType.replyToList,
+    EmailActionType.forward,
+    EmailActionType.editAsNewEmail,
+  }.contains(currentEmailActionType);
 
   void handleClickSaveAsDraftsButton(BuildContext context) async {
     if (_saveToDraftButtonState == ButtonState.disabled) {
@@ -1603,15 +1702,8 @@ class ComposerController extends BaseController
           context: context,
           failure: resultState,
           shouldOfferCloseComposer: false,
-          onConfirmAction: (needIncreaseMySpace) {
+          onConfirmAction: () {
             _saveToDraftButtonState = ButtonState.enabled;
-            popBack();
-
-            if (needIncreaseMySpace) {
-              mailboxDashBoardController.paywallController?.navigateToPaywall();
-            } else {
-              _autoFocusFieldWhenLauncher();
-            }
           },
           onCancelAction: (needIncreaseMySpace) {
             _saveToDraftButtonState = ButtonState.enabled;
@@ -2190,7 +2282,7 @@ class ComposerController extends BaseController
         imageUrl,
         uploadState.attachment.cid!,
         uploadState.fileInfo,
-        maxWidth: maxWithEditor,
+        options: (maxWidth: maxWithEditor, compress: null),
       ));
     } else {
       log('ComposerController::_handleUploadInlineFailure(): baseDownloadUrl: $baseDownloadUrl, accountId: $accountId');
@@ -2421,7 +2513,7 @@ class ComposerController extends BaseController
     _textEditorWeb = text;
 
     if (restoringSignatureButton ||
-        (currentEmailActionType == EmailActionType.compose && !synchronizeInitDraftHash)) {
+        (_isNewComposition && !synchronizeInitDraftHash)) {
       synchronizeInitEmailDraftHash(text);
     }
   }
@@ -2568,16 +2660,27 @@ class ComposerController extends BaseController
 
     _setUpMaxWidthInlineImage(context: context, maxWidth: maxWidth);
 
-    final listFileInfo = await onDragDone(context: context, details: details);
+    final droppedFiles = await onDragDone(context: context, details: details);
 
     if (!context.mounted) return;
 
+    final listFileInfo = droppedFiles.files;
+    final folderCount = droppedFiles.folderCount;
     if (listFileInfo.isEmpty) {
+      final onlyFolders = folderCount > 0 && folderCount == details.files.length;
       appToast.showToastErrorMessage(
         context,
-        AppLocalizations.of(context).can_not_upload_this_file_as_attachments
+        onlyFolders
+          ? AppLocalizations.of(context).cannotUploadFoldersAsAttachments(folderCount)
+          : AppLocalizations.of(context).can_not_upload_this_file_as_attachments
       );
       return;
+    }
+
+    if (folderCount > 0) {
+      appToast.showToastErrorMessage(
+        context,
+        AppLocalizations.of(context).cannotUploadFoldersAsAttachments(folderCount));
     }
 
     await attachmentUploadValidationService.validateFiles(
@@ -2771,7 +2874,7 @@ class ComposerController extends BaseController
     required BuildContext context,
     required FeatureFailure failure,
     bool shouldOfferCloseComposer = true,
-    Function(bool)? onConfirmAction,
+    VoidCallback? onConfirmAction,
     Function(bool)? onCancelAction,
   }) async {
     final messageRecord = getMessageFailure(
@@ -2780,11 +2883,10 @@ class ComposerController extends BaseController
       isDraft: true,
     );
 
-    final isIncreaseMySpaceIsDisabled =
-        !mailboxDashBoardController.validatePremiumIsAvailable() ||
-            mailboxDashBoardController.validateUserHasIsAlreadyHighestSubscription();
-
-    final needIncreaseMySpace = !isIncreaseMySpaceIsDisabled &&
+    final providerContainer = ProviderScope.containerOf(context, listen: false);
+    final needIncreaseMySpace = providerContainer.isPremiumCtaAvailable(
+          mailboxDashBoardController.currentPremiumCtaContext,
+        ) &&
         messageRecord.errorType == SetError.overQuota;
 
     await MessageDialogActionManager().showConfirmDialogAction(
@@ -2802,17 +2904,19 @@ class ComposerController extends BaseController
       outsideDismissible: false,
       autoPerformPopBack: false,
       onConfirmAction: () {
-        if (onConfirmAction != null) {
-          onConfirmAction(needIncreaseMySpace);
-        } else {
+        if (onConfirmAction == null) {
           _closeComposerButtonState = ButtonState.enabled;
-          popBack();
+        } else {
+          onConfirmAction();
+        }
+        popBack();
 
-          if (needIncreaseMySpace) {
-            mailboxDashBoardController.paywallController?.navigateToPaywall();
-          } else {
-            _autoFocusFieldWhenLauncher();
-          }
+        if (needIncreaseMySpace) {
+          providerContainer.openPremiumCta(
+            mailboxDashBoardController.currentPremiumCtaContext,
+          );
+        } else {
+          _autoFocusFieldWhenLauncher();
         }
       },
       onCancelAction: () {

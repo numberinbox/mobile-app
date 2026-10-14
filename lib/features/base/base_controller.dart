@@ -16,7 +16,9 @@ import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:model/model.dart';
 import 'package:rule_filter/rule_filter/capability_rule_filter.dart';
 import 'package:tmail_ui_user/features/base/before_reconnect_manager.dart';
+import 'package:tmail_ui_user/features/base/sentry_session_cleanup.dart';
 import 'package:tmail_ui_user/features/base/mixin/emit_state_mixin.dart';
+import 'package:tmail_ui_user/features/base/extensions/discard_web_composers_on_logout_extension.dart';
 import 'package:tmail_ui_user/features/base/extensions/handle_company_server_login_info_extension.dart';
 import 'package:tmail_ui_user/features/base/mixin/logout_mixin.dart';
 import 'package:tmail_ui_user/features/base/mixin/popup_context_menu_action_mixin.dart';
@@ -233,6 +235,13 @@ abstract class BaseController extends GetxController
         currentOverlayContext!,
         AppLocalizations.of(currentContext!).connectionError);
     }
+  }
+
+  void showBlockedLinkToast() {
+    if (currentOverlayContext == null || currentContext == null) return;
+    appToast.showToastErrorMessage(
+      currentOverlayContext!,
+      AppLocalizations.of(currentContext!).linkCannotBeOpened);
   }
 
   void _handleNotNetworkErrorException() {
@@ -538,6 +547,7 @@ abstract class BaseController extends GetxController
       return;
     }
 
+    await discardWebComposersOnLogout(session, accountId);
     await cachingManager.clearMailDataCached();
 
     _isFcmEnabled = _isFcmActivated(session, accountId);
@@ -647,7 +657,6 @@ abstract class BaseController extends GetxController
       '$runtimeType::clearDataAndGoToLoginPage: clearing data then routing to login',
       webConsoleEnabled: true,
     );
-    SentryManager.instance.clearUser();
     await clearAllData();
     log(
       '$runtimeType::clearDataAndGoToLoginPage: data cleared, calling removeAllPageAndGoToLogin',
@@ -710,6 +719,7 @@ abstract class BaseController extends GetxController
 /// can run the exact same teardown, still serialised by callers through
 /// [TwakeAppManager.runClearDataOnce].
 Future<void> clearLocalSessionData() async {
+  await _clearSentryForSessionEnd();
   final authorizationInterceptors = Get.find<AuthorizationInterceptors>();
   final cachingManager = Get.find<CachingManager>();
   try {
@@ -728,5 +738,22 @@ Future<void> clearLocalSessionData() async {
     logWarning('clearLocalSessionData: Cannot clear all data: $e');
   } finally {
     AttachmentKeywordConfigManager().clearCache();
+  }
+}
+
+Future<void> _clearSentryForSessionEnd() async {
+  try {
+    final sentrySessionCleanup = getBinding<SentrySessionCleanup>();
+    if (sentrySessionCleanup == null) {
+      SentryManager.instance.clearUser();
+      return;
+    }
+    await sentrySessionCleanup.clearForSessionEnd();
+  } catch (e, st) {
+    logError(
+      'clearLocalSessionData: Cannot clear Sentry session',
+      exception: e,
+      stackTrace: st,
+    );
   }
 }

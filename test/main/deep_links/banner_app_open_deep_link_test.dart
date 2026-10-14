@@ -44,8 +44,8 @@ void main() {
           'numberinbox.mobile://openApp'
           '?access_token=token'
           '&username=$username'
-          '&registrationUrl=https://idp.example.com'
-          '&jmapUrl=https://jmap.example.com',
+          '&registrationUrl=https://sign-up.numberinbox.com'
+          '&jmapUrl=https://jmap.numberinbox.com',
         ),
       );
 

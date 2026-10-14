@@ -176,11 +176,8 @@ extension AppColor on Color {
   static const colorCanceledEventActionText = Color(0xFFFF3347);
   static const colorCanceledEventActionBanner = Color(0xFFF5EBEB);
   static const colorSubTitleEventActionText = Color(0xFF939393);
-  static const colorCalendarEventInformationBackground = Color(0x0A000000);
   static const colorCalendarEventInformationStroke = Color(0x1F000000);
-  static const colorShadowCalendarDateIcon = Color(0x26000000);
   static const colorOrganizerMailto = Color(0xFFB3B3B3);
-  static const colorMailto = Color(0xFFB3B3B3);
   static const colorEventDescriptionBackground = Color(0x05000000);
   static const colorLabelQuotas = Color(0xFF818C99);
   static const colorLabelCancelButton = Color(0xFFAEB7C2);

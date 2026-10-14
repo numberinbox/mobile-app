@@ -1,13 +1,23 @@
 
+import 'dart:convert';
+
 import 'package:core/data/model/preview_attachment.dart';
 import 'package:core/presentation/extensions/string_extension.dart';
 import 'package:core/utils/app_logger.dart';
+import 'package:core/utils/html/css_scope_utils.dart';
 import 'package:core/utils/html/html_template.dart';
 import 'package:core/utils/html/html_utils.dart';
 import 'package:html/dom.dart';
 import 'package:html/parser.dart';
 
 class PreviewEmlFileUtils {
+  static const String emailBodyClassName = 'email-body';
+  static const HtmlEscape _textEscape = HtmlEscape();
+  static const HtmlEscape _attributeEscape = HtmlEscape(HtmlEscapeMode.attribute);
+
+  /// Every header value interpolated into markup is escaped here; callers pass raw strings.
+  String _escapeText(String? value) => _textEscape.convert(value ?? '');
+
   Element? _createEmailElement({
     required String subjectPrefix,
     required String fromPrefix,
@@ -32,17 +42,17 @@ class PreviewEmlFileUtils {
       return Element.html('''
         <div class="email-container">
           <!-- Email Subject -->
-          <div class="email-subject">$subjectPrefix: $subject</div>
+          <div class="email-subject">$subjectPrefix: ${_escapeText(subject)}</div>
       
           <!-- Email Header -->
           <div class="email-header">
             <!-- Placeholder icon -->
-            <div class="circle">${(senderName ?? senderEmailAddress ?? '?').firstLetterToUpperCase}</div>
+            <div class="circle">${_escapeText((senderName ?? senderEmailAddress ?? '?').firstLetterToUpperCase)}</div>
       
             <!-- Email information -->
             <div class="email-info">
               <div class="sender">
-                 ${senderName ?? ''} <span class="sender-email">&lt;${senderEmailAddress ?? ''}&gt;</span>
+                 ${_escapeText(senderName)} <span class="sender-email">&lt;${_escapeText(senderEmailAddress)}&gt;</span>
               </div>
                ${replyToAddress?.isNotEmpty == true ? _createRecipientHtmlTag(replyToPrefix, replyToAddress!) : ''}
                ${toAddress?.isNotEmpty == true ? _createRecipientHtmlTag(toPrefix, toAddress!) : ''}
@@ -53,13 +63,15 @@ class PreviewEmlFileUtils {
             <!-- Email metadata -->
             <div class="email-meta">
               ${attachmentIcon?.isNotEmpty == true ? '<img width="16" height="16" src="${HtmlUtils.generateSVGImageData(attachmentIcon!)}" alt="Attachment Icon" class="attachment-icon">' : ''}
-              ${dateTime?.isNotEmpty == true ? '<div class="email-date">$dateTime</div>' : ''}
+              ${dateTime?.isNotEmpty == true ? '<div class="email-date">${_escapeText(dateTime)}</div>' : ''}
             </div>
           </div>
       
-          <!-- Email Body -->
-          <div class="email-body">
-            <p>$emailContent</p>
+          <!-- Email Body: a stacking context the email styles cannot reach, below the header -->
+          <div class="email-body-layer">
+            <div class="$emailBodyClassName">
+              <p>$emailContent</p>
+            </div>
           </div>
       
           ${listAttachment?.isNotEmpty == true ? _createAttachmentsElement(listAttachment: listAttachment ?? [], titleAttachment: titleAttachment) : ''}
@@ -74,7 +86,7 @@ class PreviewEmlFileUtils {
     try {
       return '''
         <div class="recipients">
-          $prefix: $emailAddress
+          $prefix: ${_escapeText(emailAddress)}
         </div>
       ''';
     } catch (e) {
@@ -87,12 +99,12 @@ class PreviewEmlFileUtils {
     return '''
       ${previewAttachment.link?.isNotEmpty == true
           ? '''
-              <a href="${previewAttachment.link}" class="attachment-item">
+              <a href="${_attributeEscape.convert(previewAttachment.link!)}" class="attachment-item">
                 <div class="icon">
                   <img width="16" height="16" src="${HtmlUtils.generateSVGImageData(previewAttachment.iconBase64Data)}"  alt="attachment-icon"/>
                 </div>
                 <div class="file-details">
-                  <div class="file-name">${previewAttachment.name}</div>
+                  <div class="file-name">${_escapeText(previewAttachment.name)}</div>
                   <div class="file-size">${previewAttachment.size}</div>
                 </div>
               </a>
@@ -103,7 +115,7 @@ class PreviewEmlFileUtils {
                   <img width="16" height="16" src="${HtmlUtils.generateSVGImageData(previewAttachment.iconBase64Data)}"  alt="attachment-icon"/>
                 </div>
                 <div class="file-details">
-                  <div class="file-name">${previewAttachment.name}</div>
+                  <div class="file-name">${_escapeText(previewAttachment.name)}</div>
                   <div class="file-size">${previewAttachment.size}</div>
                 </div>
               </div>
@@ -154,7 +166,7 @@ class PreviewEmlFileUtils {
     String? replyToAddress,
     List<PreviewAttachment>? listAttachment,
   }) {
-    Document document = parse(HtmlUtils.createTemplateHtmlDocument(title: '$subject - $ownEmailAddress'));
+    Document document = parse(HtmlUtils.createTemplateHtmlDocument(title: _escapeText('$subject - $ownEmailAddress')));
 
     Element? emailElement = _createEmailElement(
       subjectPrefix: subjectPrefix,
@@ -181,11 +193,20 @@ class PreviewEmlFileUtils {
     document.head?.append(styleElement);
 
     if (emailElement != null) {
+      _confineEmailStylesToEmailBody(emailElement);
       document.body?.append(emailElement);
     }
 
     final htmlDocument = document.outerHtml;
 
     return htmlDocument;
+  }
+
+  /// The email styles share the document with the app-generated header
+  /// (subject, sender, recipients, date): scope them so they cannot restyle it.
+  void _confineEmailStylesToEmailBody(Element emailElement) {
+    for (final styleElement in emailElement.querySelectorAll('style')) {
+      styleElement.text = CssScopeUtils.scope(styleElement.text, '.$emailBodyClassName');
+    }
   }
 }

@@ -47,7 +47,7 @@ class AuthenticationClientWeb with AuthenticationClientInteractionMixin
       // silenced exception instead of dereferencing null and flashing an error.
       throw AutoRedirectToAppAfterStoreAuthorizeDestinationUrlException();
     }
-    log('$runtimeType::getTokenOIDC():Token: ${authorizationTokenResponse.accessToken}');
+    log('$runtimeType::getTokenOIDC(): token received');
     final tokenOIDC = authorizationTokenResponse.toTokenOIDC();
     if (tokenOIDC.isTokenValid()) {
       return tokenOIDC;
@@ -78,20 +78,18 @@ class AuthenticationClientWeb with AuthenticationClientInteractionMixin
     String redirectUrl,
     String discoveryUrl,
     List<String> scopes,
-    String refreshToken,
+    TokenOIDC currentToken,
   ) async {
     try {
       final tokenRequest = getRefreshTokenRequest(
         clientId,
         redirectUrl,
         discoveryUrl,
-        refreshToken,
+        currentToken.refreshToken,
         scopes,
       );
       final tokenResponse = await _appAuthWeb.token(tokenRequest);
-      final tokenOIDC = tokenResponse.toTokenOIDC(
-        maybeAvailableRefreshToken: refreshToken,
-      );
+      final tokenOIDC = tokenResponse.toTokenOIDC(currentToken: currentToken);
       if (tokenOIDC.isTokenValid()) {
         return tokenOIDC;
       } else {
