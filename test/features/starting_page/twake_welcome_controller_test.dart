@@ -7,6 +7,10 @@ import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
+import 'package:core/utils/logging/app_logger_registry.dart';
+import 'package:core/utils/logging/log_handler.dart';
+import 'package:core/utils/logging/log_level.dart';
+import 'package:core/utils/logging/log_record.dart';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -93,7 +97,14 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
 
   int verifyCalls = 0;
   Object? verifyError;
+  Object? startOtpError;
   OtpSession? session;
+
+  @override
+  Future<void> startOtp(String rawE164) async {
+    final error = startOtpError;
+    if (error != null) throw error;
+  }
 
   @override
   Future<OtpSession> verifyOtp(String rawE164, String code, {String? deviceId}) async {
@@ -108,9 +119,44 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
           credential: 'app_secret',
         );
   }
+}
+
+/// Repository that always fails, so credential-persistence error paths run.
+class ThrowingAccountRepository extends FakeAccountRepository {
+  ThrowingAccountRepository(this.marker);
+
+  final String marker;
 
   @override
-  Future<void> startOtp(String rawE164) async {}
+  Future<void> setCurrentAccount(PersonalAccount account) async =>
+      throw Exception(marker);
+}
+
+/// Repository that always fails, so credential-persistence error paths run.
+class ThrowingCredentialRepository extends FakeCredentialRepository {
+  ThrowingCredentialRepository(this.marker);
+
+  final String marker;
+
+  @override
+  Future storeAuthenticationInfo(AuthenticationInfoCache info) async =>
+      throw Exception(marker);
+}
+
+/// Captures every dispatched [LogRecord] so tests can assert on log content.
+class _CapturingLogHandler extends LogHandler {
+  final List<LogRecord> records = <LogRecord>[];
+
+  @override
+  String get handlerKey => 'capturing-log-handler-for-tests';
+
+  @override
+  void handle(LogRecord record) => records.add(record);
+
+  /// Everything a sink would ever see: the message plus the exception,
+  /// extras and stack trace, which [LogRecord.build] folds into rawMessage.
+  String get everything =>
+      records.map((r) => r.rawMessage).join('\n');
 }
 
 /// Emits a caller-supplied cache-update stream so the pending update that
@@ -303,6 +349,57 @@ void main() {
 
       expect(controller.error, isNotNull);
       expect(controller.phase, OtpPhase.phone);
+    });
+
+    test('unexpected send failure does not leak the exception to the user',
+        () async {
+      // Anything that is not a DioException escapes NumberInboxAuthClient
+      // unmapped, so its toString() can carry provider internals, a token, or
+      // a request body straight into the UI.
+      const secret = 'SECRET-MARKER-abc123';
+      final auth = ScriptedAuthClient()
+        ..startOtpError = Exception('provider said: $secret');
+
+      Get.replace<GetSessionInteractor>(ControllableGetSessionInteractor());
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
+
+      await ctrl.sendCode();
+      final error = ctrl.error;
+      ctrl.dispose();
+
+      expect(error, isNotNull, reason: 'an unexpected failure must still be reported');
+      expect(
+        error,
+        isNot(contains(secret)),
+        reason: 'the raw exception must not reach the user-visible error',
+      );
+      expect(
+        error,
+        isNot(contains('Exception')),
+        reason: 'the user-visible error must not read like a stack dump',
+      );
+      expect(ctrl.phase, OtpPhase.phone);
+      expect(ctrl.sending, isFalse);
+    });
+
+    test('rate limit and invalid number keep their specific messages', () async {
+      adapter.onPost('/v1/otp/start',
+          (server) => server.reply(429, {'error': 'rate_limited'}),
+          data: {'e164': '+66812345678'});
+
+      controller.phoneController.text = '812345678';
+      await controller.sendCode();
+      expect(controller.error, 'Too many attempts. Try again later.');
+
+      adapter.onPost('/v1/otp/start',
+          (server) => server.reply(400, {'error': 'invalid_e164'}),
+          data: {'e164': '+66812345678'});
+
+      controller.phoneController.text = '812345678';
+      await controller.sendCode();
+      expect(controller.error, 'Invalid phone number format');
     });
   });
 
@@ -628,6 +725,107 @@ void main() {
       );
       await pending;
       ctrl.dispose();
+    });
+  });
+
+  group('OTP-flow logging', () {
+    late _CapturingLogHandler logs;
+
+    setUp(() {
+      logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+    });
+
+    tearDown(() => AppLoggerRegistry.instance.resetForTesting());
+
+    test('successful verification does not log the account identifier',
+        () async {
+      const accountId = 'ACCOUNT-ID-MARKER-zzz999';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final auth = ScriptedAuthClient()
+        ..session = const OtpSession(
+          accessToken: 'jwt',
+          username: accountId,
+          sessionUrl: 'https://localhost/.well-known/jmap',
+          credential: 'app_secret',
+        );
+
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+
+      await ctrl.verifyCode();
+      ctrl.dispose();
+
+      expect(
+        logs.everything,
+        isNot(contains(accountId)),
+        reason: 'the mailbox username identifies the account and must not be logged',
+      );
+    });
+
+    test('credential storage failure does not log the exception text',
+        () async {
+      const secret = 'CREDENTIAL-SECRET-987xyz';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+
+      // Credential storage is written first, so only this repository throws.
+      Get.replace<CredentialRepository>(ThrowingCredentialRepository(secret));
+
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(authClient: ScriptedAuthClient());
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+
+      await ctrl.verifyCode();
+      ctrl.dispose();
+
+      expect(
+        logs.everything,
+        isNot(contains(secret)),
+        reason: 'persistence failures must log a category, not the exception text',
+      );
+      expect(
+        logs.records.where((r) => r.level == Level.error),
+        isNotEmpty,
+        reason: 'the failure must still be reported for diagnostics',
+      );
+    });
+
+    test('account storage failure does not log the exception text', () async {
+      // The later failure point: credentials are already stored by the time
+      // setCurrentAccount throws, so this covers the second persistence error.
+      const secret = 'ACCOUNT-SECRET-654zzy';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+
+      Get.replace<AccountRepository>(ThrowingAccountRepository(secret));
+
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(authClient: ScriptedAuthClient());
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+
+      await ctrl.verifyCode();
+      ctrl.dispose();
+
+      expect(
+        logs.everything,
+        isNot(contains(secret)),
+        reason: 'account persistence failures must log a category, not the '
+            'exception text',
+      );
+      expect(
+        logs.records.where((r) => r.level == Level.error),
+        isNotEmpty,
+        reason: 'the failure must still be reported for diagnostics',
+      );
     });
   });
 

@@ -88,8 +88,10 @@ class TwakeWelcomeController extends ReloadableController {
       _error = 'Invalid phone number format';
     } on RateLimitedException {
       _error = 'Too many attempts. Try again later.';
-    } catch (e) {
-      _error = 'Failed to send code: $e';
+    } catch (_) {
+      // Fixed retryable copy: the exception can carry provider internals or
+      // request data, which must not be shown to the user.
+      _error = 'Could not send code. Please try again.';
     } finally {
       _sending = false;
       update();
@@ -147,7 +149,9 @@ class TwakeWelcomeController extends ReloadableController {
   /// Returns whether the session operation was started, so [verifyCode] knows
   /// whether the loading state has to survive past the OTP request.
   Future<bool> _onOtpVerified(OtpSession otpSession) async {
-    log('TwakeWelcomeController::_onOtpVerified: username=${otpSession.username}');
+    // Non-identifying only: the username identifies the mailbox account and
+    // must not be written to logs.
+    log('TwakeWelcomeController::_onOtpVerified: session accepted');
 
     final baseUrl = _sessionManager.baseUrlFromSession(otpSession);
     final decoded = _sessionManager.decodeBasicAuth(otpSession);
@@ -189,7 +193,12 @@ class TwakeWelcomeController extends ReloadableController {
         ),
       );
     } catch (e) {
-      logError('TwakeWelcomeController::_persistCredentials: $e');
+      // Category only. Passing `e` as the log exception would fold its text
+      // into the record, and persistence failures can carry credential data.
+      logError(
+        'TwakeWelcomeController::_persistCredentials: failed '
+        '(category=${e.runtimeType})',
+      );
     }
   }
 
