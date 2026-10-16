@@ -475,11 +475,18 @@ flutter:
         - asset: assets/fonts/fallback/NotoSansSymbols2-Regular.ttf
 
 flutter_native_splash:
-  color: "#0F172A"
+  # Pure white, matching upstream: the native splash, the Flutter loading
+  # screen and the hand-authored web splash are one continuous white stage.
+  color: "#FFFFFF"
+  color_dark: "#FFFFFF"
   image_ios: "assets/splash/numberinbox_splash_mark.png"
   image_android: "assets/splash/numberinbox_splash_mark.png"
+  # The web splash is hand-authored; the package generator would rewrite
+  # web/index.html with its own navy template.
+  web: false
   android_12:
-    color: "#0F172A"
+    color: "#FFFFFF"
+    color_dark: "#FFFFFF"
     image: "assets/splash/numberinbox_splash_mark_android12.png"
 
 cider:

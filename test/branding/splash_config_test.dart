@@ -41,16 +41,33 @@ List<int>? _opaqueBounds(Uint8List rgba, int width, int height,
   return [left, top, right + 1, bottom + 1];
 }
 
+/// Top-left RGBA pixel, used as a cheap opaque-background probe.
+List<int> _cornerPixel(Uint8List rgba, int width, int height) =>
+    [rgba[0], rgba[1], rgba[2]];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   final pubspec = loadYaml(File('pubspec.yaml').readAsStringSync()) as Map;
   final splash = pubspec['flutter_native_splash'] as Map?;
 
-  test('native splash uses brand background', () {
+  test('native splash uses a white background', () {
     expect(splash, isNotNull);
-    expect((splash!['color'] as String).toLowerCase(), '#0f172a',
-        reason: 'splash background must match the navy brand launch screen');
+    expect((splash!['color'] as String).toLowerCase(), '#ffffff',
+        reason: 'every startup surface is pure white, not the navy brand');
+    expect((splash['color_dark'] as String).toLowerCase(), '#ffffff',
+        reason: 'a device in dark appearance must not show a black splash');
+    final android12 = splash['android_12'] as Map?;
+    expect((android12!['color'] as String).toLowerCase(), '#ffffff');
+    expect((android12['color_dark'] as String).toLowerCase(), '#ffffff',
+        reason: 'Android 12 night splash must be white too');
+  });
+
+  test('web splash generation is disabled', () {
+    // The web splash is hand-authored; letting the package regenerate it
+    // rewrites web/index.html with the navy template.
+    expect(splash!['web'], isFalse,
+        reason: 'web splash must stay hand-authored');
   });
 
   test('no Twake branding assets on the splash', () {
@@ -78,12 +95,97 @@ void main() {
         reason: 'Android 12 splash must show only the mark');
   });
 
-  test('native splash background is navy in both configurations', () {
+  test('no navy remains in the committed splash configuration', () {
     final config = splash!;
-    expect((config['color'] as String).toLowerCase(), '#0f172a');
-    final android12 = config['android_12'] as Map?;
-    expect(android12, isNotNull);
-    expect((android12!['color'] as String).toLowerCase(), '#0f172a');
+    for (final entry in {
+      'color': config['color'],
+      'color_dark': config['color_dark'],
+      'android_12.color': (config['android_12'] as Map?)?['color'],
+      'android_12.color_dark': (config['android_12'] as Map?)?['color_dark'],
+    }.entries) {
+      final value = entry.value;
+      if (value == null) continue;
+      expect(value.toString().toLowerCase(), isNot('#0f172a'),
+          reason: '${entry.key} must not stay navy after the white migration');
+    }
+  });
+
+  test('generated native splash backgrounds are opaque white', () async {
+    const iosBackground =
+        'ios/Runner/Assets.xcassets/LaunchBackground.imageset/background.png';
+    for (final path in [
+      iosBackground,
+      'android/app/src/main/res/drawable/background.png',
+      'android/app/src/main/res/drawable-v21/background.png',
+    ]) {
+      expect(File(path).existsSync(), isTrue, reason: '$path missing');
+      final image = await _decodePng(path);
+      final rgba = await _rgbaBytes(image);
+      expect(_opaqueBounds(rgba, image.width, image.height), isNotNull,
+          reason: '$path must be opaque, not transparent');
+      expect(_cornerPixel(rgba, image.width, image.height), const [255, 255, 255],
+          reason: '$path must be pure white');
+    }
+  });
+
+  test('android night launch layer is white, not black', () async {
+    // drawable-night is what a device in dark appearance paints behind the mark.
+    final night = File('android/app/src/main/res/drawable-night/background.png');
+    if (!night.existsSync()) {
+      // No night layer means the day drawable is reused, which is already
+      // asserted white above.
+      return;
+    }
+    final image = await _decodePng(night.path);
+    final rgba = await _rgbaBytes(image);
+    expect(_cornerPixel(rgba, image.width, image.height), const [255, 255, 255],
+        reason: 'the night launch background must stay white');
+  });
+
+  test('android 12 day and night splash themes are white with the mark icon',
+      () {
+    for (final dir in ['values-v31', 'values-night-v31']) {
+      final path = 'android/app/src/main/res/$dir/styles.xml';
+      final xml = File(path).readAsStringSync();
+      expect(xml, contains('android:windowSplashScreenBackground'),
+          reason: '$path must set the Android 12 splash background');
+      expect(xml, isNot(contains('#0F172A')),
+          reason: '$path still paints a navy Android 12 splash');
+      expect(xml.toLowerCase(), contains('#ffffff'),
+          reason: '$dir Android 12 splash background must be white');
+      expect(xml, contains('@drawable/android12splash'),
+          reason: '$path must keep the centered N/@ mark as the splash icon');
+    }
+  });
+
+  test('android day and night themes cannot flash black or hide system icons',
+      () {
+    for (final dir in ['values', 'values-night']) {
+      final xml =
+          File('android/app/src/main/res/$dir/styles.xml').readAsStringSync();
+      expect(xml, isNot(contains('Theme.Black')),
+          reason: '$dir must not use a black window parent; it would flash '
+              'black on a white splash in dark appearance');
+      expect(xml, contains('android:windowLightStatusBar'),
+          reason: '$dir needs light status-bar icons on a white window');
+      expect(xml, contains('android:windowLightNavigationBar'),
+          reason: '$dir needs light navigation-bar icons on a white window');
+      for (final style in ['LaunchTheme', 'NormalTheme']) {
+        expect(xml, contains(style),
+            reason: '$dir must define $style');
+      }
+    }
+  });
+
+  test('web splash and PWA manifest are white', () {
+    final css = File('web/splash/style.css').readAsStringSync();
+    expect(css.toLowerCase(), isNot(contains('#0f172a')),
+        reason: 'the web splash must not paint a navy background');
+    final manifest = File('web/manifest.json').readAsStringSync();
+    expect(manifest.toLowerCase(), isNot(contains('#0f172a')),
+        reason: 'the PWA manifest must not request a navy frame');
+    expect(manifest, contains('#FFFFFF'),
+        reason: 'manifest background/theme color must be white');
   });
 
   test('dedicated splash mark assets exist with expected dimensions',

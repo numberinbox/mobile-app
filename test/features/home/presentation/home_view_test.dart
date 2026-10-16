@@ -4,7 +4,9 @@ import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
@@ -74,6 +76,16 @@ void main() {
             (w.image as AssetImage).assetName == assetName,
       );
 
+  /// The wordmark is an SvgPicture, which [imageWithAsset] cannot match.
+  Finder svgAsset(String assetName) => find.byWidgetPredicate(
+        (w) =>
+            w is SvgPicture &&
+            w.bytesLoader is SvgAssetLoader &&
+            (w.bytesLoader as SvgAssetLoader).assetName.contains(
+                  assetName.split('/').last,
+                ),
+      );
+
   Future<void> pumpHome(WidgetTester tester) async {
     Get.testMode = true;
     final appToast = MockAppToast();
@@ -137,8 +149,7 @@ void main() {
     await pumpHome(tester);
 
     final mark = imageWithAsset('assets/images/numberinbox_mark.png');
-    final wordmark =
-        imageWithAsset('assets/images/numberinbox_wordmark_dark.png');
+    final wordmark = svgAsset('assets/images/numberinbox_wordmark.svg');
     expect(mark, findsOneWidget);
     expect(wordmark, findsOneWidget);
     expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
@@ -151,5 +162,69 @@ void main() {
     final spinnerTop =
         tester.getTopLeft(find.byType(CupertinoActivityIndicator)).dy;
     expect(spinnerTop, greaterThan(wordmarkBottom));
+  });
+
+  testWidgets('background is white, not the navy brand', (tester) async {
+    await pumpHome(tester);
+
+    final boxes = tester
+        .widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byType(HomeView),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .toList();
+    expect(boxes, isNotEmpty);
+    expect(
+      boxes.map((b) => b.color),
+      contains(const Color(0xFFFFFFFF)),
+      reason: 'the loading screen is pure white so it matches the native splash',
+    );
+  });
+
+  testWidgets('spinner is visible against white', (tester) async {
+    await pumpHome(tester);
+
+    final spinner = tester.widget<CupertinoActivityIndicator>(
+      find.byType(CupertinoActivityIndicator),
+    );
+    final color = spinner.color ?? const Color(0xFF999999);
+    final luminance = color.computeLuminance();
+    expect(
+      luminance,
+      lessThan(0.5),
+      reason: 'a grey or white spinner would be invisible on a white screen',
+    );
+  });
+
+  testWidgets('requests dark status-bar icons on the white splash',
+      (tester) async {
+    await pumpHome(tester);
+
+    // Effective style, not a source string: the innermost region wins.
+    final regions = tester
+        .widgetList<AnnotatedRegion<SystemUiOverlayStyle>>(
+          find.byType(AnnotatedRegion<SystemUiOverlayStyle>),
+        )
+        .toList();
+    expect(regions, isNotEmpty,
+        reason: 'the splash must publish a region, otherwise the platform '
+            'falls back to white icons that vanish on white');
+    final effective = regions.last.value;
+    expect(effective.statusBarIconBrightness, Brightness.dark,
+        reason: 'dark icons are required on a white background');
+    expect(effective.statusBarColor, Colors.transparent);
+  });
+
+  testWidgets('does not use the white-on-navy wordmark on white',
+      (tester) async {
+    await pumpHome(tester);
+
+    expect(
+      imageWithAsset('assets/images/numberinbox_wordmark_dark.png'),
+      findsNothing,
+      reason: 'the light wordmark is required now that the background is white',
+    );
   });
 }
