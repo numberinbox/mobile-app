@@ -15,6 +15,14 @@ class OpenAppDeepLinkData extends DeepLinkData {
   final String? idToken;
   final int? expiresIn;
 
+  /// Whether the link arrived carrying authentication parameters.
+  ///
+  /// Phone OTP is the only public sign-in method, so such a link is refused.
+  /// The parser empties the credential fields when it sets this, so no later
+  /// caller can sign in with them even if a guard is dropped; the flag keeps
+  /// the refusal visible for logging and for the refused-link toast.
+  final bool credentialParametersRejected;
+
   OpenAppDeepLinkData({
     super.actionType = DeepLinkActionType.openApp,
     required this.registrationUrl,
@@ -24,7 +32,41 @@ class OpenAppDeepLinkData extends DeepLinkData {
     this.refreshToken,
     this.idToken,
     this.expiresIn,
+    this.credentialParametersRejected = false,
   });
+
+  /// Query parameters that would let a link sign the user in.
+  ///
+  /// Matched case-insensitively: the app does not read `Access_Token`, but a
+  /// link that is *trying* to pass credentials is refused on the same rule
+  /// rather than slipping through on a spelling difference.
+  static const credentialParameterNames = <String>{
+    'access_token',
+    'refresh_token',
+    'id_token',
+    'expires_in',
+    'username',
+    'registrationUrl',
+    'jmapUrl',
+  };
+
+  /// Whether any of [names] is a credential parameter name.
+  ///
+  /// Takes raw names rather than decoded query parameters on purpose: a value
+  /// that fails to decode must still be recognised as a credential attempt
+  /// rather than thrown out as an unparsable link.
+  static bool containsCredentialParameterName(Iterable<String> names) =>
+      names.any((name) => credentialParameterNames.contains(name.toLowerCase()));
+
+  /// The names in a raw query string, before any percent-decoding.
+  ///
+  /// `+` is a space in `application/x-www-form-urlencoded`, so it is restored
+  /// here; the comparison is case-insensitive and unaffected either way.
+  static List<String> rawQueryParameterNames(String query) => query
+      .split('&')
+      .where((pair) => pair.isNotEmpty)
+      .map((pair) => pair.split('=').first.replaceAll('+', ' '))
+      .toList();
 
   /// Whether an incoming deep link may start the auto sign-in flow.
   ///
@@ -38,7 +80,10 @@ class OpenAppDeepLinkData extends DeepLinkData {
 
   /// The deep link is reachable from any web page or email link: the servers
   /// it points the app to must be https URLs on an allow-listed host.
+  ///
+  /// A link that carried credentials is never valid, whatever it contains now.
   bool isValidAuthentication() =>
+      !credentialParametersRejected &&
       accessToken.isNotEmpty &&
       username.isNotEmpty &&
       _isSecureAbsoluteUrl(registrationUrl) &&
@@ -94,5 +139,6 @@ class OpenAppDeepLinkData extends DeepLinkData {
     refreshToken,
     idToken,
     expiresIn,
+    credentialParametersRejected,
   ];
 }

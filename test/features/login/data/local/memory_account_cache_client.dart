@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:hive_ce/hive.dart';
 import 'package:tmail_ui_user/features/caching/clients/account_cache_client.dart';
 import 'package:tmail_ui_user/features/login/data/model/account_cache.dart';
@@ -103,6 +105,9 @@ class MemoryAccountCacheClient implements AccountCacheClient {
   Future<Box<AccountCache>> openBox() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<Uint8List?> loadEncryptionKey() async => null;
 
   @override
   String get tableName => 'AccountCache';

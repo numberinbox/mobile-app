@@ -7,24 +7,70 @@ import 'package:hive_ce/hive.dart';
 import 'package:tmail_ui_user/features/caching/config/hive_cache_config.dart';
 import 'package:tmail_ui_user/features/caching/utils/cache_utils.dart';
 
+/// Thrown when a box that must be encrypted cannot be, because its key is
+/// missing or unusable.
+///
+/// Failing closed is the point: opening anyway would create an unencrypted box
+/// under the same name, so the next start would read "no session" out of a box
+/// that looks like the user's stored one, and the credentials it is meant to
+/// protect would sit on disk in the clear. Only the box name and a fixed
+/// category appear in [toString]; key material never does.
+class HiveEncryptionKeyException implements Exception {
+  const HiveEncryptionKeyException(this.tableName, this.reason);
+
+  static const missingReason = 'missing';
+  static const malformedReason = 'malformed';
+
+  final String tableName;
+
+  /// One of [missingReason] or [malformedReason].
+  final String reason;
+
+  @override
+  String toString() =>
+      'HiveEncryptionKeyException(table: $tableName, reason: $reason)';
+}
+
 abstract class HiveCacheClient<T> {
 
   String get tableName;
 
   bool get encryption => false;
 
-  Future<Uint8List?> _getEncryptionKey() => HiveCacheConfig.instance.getEncryptionKey();
+  /// Length of the key `Hive.generateSecureKey()` produces. A shorter or
+  /// longer key still produces a working cipher, it just decrypts to garbage,
+  /// so the length is checked rather than trusted.
+  static const encryptionKeyLength = 32;
+
+  /// Key used to open this client's box.
+  ///
+  /// Overridable so tests can serve a missing or malformed key; production
+  /// callers leave it alone.
+  Future<Uint8List?> loadEncryptionKey() =>
+      HiveCacheConfig.instance.getEncryptionKey();
+
+  /// The cipher for this client's box, or a failure that keeps the box closed.
+  Future<HiveAesCipher> _resolveCipher() async {
+    final key = await loadEncryptionKey();
+
+    if (key == null || key.isEmpty) {
+      throw HiveEncryptionKeyException(tableName, HiveEncryptionKeyException.missingReason);
+    }
+    if (key.length != encryptionKeyLength) {
+      throw HiveEncryptionKeyException(tableName, HiveEncryptionKeyException.malformedReason);
+    }
+
+    return HiveAesCipher(key);
+  }
 
   Future<IsolatedBox<T>> openIsolatedBox() async {
     if (IsolatedHive.isBoxOpen(tableName)) {
       return IsolatedHive.box<T>(tableName);
     } else {
       if (encryption) {
-        final encryptionKey = await _getEncryptionKey();
         return IsolatedHive.openBox<T>(
           tableName,
-          encryptionCipher:
-              encryptionKey != null ? HiveAesCipher(encryptionKey) : null,
+          encryptionCipher: await _resolveCipher(),
         );
       } else {
         return IsolatedHive.openBox<T>(tableName);
@@ -37,11 +83,9 @@ abstract class HiveCacheClient<T> {
       return Hive.box<T>(tableName);
     } else {
       if (encryption) {
-        final encryptionKey = await _getEncryptionKey();
         return Hive.openBox<T>(
           tableName,
-          encryptionCipher:
-              encryptionKey != null ? HiveAesCipher(encryptionKey) : null,
+          encryptionCipher: await _resolveCipher(),
         );
       } else {
         return Hive.openBox<T>(tableName);

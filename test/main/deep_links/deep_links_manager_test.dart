@@ -84,112 +84,93 @@ void main() {
     });
 
     group('parseOpenAppDeepLink::test', () {
-      test('SHOULD returns OpenAppDeepLinkData with all valid parameters', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&refresh_token=refresh123'
-              '&id_token=id123'
-              '&expires_in=3600'
-              '&username=dXNlcg=='
-              '&registrationUrl=https://sign-up.numberinbox.com'
-              '&jmapUrl=https://jmap.numberinbox.com',
+      // Phone OTP is the only public sign-in method, so a link carrying
+      // credentials is refused at this boundary. The parser hands back an
+      // empty, marked record rather than the tokens, so no later caller can
+      // sign in with them even if a guard is dropped.
+      String credentialedUrl({
+        String query = 'access_token=token123'
+            '&refresh_token=refresh123'
+            '&id_token=id123'
+            '&expires_in=3600'
+            '&username=dXNlcg=='
+            '&registrationUrl=https://sign-up.numberinbox.com'
+            '&jmapUrl=https://jmap.numberinbox.com',
+      }) => 'twake://openApp?$query';
+
+      test('SHOULD drop every credential parameter', () {
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse(credentialedUrl()),
         );
 
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
-
         expect(result, isNotNull);
-        expect(result?.accessToken, 'token123');
-        expect(result?.refreshToken, 'refresh123');
-        expect(result?.idToken, 'id123');
-        expect(result?.expiresIn, 3600);
-        expect(result?.username, 'user');
-        expect(result?.registrationUrl, 'https://sign-up.numberinbox.com');
-        expect(result?.jmapUrl, 'https://jmap.numberinbox.com');
-        expect(result?.isValidAuthentication(), isTrue);
-      });
-
-      test('SHOULD returns OpenAppDeepLinkData with missing optional parameters', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&username=user@example.com'
-              '&registrationUrl=https://sign-up.numberinbox.com'
-              '&jmapUrl=https://jmap.numberinbox.com',
-        );
-
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
-
-        expect(result, isNotNull);
-        expect(result?.accessToken, 'token123');
+        expect(result?.credentialParametersRejected, isTrue);
+        expect(result?.accessToken, isEmpty);
         expect(result?.refreshToken, isNull);
         expect(result?.idToken, isNull);
         expect(result?.expiresIn, isNull);
-        expect(result?.username, 'user@example.com');
-        expect(result?.registrationUrl, 'https://sign-up.numberinbox.com');
-        expect(result?.jmapUrl, 'https://jmap.numberinbox.com');
-        expect(result?.isValidAuthentication(), isTrue);
+        expect(result?.username, isEmpty);
+        expect(result?.registrationUrl, isEmpty);
+        expect(result?.jmapUrl, isEmpty);
+        expect(result?.isValidAuthentication(), isFalse);
       });
 
-
-      test('SHOULD returns OpenAppDeepLinkData with invalid expires_in', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&expires_in=not_a_number'
-              '&registrationUrl=https://sign-up.numberinbox.com'
-              '&jmapUrl=https://jmap.numberinbox.com',
+      test('SHOULD refuse a link that carries only a username', () {
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse(credentialedUrl(query: 'username=dXNlcg==')),
         );
 
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
-
-        expect(result, isNotNull);
-        expect(result?.expiresIn, isNull);
+        expect(result?.credentialParametersRejected, isTrue);
+        expect(result?.username, isEmpty);
       });
 
-      test('SHOULD returns OpenAppDeepLinkData with origin username if Base64 decoding fails', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&username=invalid_base64'
-              '&registrationUrl=https://sign-up.numberinbox.com'
-              '&jmapUrl=https://jmap.numberinbox.com',
+      test('SHOULD refuse a link whose credential values are empty', () {
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse('twake://openApp?access_token=&jmapUrl='),
         );
 
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
-
-        expect(result, isNotNull);
-        expect(result?.username, 'invalid_base64');
+        expect(result?.credentialParametersRejected, isTrue);
+        expect(result?.isValidAuthentication(), isFalse);
       });
 
-      test('SHOULD returns OpenAppDeepLinkData with jmapUrl contains sub-path and port', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&refresh_token=refresh123'
-              '&id_token=id123'
-              '&expires_in=3600'
-              '&username=dXNlcg=='
-              '&registrationUrl=https://sign-up.numberinbox.com'
-              '&jmapUrl=https://jmap.numberinbox.com:1000/jmap',
+      test('SHOULD refuse a link whose credential value is malformed', () {
+        // A value that cannot be decoded must still be recognised as a
+        // credential attempt instead of being thrown out as unparsable.
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse('twake://openApp?access_token=%E0%A4%A'),
         );
 
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
-
         expect(result, isNotNull);
-        expect(result?.jmapUrl, 'https://jmap.numberinbox.com:1000/jmap');
+        expect(result?.credentialParametersRejected, isTrue);
+        expect(result?.accessToken, isEmpty);
       });
 
-      test('SHOULD returns OpenAppDeepLinkData with registrationUrl contains sub-path and port', () {
-        final uri = Uri.parse(
-          'twake://openApp?access_token=token123'
-              '&refresh_token=refresh123'
-              '&id_token=id123'
-              '&expires_in=3600'
-              '&username=dXNlcg=='
-              '&registrationUrl=https://sign-up.numberinbox.com:1000/register'
-              '&jmapUrl=https://jmap.numberinbox.com',
+      test('SHOULD refuse a credential parameter spelled in another case', () {
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse('twake://openApp?Access_Token=token123'),
         );
 
-        final result = deepLinkManager.parseOpenAppDeepLink(uri);
+        expect(result?.credentialParametersRejected, isTrue);
+      });
+
+      test('SHOULD keep a non-credential link bare', () {
+        final result = deepLinkManager.parseOpenAppDeepLink(
+          Uri.parse('twake://openApp?utm_source=banner'),
+        );
 
         expect(result, isNotNull);
-        expect(result?.registrationUrl, 'https://sign-up.numberinbox.com:1000/register');
+        expect(result?.credentialParametersRejected, isFalse);
+        expect(result?.isValidAuthentication(), isFalse);
+      });
+
+      test('SHOULD mark the cold-start parse of a credentialed link', () {
+        // parseDeepLink is the cold-start boundary the OS hands the URL to.
+        final result = deepLinkManager.parseDeepLink(credentialedUrl());
+
+        expect(result, isNotNull);
+        final openAppData = result! as OpenAppDeepLinkData;
+        expect(openAppData.credentialParametersRejected, isTrue);
+        expect(openAppData.accessToken, isEmpty);
       });
     });
   });
@@ -304,6 +285,28 @@ void main() {
 
       expect(interactor.calls, 1);
       expect(success?.baseUri, Uri.parse('https://jmap.numberinbox.com'));
+    });
+
+    test('SHOULD NOT call the interactor for a rejected credentialed link', () async {
+      // Second guard. The parser already empties these fields, so this test
+      // builds the hostile record by hand: a caller that constructs deep-link
+      // data some other way must still be refused here.
+      var failed = false;
+
+      await deepLinkManager.autoSignInViaDeepLink(
+        openAppDeepLinkData: OpenAppDeepLinkData(
+          registrationUrl: 'https://sign-up.numberinbox.com',
+          jmapUrl: 'https://jmap.numberinbox.com',
+          username: 'alice@example.com',
+          accessToken: 'token',
+          credentialParametersRejected: true,
+        ),
+        onAutoSignInSuccessCallback: (_) {},
+        onFailureCallback: () => failed = true,
+      );
+
+      expect(failed, isTrue);
+      expect(interactor.calls, 0);
     });
   });
 
@@ -422,6 +425,69 @@ void main() {
 
         expect(toast.errors, ['This sign-in link isn\'t from Twake. Please sign in from the app.']);
         expect(failed, isTrue);
+      },
+    );
+
+    testWidgets(
+      'SHOULD NOT switch accounts WHEN a credentialed link arrives while signed in',
+      (tester) async {
+        await pumpApp(tester);
+        var confirmed = false;
+        var failed = false;
+
+        deepLinkManager.handleOpenAppDeepLinks(
+          openAppDeepLinkData: deepLinkManager.parseDeepLink(
+            'numberinbox.mobile://openApp?access_token=TOKEN-MARKER'
+            '&username=YWxpY2VAZXhhbXBsZS5jb20='
+            '&registrationUrl=https://sign-up.numberinbox.com'
+            '&jmapUrl=https://jmap.numberinbox.com',
+          ) as OpenAppDeepLinkData,
+          username: UserName('bob@example.com'),
+          isSignedIn: true,
+          onConfirmLogoutCallback: (_) => confirmed = true,
+          onFailureCallback: () => failed = true,
+        );
+        await tester.pumpAndSettle();
+
+        expect(
+          confirmed,
+          isFalse,
+          reason: 'a link must never be able to log the user out of one '
+              'account and into another',
+        );
+        expect(failed, isTrue);
+        expect(
+          find.byWidgetPredicate((widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains('alice@example.com')),
+          findsNothing,
+          reason: 'the switch-account dialog must not name the link account',
+        );
+      },
+    );
+
+    testWidgets(
+      'SHOULD NOT auto sign in WHEN a credentialed link arrives while signed out',
+      (tester) async {
+        final toast = Get.put<AppToast>(_RecordingAppToast()) as _RecordingAppToast;
+        await pumpApp(tester);
+        var failed = false;
+
+        deepLinkManager.handleOpenAppDeepLinks(
+          openAppDeepLinkData: deepLinkManager.parseDeepLink(
+            'numberinbox.mobile://openApp?access_token=TOKEN-MARKER'
+            '&username=YWxpY2VAZXhhbXBsZS5jb20='
+            '&registrationUrl=https://sign-up.numberinbox.com'
+            '&jmapUrl=https://jmap.numberinbox.com',
+          ) as OpenAppDeepLinkData,
+          isSignedIn: false,
+          onFailureCallback: () => failed = true,
+        );
+        await tester.pumpAndSettle();
+
+        expect(failed, isTrue);
+        expect(toast.errors, isNotEmpty,
+            reason: 'a link that tries to sign in must not pass silently');
       },
     );
 

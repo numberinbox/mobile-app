@@ -37,6 +37,7 @@ import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
+import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/twake_welcome_controller.dart';
 import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/exceptions/remote/network_exception.dart';
@@ -73,7 +74,10 @@ class MockCredentialRepository extends Mock implements CredentialRepository {}
 class ControllableGetSessionInteractor extends GetSessionInteractor {
   ControllableGetSessionInteractor() : super(MockSessionRepository());
 
-  final _controller = StreamController<Either<Failure, Success>>();
+  // Broadcast so close() completes even when nothing ever listened: a
+  // single-subscription controller only finishes closing once it is drained,
+  // which hangs the tests where the session fetch is never reached.
+  final _controller = StreamController<Either<Failure, Success>>.broadcast();
   int executeCalls = 0;
 
   @override
@@ -100,6 +104,9 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
   Object? startOtpError;
   OtpSession? session;
 
+  /// Overrides the JMAP URL inside the default session, for the origin checks.
+  String? sessionUrl;
+
   @override
   Future<void> startOtp(String rawE164) async {
     final error = startOtpError;
@@ -111,11 +118,20 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
     verifyCalls++;
     final error = verifyError;
     if (error != null) throw error;
+    final url = sessionUrl;
+    if (url != null) {
+      return OtpSession(
+        accessToken: 'jwt',
+        username: '+66812345678@numberinbox.test',
+        sessionUrl: url,
+        credential: 'app_secret',
+      );
+    }
     return session ??
         const OtpSession(
           accessToken: 'jwt',
           username: '+66812345678@numberinbox.test',
-          sessionUrl: 'https://localhost/.well-known/jmap',
+          sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
           credential: 'app_secret',
         );
   }
@@ -747,7 +763,7 @@ void main() {
         ..session = const OtpSession(
           accessToken: 'jwt',
           username: accountId,
-          sessionUrl: 'https://localhost/.well-known/jmap',
+          sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
           credential: 'app_secret',
         );
 
@@ -829,6 +845,232 @@ void main() {
     });
   });
 
+  group('OTP session origin', () {
+    // The OTP response chooses where the Basic-auth credentials go. A response
+    // naming any other origin must be refused before the interceptors are
+    // pointed at it, before anything is persisted, and before a session fetch
+    // is attempted.
+    Future<TwakeWelcomeController> arrangeOnCodeScreen({
+      required ScriptedAuthClient auth,
+      required ControllableGetSessionInteractor session,
+    }) async {
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+      return ctrl;
+    }
+
+    test('a trusted origin installs credentials and fetches the session',
+        () async {
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final auth = ScriptedAuthClient()
+        ..sessionUrl = 'https://jmap.numberinbox.com/.well-known/jmap';
+      final ctrl = await arrangeOnCodeScreen(auth: auth, session: session);
+
+      await ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(session.executeCalls, 1);
+      final credentials =
+          Get.find<CredentialRepository>() as FakeCredentialRepository;
+      expect(credentials.savedBaseUrl?.host, 'jmap.numberinbox.com');
+      ctrl.dispose();
+    });
+
+    test('an untrusted origin is refused before any credential is used',
+        () async {
+      const attackerHost = 'attacker-jmap.example';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final auth = ScriptedAuthClient()
+        ..sessionUrl = 'https://$attackerHost/.well-known/jmap';
+      final ctrl = await arrangeOnCodeScreen(auth: auth, session: session);
+
+      await ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      final credentials =
+          Get.find<CredentialRepository>() as FakeCredentialRepository;
+      final accounts = Get.find<AccountRepository>() as FakeAccountRepository;
+      final interceptors = Get.find<DynamicUrlInterceptors>() as MockDynamicUrlInterceptors;
+
+      expect(
+        session.executeCalls,
+        0,
+        reason: 'no session fetch may be attempted against an untrusted host',
+      );
+      expect(credentials.savedBaseUrl, isNull);
+      expect(credentials.storedAuth, isNull);
+      expect(accounts.savedAccount, isNull);
+      verifyNever(interceptors.changeBaseUrl(any));
+      verifyNever(interceptors.setJmapUrl(any));
+      expect(ctrl.verifying, isFalse, reason: 'the user must be able to retry');
+      ctrl.dispose();
+    });
+
+    test('an untrusted origin shows a generic, retryable error', () async {
+      const secret = 'UNTRUSTED-URL-MARKER-555';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final auth = ScriptedAuthClient()
+        ..sessionUrl = 'https://$secret.example/.well-known/jmap';
+      final ctrl = await arrangeOnCodeScreen(auth: auth, session: session);
+
+      await ctrl.verifyCode();
+      final error = ctrl.error;
+      ctrl.dispose();
+
+      expect(error, isNotNull);
+      expect(
+        error,
+        isNot(contains(secret)),
+        reason: 'the rejected host must not reach the user',
+      );
+      expect(error, isNot(contains('UntrustedJmapSessionUrl')));
+    });
+
+    test('the rejected origin is logged as a category, not as a URL', () async {
+      const secret = 'LOGGED-URL-MARKER-666';
+      final logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+      addTearDown(AppLoggerRegistry.instance.resetForTesting);
+
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final auth = ScriptedAuthClient()
+        ..sessionUrl = 'https://$secret.example/.well-known/jmap';
+      final ctrl = await arrangeOnCodeScreen(auth: auth, session: session);
+
+      await ctrl.verifyCode();
+      ctrl.dispose();
+
+      expect(
+        logs.everything,
+        isNot(contains(secret)),
+        reason: 'the rejected URL must never reach a log sink',
+      );
+      expect(
+        logs.everything,
+        contains('otp_session_origin_rejected'),
+        reason: 'the rejection must still be diagnosable',
+      );
+    });
+
+    test('an injected development origin is honoured for its own host', () {
+      // Local development runs against plain http on a custom port, which the
+      // production origin check would otherwise reject.
+      final manager = JmapSessionManager(baseUrl: 'http://localhost:8080');
+      expect(
+        manager
+            .baseUrlFromSession(const OtpSession(
+              accessToken: 'jwt',
+              username: '+66812345678@numberinbox.test',
+              sessionUrl: 'http://localhost:8080/.well-known/jmap',
+              credential: 'secret',
+            ))
+            .toString(),
+        'http://localhost:8080',
+      );
+    });
+  });
+
+  group('OTP credential persistence', () {
+    // Credentials that are not on disk do not survive a restart, so a
+    // persistence failure must not report success: no session fetch, no
+    // navigation, and a retry the user can actually make.
+    Future<TwakeWelcomeController> arrangeOnCodeScreen({
+      required ScriptedAuthClient auth,
+      required ControllableGetSessionInteractor session,
+    }) async {
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+      return ctrl;
+    }
+
+    test('a credential write failure does not report success', () async {
+      const secret = 'WRITE-FAILURE-MARKER-888';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      Get.replace<CredentialRepository>(ThrowingCredentialRepository(secret));
+      final ctrl = await arrangeOnCodeScreen(
+        auth: ScriptedAuthClient(),
+        session: session,
+      );
+
+      await ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(
+        session.executeCalls,
+        0,
+        reason: 'a session fetch would run against credentials that were '
+            'never stored, and the app would look signed in until restart',
+      );
+      expect(ctrl.error, isNotNull);
+      expect(
+        ctrl.error,
+        isNot(contains(secret)),
+        reason: 'the persistence failure text must not reach the user',
+      );
+      expect(
+        ctrl.verifying,
+        isFalse,
+        reason: 'the user must get a usable Verify button back',
+      );
+      ctrl.dispose();
+    });
+
+    test('an account write failure does not report success', () async {
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      Get.replace<AccountRepository>(
+        ThrowingAccountRepository('ACCOUNT-WRITE-MARKER-999'),
+      );
+      final ctrl = await arrangeOnCodeScreen(
+        auth: ScriptedAuthClient(),
+        session: session,
+      );
+
+      await ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(session.executeCalls, 0);
+      expect(ctrl.error, isNotNull);
+      expect(ctrl.verifying, isFalse);
+      ctrl.dispose();
+    });
+
+    test('a retry after a write failure succeeds', () async {
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final brokenCredentials = ThrowingCredentialRepository('FIRST-ATTEMPT');
+      Get.replace<CredentialRepository>(brokenCredentials);
+      final ctrl = await arrangeOnCodeScreen(
+        auth: ScriptedAuthClient(),
+        session: session,
+      );
+
+      await ctrl.verifyCode();
+      expect(ctrl.error, isNotNull);
+
+      // The storage layer recovers (a transient failure, a full disk that was
+      // cleared); the same code must sign in normally.
+      Get.replace<CredentialRepository>(FakeCredentialRepository());
+      await ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+
+      expect(session.executeCalls, 1);
+      expect(ctrl.error, isNull);
+      ctrl.dispose();
+    });
+  });
+
   group('dispose', () {
     test('disposes controllers', () {
       final ctrl = TwakeWelcomeController(authClient: client);
@@ -843,7 +1085,54 @@ void main() {
       controller.handleFailureViewState(
         GetSessionFailure(Exception('bad credentials')),
       );
-      expect(controller.error, contains('GetSessionFailure'));
+      expect(controller.error, isNotNull);
+    });
+
+    test('GetSessionFailure error copy carries no failure detail', () {
+      // The user-visible string is the only thing a screenshot or a support
+      // reply can leak, so it must not name the internal failure type either.
+      const secret = 'BAD-CREDENTIALS-MARKER-777';
+      controller.handleFailureViewState(
+        GetSessionFailure(Exception(secret)),
+      );
+
+      final error = controller.error;
+      expect(error, isNotNull);
+      expect(error, isNot(contains(secret)));
+      expect(
+        error,
+        isNot(contains('GetSessionFailure')),
+        reason: 'the failure type is a diagnostic detail, not user copy',
+      );
+    });
+
+    test('GetSessionFailure is logged without the failure payload', () {
+      // GetSessionFailure wraps whatever the session request threw, which can
+      // be a 401 body, a Basic-auth header, or a URL with credentials in it.
+      const secret = 'BASIC-AUTH-LEAK-MARKER-321';
+      final logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+      addTearDown(AppLoggerRegistry.instance.resetForTesting);
+
+      controller.handleFailureViewState(
+        GetSessionFailure(Exception(secret)),
+      );
+
+      expect(
+        logs.everything,
+        isNot(contains(secret)),
+        reason: 'the session failure payload must never reach a log sink',
+      );
+      expect(
+        logs.records.where((r) => r.level == Level.error),
+        isNotEmpty,
+        reason: 'the failure must still be reported, as a fixed event name',
+      );
+      expect(
+        logs.everything,
+        contains('GetSessionFailure'),
+        reason: 'the safe category is what makes the record diagnosable',
+      );
     });
 
     test('UpdateAccountCacheFailure delegates to super (no error set)', () {
@@ -872,7 +1161,7 @@ void main() {
       adapter.onPost('/v1/otp/verify', (server) => server.reply(200, {
         'accessToken': 'jwt',
         'jmap': {
-          'sessionUrl': 'https://localhost/.well-known/jmap',
+          'sessionUrl': 'https://jmap.numberinbox.com/.well-known/jmap',
           'username': '+66812345678@numberinbox.test',
           'credential': 'app_aaaasecret',
         }
@@ -885,7 +1174,7 @@ void main() {
       await controller.verifyCode();
 
       expect(fakeCredentialRepo.savedBaseUrl, isNotNull);
-      expect(fakeCredentialRepo.savedBaseUrl!.host, 'localhost');
+      expect(fakeCredentialRepo.savedBaseUrl!.host, 'jmap.numberinbox.com');
       expect(fakeCredentialRepo.storedAuth, isNotNull);
       expect(fakeCredentialRepo.storedAuth!.username, '+66812345678@numberinbox.test');
       expect(fakeCredentialRepo.storedAuth!.password, 'app_aaaasecret');

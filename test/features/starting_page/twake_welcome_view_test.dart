@@ -21,7 +21,10 @@ import 'package:jmap_dart_client/jmap/push/state_change.dart';
 import 'package:tmail_ui_user/features/home/domain/repository/session_repository.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
+import 'package:tmail_ui_user/features/login/data/model/authentication_info_cache.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/account_repository.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_authority_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_credential_interactor.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
@@ -37,6 +40,7 @@ import 'package:tmail_ui_user/main/bindings/network/binding_tag.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
+import 'package:model/account/personal_account.dart';
 
 class _MockCachingManager extends Mock implements CachingManager {}
 class _MockLanguageCacheManager extends Mock implements LanguageCacheManager {}
@@ -72,6 +76,44 @@ class _MockResponsiveUtils extends Mock implements ResponsiveUtils {}
 class _MockUuid extends Mock implements Uuid {}
 class _MockTwakeAppManager extends Mock implements TwakeAppManager {}
 
+/// Stands in for the encrypted credential store. Sign-in only reaches the
+/// session fetch when these writes succeed, so the OTP flow needs real ones
+/// rather than a Mockito stub.
+class _FakeCredentialRepository implements CredentialRepository {
+  Uri? savedBaseUrl;
+
+  @override
+  Future saveBaseUrl(Uri baseUrl) async => savedBaseUrl = baseUrl;
+
+  @override
+  Future<void> removeBaseUrl() async => savedBaseUrl = null;
+
+  @override
+  Future<Uri> getBaseUrl() async => Uri.parse('https://jmap.numberinbox.com');
+
+  @override
+  Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async {}
+
+  @override
+  Future<AuthenticationInfoCache> getAuthenticationInfoStored() async =>
+      AuthenticationInfoCache('', '');
+
+  @override
+  Future<void> removeAuthenticationInfo() async {}
+}
+
+class _FakeAccountRepository implements AccountRepository {
+  @override
+  Future<PersonalAccount> getCurrentAccount() async =>
+      throw Exception('no account');
+
+  @override
+  Future<void> setCurrentAccount(PersonalAccount account) async {}
+
+  @override
+  Future<void> deleteCurrentAccount(String hashId) async {}
+}
+
 void main() {
   late Dio dio;
   late DioAdapter adapter;
@@ -98,6 +140,8 @@ void main() {
     Get.put<DynamicUrlInterceptors>(_MockDynamicUrlInterceptors());
     Get.put<AuthorizationInterceptors>(_MockAuthorizationInterceptors());
     Get.put<AuthorizationInterceptors>(_MockAuthorizationInterceptors(), tag: BindingTag.isolateTag);
+    Get.put<CredentialRepository>(_FakeCredentialRepository());
+    Get.put<AccountRepository>(_FakeAccountRepository());
   }
 
   Future<void> pumpScreen(WidgetTester tester, {ThemeData? theme}) async {
@@ -305,7 +349,7 @@ void main() {
       adapter.onPost('/v1/otp/verify', (server) => server.reply(200, {
         'accessToken': 'jwt',
         'jmap': {
-          'sessionUrl': 'https://localhost/.well-known/jmap',
+          'sessionUrl': 'https://jmap.numberinbox.com/.well-known/jmap',
           'username': '+66812345678@numberinbox.test',
           'credential': 'app_secret',
         }

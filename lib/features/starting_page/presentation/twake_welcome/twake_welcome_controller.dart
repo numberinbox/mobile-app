@@ -24,10 +24,13 @@ import 'package:tmail_ui_user/main/routes/route_utils.dart';
 enum OtpPhase { phone, code }
 
 class TwakeWelcomeController extends ReloadableController {
-  TwakeWelcomeController({required this.authClient});
+  TwakeWelcomeController({
+    required this.authClient,
+    JmapSessionManager? sessionManager,
+  }) : _sessionManager = sessionManager ?? JmapSessionManager();
 
   final NumberInboxAuthClient authClient;
-  final _sessionManager = JmapSessionManager();
+  final JmapSessionManager _sessionManager;
 
   final phoneController = TextEditingController();
   final codeController = TextEditingController();
@@ -153,7 +156,23 @@ class TwakeWelcomeController extends ReloadableController {
     // must not be written to logs.
     log('TwakeWelcomeController::_onOtpVerified: session accepted');
 
-    final baseUrl = _sessionManager.baseUrlFromSession(otpSession);
+    // The base URL is resolved first, on purpose: it decides where the
+    // username and credential from this same response are sent, so an origin
+    // the client was not configured for has to fail before the interceptors
+    // are pointed at it and before anything is written to storage.
+    final Uri baseUrl;
+    try {
+      baseUrl = _sessionManager.baseUrlFromSession(otpSession);
+    } on UntrustedJmapSessionUrlException catch (error) {
+      // Category only: the rejected URL and the credential stay out of the
+      // record. Re-thrown so verifyCode reports one generic, retryable error.
+      logError(
+        'TwakeWelcomeController::_onOtpVerified: '
+        'event=otp_session_origin_rejected | category=${error.reason}',
+      );
+      rethrow;
+    }
+
     final decoded = _sessionManager.decodeBasicAuth(otpSession);
 
     setDataToInterceptors(
@@ -162,17 +181,28 @@ class TwakeWelcomeController extends ReloadableController {
       password: Password(decoded['password']!),
     );
 
-    await _persistCredentials(
+    if (!await _persistCredentials(
       baseUrl: baseUrl,
       username: decoded['username']!,
       password: decoded['password']!,
-    );
+    )) {
+      // Credentials that never reached storage do not survive a restart, so
+      // the session fetch is not started and sign-in is reported as failed.
+      _error = 'Could not save your sign-in. Please try again.';
+      update();
+      return false;
+    }
 
     getSessionAction();
     return true;
   }
 
-  Future<void> _persistCredentials({
+  /// Stores the OTP-issued credentials.
+  ///
+  /// Returns whether they are on disk. A failure is reported as `false` rather
+  /// than thrown, so the caller can keep the user on the login screen: the
+  /// session in memory would look valid until the process restarts.
+  Future<bool> _persistCredentials({
     required Uri baseUrl,
     required String username,
     required String password,
@@ -192,6 +222,7 @@ class TwakeWelcomeController extends ReloadableController {
           isSelected: true,
         ),
       );
+      return true;
     } catch (e) {
       // Category only. Passing `e` as the log exception would fold its text
       // into the record, and persistence failures can carry credential data.
@@ -199,6 +230,7 @@ class TwakeWelcomeController extends ReloadableController {
         'TwakeWelcomeController::_persistCredentials: failed '
         '(category=${e.runtimeType})',
       );
+      return false;
     }
   }
 
@@ -225,9 +257,18 @@ class TwakeWelcomeController extends ReloadableController {
 
   @override
   void handleFailureViewState(Failure failure) {
-    logError('TwakeWelcomeController::handleFailureViewState: ${failure.runtimeType} — $failure');
+    // Fixed event name plus the failure *type*, never the failure itself.
+    // `GetSessionFailure` wraps whatever the JMAP session request threw, which
+    // can be a response body, an Authorization header or a URL carrying
+    // credentials; interpolating it folds all of that into the log record and
+    // on into Sentry.
+    logError(
+      'TwakeWelcomeController::handleFailureViewState: '
+      'event=sign_in_failed | category=${failure.runtimeType}',
+    );
     if (failure is GetSessionFailure) {
-      _error = 'Failed to sign in: ${failure.runtimeType}';
+      // Generic and retryable: the user has to be able to try the code again.
+      _error = 'Failed to sign in. Please try again.';
       update();
     } else {
       super.handleFailureViewState(failure);

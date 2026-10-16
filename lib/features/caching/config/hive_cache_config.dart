@@ -107,7 +107,9 @@ class HiveCacheConfig {
     if (encryptionKeyCache == null) {
       final secureKey = Hive.generateSecureKey();
       final secureKeyEncode = base64Encode(secureKey);
-      log('HiveCacheConfig::_initializeEncryptionKey(): secureKeyEncode: $secureKeyEncode');
+      // Never the key itself: this line runs before any box is opened, so it
+      // lands in logcat/Sentry on every cold start of every install.
+      log('HiveCacheConfig::_initializeEncryptionKey(): generated new encryption key');
       await encryptionKeyCacheManager.storeEncryptionKey(EncryptionKeyCache(secureKeyEncode));
     }
   }
