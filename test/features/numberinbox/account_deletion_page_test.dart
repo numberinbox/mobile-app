@@ -31,6 +31,31 @@ class _Credentials implements CredentialRepository {
   Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async {}
 }
 
+/// Holds the credential read open, so the page can be observed while it is
+/// still restoring.
+class _PendingCredentials implements CredentialRepository {
+  final Completer<AuthenticationInfoCache> _gate =
+      Completer<AuthenticationInfoCache>();
+
+  void complete() => _gate.complete(
+        AuthenticationInfoCache('+66812345678@numberinbox.test', 'secret'),
+      );
+
+  @override
+  Future<AuthenticationInfoCache> getAuthenticationInfoStored() => _gate.future;
+
+  @override
+  Future<Uri> getBaseUrl() async => Uri.parse('https://jmap.numberinbox.test');
+  @override
+  Future removeBaseUrl() async {}
+  @override
+  Future<void> removeAuthenticationInfo() async {}
+  @override
+  Future saveBaseUrl(Uri baseUrl) async {}
+  @override
+  Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async {}
+}
+
 class _DeletionClient extends AccountDeletionClient {
   _DeletionClient() : super(Dio());
   int calls = 0;
@@ -311,13 +336,44 @@ void main() {
       expect(client.statusCalls, 1);
     });
 
-    testWidgets('keeps the button disabled but spinner-free while restoring',
+    // pumpAndSettle would only ever show the finished page, so restoration is
+    // held open: the state under test is the one before it completes.
+    testWidgets('is disabled and spinner-free while restoration is pending',
         (tester) async {
-      // Restoring a pending request is page work, not an action: a spinner on
-      // the CTA would claim a deletion is being sent.
-      await pumpDeletionPage(tester);
+      final credentials = _PendingCredentials();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeUtils.buildAppTheme(),
+          home: AccountDeletionPage(
+            client: _DeletionClient(),
+            credentialRepository: credentials,
+          ),
+        ),
+      );
+      await tester.pump();
 
-      expect(find.text('Deleting your mailbox and account data…'), findsNothing);
+      expect(
+        tester.widget<FilledButton>(find.byKey(_key)).onPressed,
+        isNull,
+        reason: 'nothing may be submittable until the page knows whose mailbox '
+            'it is deleting',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(_key),
+          matching: find.byType(CircularProgressIndicator),
+        ),
+        findsNothing,
+        reason: 'restoring a pending request is page work; a spinner on the '
+            'CTA would claim a deletion is being sent',
+      );
+
+      // Finishing restoration enables the button, still without a spinner.
+      credentials.complete();
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(_key), findsOneWidget);
+      expect(tester.widget<FilledButton>(find.byKey(_key)).onPressed, isNotNull);
       expect(
         find.descendant(
           of: find.byKey(_key),
@@ -325,6 +381,7 @@ void main() {
         ),
         findsNothing,
       );
+      expect(find.text('Deleting your mailbox and account data…'), findsNothing);
     });
   });
 
