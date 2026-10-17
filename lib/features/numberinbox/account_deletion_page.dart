@@ -11,6 +11,7 @@ import 'package:tmail_ui_user/features/manage_account/presentation/manage_accoun
 import 'package:tmail_ui_user/features/numberinbox/account_deletion_client.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/e164.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
+import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/branded_action_button.dart';
 import 'package:tmail_ui_user/main/routes/app_routes.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
@@ -47,6 +48,10 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
   String? _statusToken;
   String? _error;
   bool _loading = true;
+
+  /// True only while a confirmed deletion request is being sent, so the CTA
+  /// spinner means "this is happening" rather than "the page is loading".
+  bool _submitting = false;
   bool _pending = false;
   bool _completed = false;
 
@@ -121,6 +126,11 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
               child: const Text('Cancel'),
             ),
             TextButton(
+              // Red is reserved for this one action: it is the only
+              // irreversible thing in the flow.
+              style: TextButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
               onPressed: () => Navigator.pop(context, true),
               child: const Text('Delete permanently'),
             ),
@@ -130,6 +140,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
       if (approved != true || !mounted) return;
       setState(() {
         _loading = true;
+        _submitting = true;
         _error = null;
       });
       final key = await _storage.read(key: _idempotencyKey) ?? const Uuid().v4();
@@ -164,7 +175,12 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
     } catch (_) {
       if (mounted) setState(() => _error = 'Could not start deletion. Please try again.');
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _submitting = false;
+        });
+      }
     }
   }
 
@@ -273,10 +289,14 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
                 ),
               ]),
               const SizedBox(height: 20),
-              FilledButton(
-                key: const Key('deletion_submit'),
-                onPressed: _loading ? null : _submit,
-                child: const Text('Delete account'),
+              BrandedActionButton(
+                buttonKey: const Key('deletion_submit'),
+                label: 'Continue',
+                // Disabled while the page restores, spinner only while a
+                // confirmed request is on its way.
+                isEnabled: !_loading,
+                isLoading: _submitting,
+                onPressed: _submit,
               ),
             ] else ...[
               const Text('Deleting your mailbox and account data…'),
