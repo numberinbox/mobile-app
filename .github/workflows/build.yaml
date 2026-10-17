@@ -8,6 +8,11 @@ name: Build dev binaries
 env:
   FLUTTER_VERSION: 3.38.9
   XCODE_VERSION: 26.2
+  # The dev APK is built with --dart-define=SERVER_URL=... by the Fastlane lane
+  # (android/fastlane/Fastfile), and scripts/build-dev.sh runs under `set -u`.
+  # Without this the Android leg died on an unset variable before it built.
+  # A dev binary should point at a real server, not localhost.
+  SERVER_URL: https://jmap.numberinbox.com
 
 jobs:
   build-app:

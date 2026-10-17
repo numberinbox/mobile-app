@@ -3,8 +3,31 @@
 set -e
 echo "Prebuild started..."
 
-# Single pub get resolves the entire workspace (Dart pub workspaces)
-flutter pub get > /dev/null
+# Single pub get resolves the entire workspace (Dart pub workspaces).
+#
+# Retried: the workspace has git-hosted dependencies, so a transient DNS or
+# TLS failure on the runner surfaces as pub's EX_UNAVAILABLE (exit 69) and
+# fails the whole job. Three attempts with a short backoff turn a five-minute
+# outage into a passing run, and a genuinely broken dependency still fails.
+retry() {
+  local attempts=3 delay=5 attempt=1
+  while true; do
+    if "$@"; then
+      return 0
+    fi
+    if (( attempt >= attempts )); then
+      printf 'prebuild: gave up after %d attempts: %s\n' "$attempts" "$*" >&2
+      return 1
+    fi
+    printf 'prebuild: attempt %d/%d failed (%s), retrying in %ss\n' \
+      "$attempt" "$attempts" "$*" "$delay" >&2
+    sleep "$delay"
+    attempt=$(( attempt + 1 ))
+    delay=$(( delay * 2 ))
+  done
+}
+
+retry flutter pub get > /dev/null
 echo "[workspace] pub get done."
 
 # Pinned browser libs for web/index.html (web/js/vendor, gitignored)

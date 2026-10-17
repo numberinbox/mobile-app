@@ -20,6 +20,10 @@ name: Analyze and test
 
 env:
   FLUTTER_VERSION: 3.38.9
+  # The runner occasionally aborts the ~1.4 GB SDK download mid-stream
+  # (curl 92, HTTP/2 INTERNAL_ERROR), which used to kill whole matrix jobs
+  # before a single test ran. Three attempts turn that into a slow pass.
+  FLUTTER_INSTALL_ATTEMPTS: "3"
 
 jobs:
   discover-tests:
@@ -55,6 +59,7 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Setup flutter
+        id: flutter_setup
         uses: subosito/flutter-action@v2
         with:
           flutter-version: ${{ env.FLUTTER_VERSION }}
@@ -62,6 +67,36 @@ jobs:
           cache: true
           cache-key: "deps-${{ hashFiles('pubspec.lock') }}"
           cache-path: ${{ runner.tool_cache }}/flutter # optional, change this to specify the cache path
+        # Allowed to fail without failing the job: the step below installs the
+        # same SDK itself when this one is unlucky with the network.
+        continue-on-error: true
+
+      # subosito/flutter-action downloads the SDK with a single curl and no
+      # retry, so one dropped HTTP/2 stream failed whole matrix jobs before a
+      # test could run. If it fails, install the same SDK ourselves into the
+      # same tool-cache path, so the next run still hits the cache.
+      - name: Install the Flutter SDK directly if the action failed
+        if: steps.flutter_setup.outcome == 'failure'
+        run: |
+          set -euo pipefail
+          url="https://storage.googleapis.com/flutter_infra_release/releases/stable/linux/flutter_linux_${FLUTTER_VERSION}-stable.tar.xz"
+          target="${RUNNER_TOOL_CACHE}/flutter"
+          for attempt in $(seq 1 "$FLUTTER_INSTALL_ATTEMPTS"); do
+            echo "direct flutter install: attempt $attempt of $FLUTTER_INSTALL_ATTEMPTS"
+            rm -rf "$target" "$target.lock"
+            if curl -fsSL --retry 3 --retry-delay 10 --retry-all-errors \
+                 -o /tmp/flutter_sdk.tar.xz "$url"; then
+              mkdir -p "$RUNNER_TOOL_CACHE"
+              tar -xf /tmp/flutter_sdk.tar.xz -C "$RUNNER_TOOL_CACHE"
+              rm -f /tmp/flutter_sdk.tar.xz
+              echo "$target/bin" >> "$GITHUB_PATH"
+              "$target/bin/flutter" --version
+              exit 0
+            fi
+            sleep $(( attempt * 15 ))
+          done
+          echo "could not install the Flutter SDK after $FLUTTER_INSTALL_ATTEMPTS attempts" >&2
+          exit 1
 
       - name: Setup Firebase env
         env:

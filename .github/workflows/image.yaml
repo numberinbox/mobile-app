@@ -5,6 +5,13 @@ on:
 
 name: Build Docker images
 
+# ghcr.io only: the built-in GITHUB_TOKEN is enough to push a package, so the
+# fork needs no long-lived registry credential. A Docker Hub namespace would
+# add two secrets and a second copy of every layer for no gain here.
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build-dev-image:
     name: Build development image
@@ -21,16 +28,9 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository_owner }}/tmail-web
             ghcr.io/${{ github.repository_owner }}/tmail-web
           tags: |
             type=ref,event=branch
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -66,17 +66,10 @@ jobs:
         uses: docker/metadata-action@v5
         with:
           images: |
-            ${{ github.repository_owner }}/tmail-web
             ghcr.io/${{ github.repository_owner }}/tmail-web
           tags: |
             type=ref,event=tag
             type=raw,value=release
-
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
