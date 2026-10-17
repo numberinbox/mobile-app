@@ -1,7 +1,9 @@
+# Nightly removed: this job builds on a macos-15 runner (billed at 10x a Linux
+# minute), and inherited from upstream it ran every night whether or not
+# anything changed. That unfiltered schedule is what got GitHub to disable
+# Actions on this fork. Run it on demand instead.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 11 * * *"
 
 name: Build dev binaries
 

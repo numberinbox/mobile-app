@@ -1,9 +1,11 @@
 name: Integration tests
 
+# Nightly removed: it spins an Android emulator every night, has no backend it
+# can reach (the script needs `bore`, which is not installed, and GCP
+# credentials that only ever existed on upstream's Jenkins), so it burned
+# minutes to fail. Run it on demand once it points at a backend it can use.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 0 * * *"
 
 env:
   JAVA_VERSION: 17

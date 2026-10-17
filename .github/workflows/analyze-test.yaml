@@ -1,4 +1,6 @@
 on:
+  # Manual trigger: verify the gate on demand, without needing a push.
+  workflow_dispatch:
   pull_request:
     paths-ignore: &docs_only
       - ".github/**"
