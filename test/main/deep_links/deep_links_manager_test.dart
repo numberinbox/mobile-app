@@ -274,17 +274,43 @@ void main() {
       expect(interactor.calls, 0);
     });
 
-    test('SHOULD call the interactor once WHEN the JMAP URL is https', () async {
-      AutoSignInViaDeepLinkSuccess? success;
+    // Phone OTP is the only public sign-in method. A record that carries
+    // credentials is refused here whatever built it and however valid its URLs
+    // look, so no token reaches the interactor or credential storage. This
+    // replaces the old "https means success" expectation.
+    test('SHOULD NOT call the interactor for ANY credentialed record', () async {
+      var failed = false;
 
       await deepLinkManager.autoSignInViaDeepLink(
         openAppDeepLinkData: link(),
-        onAutoSignInSuccessCallback: (state) => success = state,
-        onFailureCallback: () => fail('should not fail'),
+        onAutoSignInSuccessCallback: (_) => fail('must not sign in'),
+        onFailureCallback: () => failed = true,
       );
 
-      expect(interactor.calls, 1);
-      expect(success?.baseUri, Uri.parse('https://jmap.numberinbox.com'));
+      expect(
+        failed,
+        isTrue,
+        reason: 'credential-based deep-link sign-in is unsupported',
+      );
+      expect(interactor.calls, 0);
+    });
+
+    test('SHOULD NOT call the interactor for a bare link', () async {
+      var failed = false;
+
+      await deepLinkManager.autoSignInViaDeepLink(
+        openAppDeepLinkData: OpenAppDeepLinkData(
+          registrationUrl: '',
+          jmapUrl: '',
+          username: '',
+          accessToken: '',
+        ),
+        onAutoSignInSuccessCallback: (_) => fail('must not sign in'),
+        onFailureCallback: () => failed = true,
+      );
+
+      expect(failed, isTrue);
+      expect(interactor.calls, 0);
     });
 
     test('SHOULD NOT call the interactor for a rejected credentialed link', () async {
@@ -333,53 +359,33 @@ void main() {
     }
 
     testWidgets(
-      'SHOULD show the collapsed link username and the JMAP host '
-      'in the switch account dialog WHEN signed in with another account',
+      'SHOULD NOT open a switch account dialog for a credentialed link',
       (tester) async {
+        // The dialog used to summarise the link account and its JMAP host so
+        // the user could confirm a switch. Credential-based sign-in is closed,
+        // so the dialog is gone with it: the link is refused and nothing about
+        // it — including a hostile username — is rendered.
         await pumpApp(tester);
+        var failed = false;
 
         deepLinkManager.handleOpenAppDeepLinks(
           openAppDeepLinkData: OpenAppDeepLinkData(
             registrationUrl: 'https://sign-up.numberinbox.com',
             jmapUrl: 'https://jmap.numberinbox.com/jmap',
-            username: 'alice\n\n\n@example.com',
+            username: 'alice\n\n\n@example.com\u202E',
             accessToken: 'token',
           ),
           username: UserName('bob@example.com'),
+          onFailureCallback: () => failed = true,
         );
         await tester.pumpAndSettle();
 
+        expect(failed, isTrue);
         expect(
           find.byWidgetPredicate((widget) =>
             widget is RichText &&
-            widget.text.toPlainText().contains(' alice @example.com (jmap.numberinbox.com)?')),
-          findsOneWidget,
-        );
-      },
-    );
-
-    testWidgets(
-      'SHOULD strip bidi overrides from the link username '
-      'so the JMAP host cannot be faked in the switch account dialog',
-      (tester) async {
-        await pumpApp(tester);
-
-        deepLinkManager.handleOpenAppDeepLinks(
-          openAppDeepLinkData: OpenAppDeepLinkData(
-            registrationUrl: 'https://sign-up.numberinbox.com',
-            jmapUrl: 'https://jmap.numberinbox.com/jmap',
-            username: 'alice@twake.app (sign-up.numberinbox.com)\u202E',
-            accessToken: 'token',
-          ),
-          username: UserName('bob@example.com'),
-        );
-        await tester.pumpAndSettle();
-
-        expect(
-          find.byWidgetPredicate((widget) =>
-            widget is RichText &&
-            widget.text.toPlainText().contains(' alice@twake.app (sign-up.numberinbox.com) (jmap.numberinbox.com)?')),
-          findsOneWidget,
+            widget.text.toPlainText().contains('example.com')),
+          findsNothing,
         );
       },
     );
@@ -550,41 +556,5 @@ void main() {
       },
     );
 
-    const hiddenCharacters = [
-      '\u0000', '\u001B', '\u007F', '\u009B',
-      '\u061C', '\u200E', '\u200F',
-      '\u202A', '\u202E', '\u2066', '\u2067', '\u2069',
-      '\u2028', '\u3000',
-    ];
-
-    for (final char in hiddenCharacters) {
-      final codePoint = char.codeUnitAt(0).toRadixString(16).toUpperCase().padLeft(4, '0');
-
-      testWidgets(
-        'SHOULD replace U+$codePoint in the link username with a single space '
-        'in the switch account dialog',
-        (tester) async {
-          await pumpApp(tester);
-
-          deepLinkManager.handleOpenAppDeepLinks(
-            openAppDeepLinkData: OpenAppDeepLinkData(
-              registrationUrl: 'https://sign-up.numberinbox.com',
-              jmapUrl: 'https://jmap.numberinbox.com/jmap',
-              username: 'alice@twake.app$char$char(sign-up.numberinbox.com)$char',
-              accessToken: 'token',
-            ),
-            username: UserName('bob@example.com'),
-          );
-          await tester.pumpAndSettle();
-
-          expect(
-            find.byWidgetPredicate((widget) =>
-              widget is RichText &&
-              widget.text.toPlainText().contains(' alice@twake.app (sign-up.numberinbox.com) (jmap.numberinbox.com)?')),
-            findsOneWidget,
-          );
-        },
-      );
-    }
   });
 }

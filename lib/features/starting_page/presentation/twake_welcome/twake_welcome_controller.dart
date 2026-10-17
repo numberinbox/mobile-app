@@ -199,18 +199,38 @@ class TwakeWelcomeController extends ReloadableController {
 
   /// Stores the OTP-issued credentials.
   ///
-  /// Returns whether they are on disk. A failure is reported as `false` rather
-  /// than thrown, so the caller can keep the user on the login screen: the
-  /// session in memory would look valid until the process restarts.
+  /// The selected account is written last and is what commits the sign-in: a
+  /// relaunch pairs whatever credential is on disk with whatever account is
+  /// selected. So if that write fails, the credential writes that already
+  /// succeeded are undone — otherwise the relaunch would pair the *new*
+  /// credential with the *old* selected account.
+  ///
+  /// Returns whether the sign-in is committed. A failure is reported as `false`
+  /// rather than thrown, so the caller can keep the user on the login screen.
   Future<bool> _persistCredentials({
     required Uri baseUrl,
     required String username,
     required String password,
   }) async {
-    try {
-      final credentialRepo = Get.find<CredentialRepository>();
-      final accountRepo = Get.find<AccountRepository>();
+    final credentialRepo = Get.find<CredentialRepository>();
+    final accountRepo = Get.find<AccountRepository>();
 
+    // Read before writing, so a failure can be undone to the state the user
+    // was actually in. On a first install these reads fail: there is no
+    // credential yet, and there is nothing to restore either.
+    Uri? previousBaseUrl;
+    AuthenticationInfoCache? previousAuth;
+    try {
+      previousBaseUrl = await credentialRepo.getBaseUrl();
+      previousAuth = await credentialRepo.getAuthenticationInfoStored();
+    } catch (e) {
+      logWarning(
+        'TwakeWelcomeController::_persistCredentials: no previous credential '
+        'to restore (category=${e.runtimeType})',
+      );
+    }
+
+    try {
       await credentialRepo.saveBaseUrl(baseUrl);
       await credentialRepo.storeAuthenticationInfo(
         AuthenticationInfoCache(username, password),
@@ -230,7 +250,64 @@ class TwakeWelcomeController extends ReloadableController {
         'TwakeWelcomeController::_persistCredentials: failed '
         '(category=${e.runtimeType})',
       );
+      await _rollbackSignIn(
+        credentialRepo: credentialRepo,
+        attemptedBaseUrl: baseUrl,
+        previousBaseUrl: previousBaseUrl,
+        previousAuth: previousAuth,
+      );
       return false;
+    }
+  }
+
+  /// Puts the credential stores and the interceptors back the way a relaunch
+  /// would find them.
+  ///
+  /// Restores the previous credential when there was one; clears the new one
+  /// otherwise, because a half-written credential is what this whole method
+  /// exists to prevent. Best effort: a rollback failure is reported and the
+  /// sign-in is still reported as failed.
+  Future<void> _rollbackSignIn({
+    required CredentialRepository credentialRepo,
+    required Uri attemptedBaseUrl,
+    required Uri? previousBaseUrl,
+    required AuthenticationInfoCache? previousAuth,
+  }) async {
+    // An empty record is what a store with no credential reads back, so it
+    // counts as "nothing to restore" rather than as a previous session.
+    final previousCredential = previousAuth?.username.isNotEmpty == true
+        ? previousAuth
+        : null;
+
+    try {
+      if (previousCredential != null) {
+        if (previousBaseUrl != null) {
+          await credentialRepo.saveBaseUrl(previousBaseUrl);
+        }
+        await credentialRepo.storeAuthenticationInfo(previousCredential);
+      } else {
+        await credentialRepo.removeBaseUrl();
+        await credentialRepo.removeAuthenticationInfo();
+      }
+    } catch (rollbackError) {
+      logError(
+        'TwakeWelcomeController::_rollbackSignIn: storage rollback failed '
+        '(category=${rollbackError.runtimeType})',
+      );
+    }
+
+    // The interceptors hold the credential the user just typed. Whatever
+    // happens on disk, they go back to the previous session, or are cleared
+    // when there was none.
+    if (previousCredential != null) {
+      setDataToInterceptors(
+        baseUrl: (previousBaseUrl ?? attemptedBaseUrl).toString(),
+        userName: UserName(previousCredential.username),
+        password: Password(previousCredential.password),
+      );
+    } else {
+      authorizationInterceptors.clear();
+      authorizationIsolateInterceptors.clear();
     }
   }
 

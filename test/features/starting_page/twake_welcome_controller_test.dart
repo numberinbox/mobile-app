@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:http_mock_adapter/http_mock_adapter.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
+import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:jmap_dart_client/jmap/push/state_change.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
@@ -45,6 +46,7 @@ import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:model/account/authentication_type.dart';
+import 'package:model/account/password.dart';
 import 'package:model/account/personal_account.dart';
 
 class MockCachingManager extends Mock implements CachingManager {}
@@ -139,7 +141,7 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
 
 /// Repository that always fails, so credential-persistence error paths run.
 class ThrowingAccountRepository extends FakeAccountRepository {
-  ThrowingAccountRepository(this.marker);
+  ThrowingAccountRepository(this.marker, {super.account});
 
   final String marker;
 
@@ -150,13 +152,29 @@ class ThrowingAccountRepository extends FakeAccountRepository {
 
 /// Repository that always fails, so credential-persistence error paths run.
 class ThrowingCredentialRepository extends FakeCredentialRepository {
-  ThrowingCredentialRepository(this.marker);
+  ThrowingCredentialRepository(this.marker, {super.store, super.failReads});
 
   final String marker;
 
   @override
   Future storeAuthenticationInfo(AuthenticationInfoCache info) async =>
       throw Exception(marker);
+}
+
+/// Records the basic-auth credentials the controller publishes, so a rollback
+/// can be observed without reaching into the interceptor.
+class _RecordingAuthorizationInterceptors extends Mock
+    implements AuthorizationInterceptors {
+  final List<String> basicAuthUsernames = [];
+  int clearCalls = 0;
+
+  @override
+  void setBasicAuthorization(UserName userName, Password password) {
+    basicAuthUsernames.add(userName.value);
+  }
+
+  @override
+  void clear() => clearCalls++;
 }
 
 /// Captures every dispatched [LogRecord] so tests can assert on log content.
@@ -199,40 +217,85 @@ class NavigationCountingTwakeWelcomeController extends TwakeWelcomeController {
   }
 }
 
+/// The persisted credential state, held apart from the repository so a test can
+/// stand a second repository up over the same values and see what a relaunch
+/// would read.
+class StoredCredential {
+  StoredCredential({this.baseUrl, this.auth});
+
+  Uri? baseUrl;
+  AuthenticationInfoCache? auth;
+}
+
 class FakeCredentialRepository implements CredentialRepository {
-  Uri? savedBaseUrl;
-  AuthenticationInfoCache? storedAuth;
+  FakeCredentialRepository({
+    StoredCredential? store,
+    bool failReads = false,
+  })  : store = store ?? StoredCredential(),
+        _failReads = failReads;
+
+  final StoredCredential store;
+
+  /// Makes both reads fail, as they do on a first install where no credential
+  /// has been stored yet.
+  final bool _failReads;
+
+  int removeBaseUrlCalls = 0;
+  int removeAuthenticationInfoCalls = 0;
+
+  Uri? get savedBaseUrl => store.baseUrl;
+  AuthenticationInfoCache? get storedAuth => store.auth;
 
   @override
-  Future saveBaseUrl(Uri baseUrl) async { savedBaseUrl = baseUrl; }
+  Future saveBaseUrl(Uri baseUrl) async { store.baseUrl = baseUrl; }
 
   @override
-  Future removeBaseUrl() async {}
+  Future<void> removeBaseUrl() async {
+    removeBaseUrlCalls++;
+    store.baseUrl = null;
+  }
 
   @override
-  Future<Uri> getBaseUrl() async => Uri.parse('https://localhost');
+  Future<Uri> getBaseUrl() async {
+    if (_failReads) throw Exception('no credential box');
+    return store.baseUrl ?? Uri.parse('https://jmap.numberinbox.com');
+  }
 
   @override
-  Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async { storedAuth = info; }
+  Future<void> storeAuthenticationInfo(AuthenticationInfoCache info) async { store.auth = info; }
 
   @override
-  Future<AuthenticationInfoCache> getAuthenticationInfoStored() async => AuthenticationInfoCache('', '');
+  Future<AuthenticationInfoCache> getAuthenticationInfoStored() async {
+    if (_failReads) throw Exception('no credential box');
+    return store.auth ?? AuthenticationInfoCache('', '');
+  }
 
   @override
-  Future<void> removeAuthenticationInfo() async {}
+  Future<void> removeAuthenticationInfo() async {
+    removeAuthenticationInfoCalls++;
+    store.auth = null;
+  }
 }
 
 class FakeAccountRepository implements AccountRepository {
-  PersonalAccount? savedAccount;
+  FakeAccountRepository({PersonalAccount? account}) : _account = account;
+
+  PersonalAccount? _account;
+
+  PersonalAccount? get savedAccount => _account;
 
   @override
-  Future<PersonalAccount> getCurrentAccount() async => throw Exception('no account');
+  Future<PersonalAccount> getCurrentAccount() async {
+    final account = _account;
+    if (account == null) throw Exception('no account');
+    return account;
+  }
 
   @override
-  Future<void> setCurrentAccount(PersonalAccount account) async { savedAccount = account; }
+  Future<void> setCurrentAccount(PersonalAccount account) async { _account = account; }
 
   @override
-  Future<void> deleteCurrentAccount(String hashId) async {}
+  Future<void> deleteCurrentAccount(String hashId) async { _account = null; }
 }
 
 void main() {
@@ -1068,6 +1131,165 @@ void main() {
       expect(session.executeCalls, 1);
       expect(ctrl.error, isNull);
       ctrl.dispose();
+    });
+  });
+
+  group('OTP partial sign-in rollback', () {
+    // The OTP writes three separate stores: base URL, credentials, then the
+    // selected account that commits them. If the last one fails the first two
+    // are already on disk, and a relaunch would pair the new credential with
+    // whichever account is still selected.
+    const previousUser = 'previous@example.com';
+    const previousPassword = 'PREVIOUS-CREDENTIAL-111';
+    const newUser = '+66812345678@numberinbox.test';
+    const newPassword = 'NEW-CREDENTIAL-222';
+    const previousBaseUrl = 'https://jmap.previous.example';
+
+    const newSession = OtpSession(
+      accessToken: 'jwt',
+      username: newUser,
+      sessionUrl: 'https://jmap.numberinbox.com/.well-known/jmap',
+      credential: newPassword,
+    );
+
+    /// Arranges a store that already holds a previous session, and an account
+    /// write that fails after the credential writes have landed.
+    ({TwakeWelcomeController controller, StoredCredential store})
+        arrangeOverPreviousSession({bool failReads = false}) {
+      final store = StoredCredential(
+        baseUrl: Uri.parse(previousBaseUrl),
+        auth: AuthenticationInfoCache(previousUser, previousPassword),
+      );
+      Get.replace<CredentialRepository>(
+        FakeCredentialRepository(store: store, failReads: failReads),
+      );
+      Get.replace<AccountRepository>(
+        ThrowingAccountRepository(
+          'ACCOUNT-WRITE-MARKER',
+          account: PersonalAccount(
+            previousUser,
+            AuthenticationType.basic,
+            isSelected: true,
+          ),
+        ),
+      );
+
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      Get.replace<GetSessionInteractor>(session);
+
+      final ctrl = TwakeWelcomeController(
+        authClient: ScriptedAuthClient()..session = newSession,
+      );
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+      return (controller: ctrl, store: store);
+    }
+
+    test('restores the previous credential when the account write fails',
+        () async {
+      final arranged = arrangeOverPreviousSession();
+
+      await arranged.controller.verifyCode();
+      arranged.controller.dispose();
+
+      expect(
+        arranged.store.baseUrl.toString(),
+        previousBaseUrl,
+        reason: 'the base URL written by the failed attempt must be undone',
+      );
+      expect(arranged.store.auth?.username, previousUser);
+      expect(arranged.store.auth?.password, previousPassword);
+    });
+
+    test('a relaunch cannot pair the new credential with the old account',
+        () async {
+      final arranged = arrangeOverPreviousSession();
+
+      await arranged.controller.verifyCode();
+
+      // A second process reads the same persisted values and pairs them with
+      // the account that is still selected.
+      final relaunched =
+          FakeCredentialRepository(store: arranged.store);
+      final baseUrlOnRelaunch = await relaunched.getBaseUrl();
+      final authOnRelaunch = await relaunched.getAuthenticationInfoStored();
+      final selectedAccount =
+          (Get.find<AccountRepository>() as FakeAccountRepository).savedAccount;
+      arranged.controller.dispose();
+
+      expect(baseUrlOnRelaunch.toString(), previousBaseUrl);
+      expect(authOnRelaunch.username, previousUser);
+      expect(authOnRelaunch.password, previousPassword);
+      expect(
+        selectedAccount?.id,
+        previousUser,
+        reason: 'the old account stays selected, so the old credential is '
+            'exactly what a relaunch must find',
+      );
+      expect(
+        authOnRelaunch.password,
+        isNot(newPassword),
+        reason: 'the new credential must not survive the failed attempt',
+      );
+    });
+
+    test('clears a half-written credential when there was none before',
+        () async {
+      // First install: there is nothing to restore, so the new credential must
+      // not be left behind either.
+      final store = StoredCredential();
+      Get.replace<CredentialRepository>(
+        FakeCredentialRepository(store: store, failReads: true),
+      );
+      Get.replace<AccountRepository>(
+        ThrowingAccountRepository('ACCOUNT-WRITE-MARKER'),
+      );
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      Get.replace<GetSessionInteractor>(session);
+
+      final ctrl = TwakeWelcomeController(
+        authClient: ScriptedAuthClient()..session = newSession,
+      );
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+
+      await ctrl.verifyCode();
+      final credentials =
+          Get.find<CredentialRepository>() as FakeCredentialRepository;
+      final error = ctrl.error;
+      ctrl.dispose();
+
+      expect(error, isNotNull);
+      expect(store.baseUrl, isNull);
+      expect(store.auth, isNull);
+      expect(credentials.removeAuthenticationInfoCalls, greaterThan(0));
+    });
+
+    test('restores the interceptors to the previous credential', () async {
+      final interceptors = _RecordingAuthorizationInterceptors();
+      Get.replace<AuthorizationInterceptors>(interceptors);
+      Get.replace<AuthorizationInterceptors>(
+        _RecordingAuthorizationInterceptors(),
+        tag: BindingTag.isolateTag,
+      );
+      final arranged = arrangeOverPreviousSession();
+
+      await arranged.controller.verifyCode();
+      arranged.controller.dispose();
+
+      // The basic auth header is rebuilt by [setDataToInterceptors]; a relaunch
+      // would use the restored store, so the in-memory value has to match it.
+      expect(interceptors.basicAuthUsernames, contains(previousUser));
+      expect(
+        interceptors.basicAuthUsernames.last,
+        previousUser,
+        reason: 'the in-memory credential must go back to the previous '
+            'session, not stay on the one that failed to commit',
+      );
     });
   });
 

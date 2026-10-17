@@ -68,15 +68,27 @@ class OpenAppDeepLinkData extends DeepLinkData {
       .map((pair) => pair.split('=').first.replaceAll('+', ' '))
       .toList();
 
+  /// Whether the record holds authentication material.
+  ///
+  /// Phone OTP is the only public sign-in method, so any record carrying
+  /// credentials is refused by the handlers — including one built in code
+  /// rather than parsed from a link, which is why this is checked on the record
+  /// itself and not only on the parse path.
+  bool get carriesCredentials =>
+      credentialParametersRejected ||
+      accessToken.isNotEmpty ||
+      (refreshToken?.isNotEmpty ?? false) ||
+      (idToken?.isNotEmpty ?? false) ||
+      username.isNotEmpty;
+
   /// Whether an incoming deep link may start the auto sign-in flow.
   ///
-  /// The mobile-web banner opens the app with a bare `openApp` URL that carries
-  /// no credentials. Such a link must land in the normal signed-in/sign-in
-  /// state instead of showing a loading dialog and signing in with empty
-  /// tokens, so the credential check is part of the decision.
-  static bool canAttemptAutoSignIn(DeepLinkData deepLinkData) =>
-      deepLinkData is OpenAppDeepLinkData &&
-      deepLinkData.isValidAuthentication();
+  /// Always false. Credential-based deep-link sign-in is unsupported, so this
+  /// is kept as the single question callers ask: the mobile-web banner opens
+  /// the app with a bare `openApp` URL that carries no credentials, and such a
+  /// link must land in the normal signed-in/sign-in state instead of showing a
+  /// loading dialog and signing in with empty fields.
+  static bool canAttemptAutoSignIn(DeepLinkData deepLinkData) => false;
 
   /// The deep link is reachable from any web page or email link: the servers
   /// it points the app to must be https URLs on an allow-listed host.
