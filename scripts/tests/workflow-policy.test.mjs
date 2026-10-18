@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -124,9 +124,46 @@ test('the release script does not print the full DART_DEFINES value', () => {
   );
 });
 
-// NOTE: the "no mobile tag-triggered store upload" rule is intentionally NOT
-// asserted here. `.github/workflows/release.yaml` still carries its `v*.*.*`
-// tag trigger and is only switched off in the final rollout phase, once the
-// private workflow is proven. Adding the assertion before that switch-off
-// would turn CI red, which the CI discipline forbids. Move the release.yaml
-// deletion and this assertion into the same commit.
+// NOTE: the "no mobile tag-triggered store upload" rule is enforced below.
+// `.github/workflows/release.yaml` carried a `v*.*.*` tag trigger until the
+// private workflow replaced it; the Fastlane lanes stay in this repository for
+// the private CI to invoke, but nothing here may upload to a store on a tag
+// push. Keep the trigger removal and this assertion in the same commit.
+
+// ── No tag-triggered store upload in the public repository ────────────────
+
+test('no public workflow uploads to a store on a tag push', () => {
+  // A tag push is the one event an outside contributor cannot be trusted to
+  // control in a public repository. Releases now go through the private
+  // workflow, which requires human approval on a protected environment.
+  const workflowDir = repoPath('.github', 'workflows');
+  const storeMarkers = /upload_to_play_store|upload_to_testflight|build-release\.sh|fastlane release/i;
+
+  const offenders = readdirSync(workflowDir)
+    .filter((name) => /\.ya?ml$/.test(name))
+    .filter((name) => {
+      const text = readFileSync(join(workflowDir, name), 'utf8');
+      return storeMarkers.test(text) && /^[ \t]*tags:[ \t]*$/m.test(text);
+    });
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `these workflows still upload to a store on a tag push: ${offenders.join(', ')}`,
+  );
+});
+
+test('the release lanes stay available for private CI to invoke', () => {
+  // Disabling the trigger must not remove the Fastfile lanes the private
+  // workflow calls; they are the build path, not the trigger.
+  for (const platform of ['android', 'ios']) {
+    assert.ok(
+      existsSync(repoPath(platform, 'fastlane', 'Fastfile')),
+      `${platform}/fastlane/Fastfile must remain`,
+    );
+  }
+  assert.ok(
+    existsSync(repoPath('scripts', 'build-release.sh')),
+    'build-release.sh must remain as the build entry point',
+  );
+});
