@@ -4,6 +4,9 @@
     <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28"/>
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Android 13+ gates notification display behind a runtime grant. Without
+         this the app receives push but nothing is ever shown. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission
         android:name="android.permission.REQUEST_INSTALL_PACKAGES"
         tools:node="remove" />
@@ -51,6 +54,13 @@
        <meta-data
            android:name="com.google.firebase.messaging.default_notification_icon"
            android:resource="@drawable/notification_icon" />
+       <!-- Matches LocalNotificationConfig.NOTIFICATION_CHANNEL, created at
+            runtime by flutter_local_notifications. Without this, FCM messages
+            received while the app is backgrounded land on the fallback
+            "Miscellaneous" channel and lose the lock screen privacy setting. -->
+       <meta-data
+           android:name="com.google.firebase.messaging.default_notification_channel"
+           android:value="New Email" />
 
         <activity
             android:name="com.linagora.android.tmail.MainActivity"

@@ -138,3 +138,8 @@ docs/store/screenshots/capture-manifest.local.json
 
 # Browser libs downloaded by scripts/fetch-web-vendor.sh
 /web/js/vendor/
+
+# FlutterFire CLI output. Its "dart" entry points at a scratch file outside
+# the repo (regenerate with: flutterfire configure --out=/tmp/<name>.dart),
+# so committing it would just re-point CI at a path that does not exist.
+firebase.json
