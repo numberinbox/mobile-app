@@ -3,7 +3,9 @@ import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/utils/file_utils.dart';
 import 'package:core/utils/preview_eml_file_utils.dart';
 import 'package:core/utils/print_utils.dart';
+import 'package:dio/dio.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tmail_ui_user/features/base/interactors_bindings.dart';
 import 'package:tmail_ui_user/features/caching/utils/local_storage_manager.dart';
 import 'package:tmail_ui_user/features/caching/utils/session_storage_manager.dart';
@@ -37,11 +39,14 @@ import 'package:tmail_ui_user/features/offline_mode/manager/new_email_cache_work
 import 'package:tmail_ui_user/features/offline_mode/manager/opened_email_cache_manager.dart';
 import 'package:tmail_ui_user/features/offline_mode/manager/opened_email_cache_worker_queue.dart';
 import 'package:tmail_ui_user/features/offline_mode/manager/sending_email_cache_manager.dart';
+import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/push_notification/data/datasource/fcm_datasource.dart';
 import 'package:tmail_ui_user/features/push_notification/data/datasource_impl/cache_fcm_datasource_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/data/datasource_impl/fcm_datasource_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/data/local/fcm_cache_manager.dart';
+import 'package:tmail_ui_user/features/push_notification/data/local/fcm_install_id_provider.dart';
 import 'package:tmail_ui_user/features/push_notification/data/network/fcm_api.dart';
+import 'package:tmail_ui_user/features/push_notification/data/network/fcm_registration_api.dart';
 import 'package:tmail_ui_user/features/push_notification/data/repository/fcm_repository_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/repository/fcm_repository.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/delete_firebase_registration_cache_interactor.dart';
@@ -54,6 +59,8 @@ import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_new
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_firebase_registration_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/register_new_firebase_registration_token_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/register_platform_fcm_token_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/revoke_platform_fcm_registration_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_firebase_registration_interator.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/update_firebase_registration_token_interactor.dart';
@@ -64,6 +71,7 @@ import 'package:tmail_ui_user/features/thread/data/network/thread_api.dart';
 import 'package:tmail_ui_user/features/thread/data/network/thread_isolate_worker.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/cache_exception_thrower.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/remote_exception_thrower.dart';
+import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
 
 class FcmInteractorBindings extends InteractorsBindings {
@@ -85,6 +93,9 @@ class FcmInteractorBindings extends InteractorsBindings {
       Get.find<FCMCacheManager>(),
       Get.find<CacheExceptionThrower>(),
     ));
+    Get.lazyPut<FcmRegistrationApi>(
+      () => FcmRegistrationApi(Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl))));
+    Get.lazyPut(() => FcmInstallIdProvider(Get.find<SharedPreferences>()));
     Get.lazyPut(() => FcmDatasourceImpl(
       Get.find<FcmApi>(),
       Get.find<RemoteExceptionThrower>(),
@@ -147,6 +158,13 @@ class FcmInteractorBindings extends InteractorsBindings {
       Get.find<EmailRepository>()));
     Get.lazyPut(() => GetFirebaseRegistrationByDeviceIdInteractor(Get.find<FCMRepositoryImpl>()));
     Get.lazyPut(() => RegisterNewFirebaseRegistrationTokenInteractor(Get.find<FCMRepositoryImpl>()));
+    Get.lazyPut(() => RegisterPlatformFcmTokenInteractor(
+      Get.find<FcmRegistrationApi>(),
+      Get.find<FcmInstallIdProvider>(),
+      Get.find<CredentialRepository>()));
+    Get.lazyPut(() => RevokePlatformFcmRegistrationInteractor(
+      Get.find<FcmRegistrationApi>(),
+      Get.find<CredentialRepository>()));
     Get.lazyPut(() => StoreFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
     Get.lazyPut(() => GetStoredFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
     Get.lazyPut(() => DestroyFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));

@@ -45,8 +45,8 @@ import 'package:tmail_ui_user/features/push_notification/domain/exceptions/fcm_e
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/web_socket_exceptions.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/destroy_firebase_registration_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_firebase_registration_state.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/usecases/destroy_firebase_registration_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_firebase_registration_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/revoke_platform_fcm_registration_interactor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/attachment_keyword_config_manager.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/bindings/fcm_interactor_bindings.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/bindings/web_socket_interactor_bindings.dart';
@@ -94,7 +94,7 @@ abstract class BaseController extends GetxController
   bool _isFcmEnabled = false;
 
   GetStoredFirebaseRegistrationInteractor? _getStoredFirebaseRegistrationInteractor;
-  DestroyFirebaseRegistrationInteractor? _destroyFirebaseRegistrationInteractor;
+  RevokePlatformFcmRegistrationInteractor? _destroyFirebaseRegistrationInteractor;
   GetCompanyServerLoginInfoInteractor? getCompanyServerLoginInfoInteractor;
 
   StreamSubscription<html.Event>? _onBeforeUnloadBrowserSubscription;
@@ -619,7 +619,7 @@ abstract class BaseController extends GetxController
 
       fcmRegistration?.foldSuccess<GetStoredFirebaseRegistrationSuccess>(
         onSuccess: (success) async {
-          _destroyFirebaseRegistrationInteractor = getBinding<DestroyFirebaseRegistrationInteractor>();
+          _destroyFirebaseRegistrationInteractor = getBinding<RevokePlatformFcmRegistrationInteractor>();
           await _destroyFirebaseRegistrationInteractor?.execute(success.firebaseRegistration.id!).last;
         },
         onFailure: (failure) {},
@@ -630,7 +630,7 @@ abstract class BaseController extends GetxController
   }
 
   void _destroyFirebaseRegistration(FirebaseRegistrationId firebaseRegistrationId) async {
-    _destroyFirebaseRegistrationInteractor = getBinding<DestroyFirebaseRegistrationInteractor>();
+    _destroyFirebaseRegistrationInteractor = getBinding<RevokePlatformFcmRegistrationInteractor>();
     if (_destroyFirebaseRegistrationInteractor != null) {
       consumeState(_destroyFirebaseRegistrationInteractor!.execute(firebaseRegistrationId));
     } else {
