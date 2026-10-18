@@ -3,4 +3,12 @@
          to allow setting breakpoints, to provide hot reload, etc.
     -->
     <uses-permission android:name="android.permission.INTERNET"/>
+
+    <!-- Debug-only: permits cleartext to the emulator host (10.0.2.2) and to
+         loopback, so Android instrumentation tests can reach a backend bound to
+         the host machine. The release build has no network security config and
+         therefore keeps the platform default (cleartext denied).
+         Guarded by scripts/tests/workflow-policy.test.mjs. -->
+    <application
+        android:networkSecurityConfig="@xml/network_security_config" />
 </manifest>

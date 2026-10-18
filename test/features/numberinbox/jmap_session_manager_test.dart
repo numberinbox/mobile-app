@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
 import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
@@ -166,6 +168,57 @@ void main() {
 
     test('rejects another local host', () {
       expectRefused(manager, 'http://127.0.0.1:8080/.well-known/jmap');
+    });
+  });
+
+  // The origin checks above decide WHERE the credential may be sent. These
+  // tests cover what is actually sent there on every subsequent call: the
+  // private Android smoke test signs in with an OTP and then reuses that same
+  // stored session for inbox reads and mail sends, so a regression in the
+  // header or the endpoint shape would only surface as a broken mail run.
+  group('credential reuse against the session endpoint', () {
+    final manager = JmapSessionManager();
+
+    test('decodes to the username and credential from the OTP response', () {
+      final decoded = manager.decodeBasicAuth(
+        sessionWithUrl('https://jmap.numberinbox.com/.well-known/jmap'),
+      );
+      expect(decoded['username'], '+66812345678@numberinbox.com');
+      expect(decoded['password'], sentinelPassword);
+    });
+
+    test('builds Basic auth as username:credential, not the access token', () {
+      final header = manager.buildBasicAuthHeader(
+        sessionWithUrl('https://jmap.numberinbox.com/.well-known/jmap'),
+      );
+      // "jwt" is the API access token and must never become the JMAP password.
+      final encoded = header.substring('Basic '.length);
+      final decoded = utf8.decode(base64.decode(encoded));
+
+      expect(header, startsWith('Basic '));
+      expect(decoded, '+66812345678@numberinbox.com:$sentinelPassword');
+      expect(decoded, isNot(contains('jwt')));
+    });
+
+    test('targets the JMAP session endpoint under the configured origin', () {
+      expect(manager.sessionEndpoint, 'https://jmap.numberinbox.com/jmap');
+    });
+
+    test('an injected local origin redirects the endpoint, not the default', () {
+      final local = JmapSessionManager(baseUrl: 'http://10.0.2.2:8080');
+      expect(local.sessionEndpoint, 'http://10.0.2.2:8080/jmap');
+      expect(
+        local.baseUrlFromSession(
+          sessionWithUrl('http://10.0.2.2:8080/.well-known/jmap'),
+        ).toString(),
+        'http://10.0.2.2:8080',
+      );
+    });
+
+    test('only a 401 counts as an unusable credential', () {
+      expect(manager.isCredentialError(401, null), isTrue);
+      expect(manager.isCredentialError(400, 'invalid_e164'), isFalse);
+      expect(manager.isCredentialError(500, null), isFalse);
     });
   });
 }

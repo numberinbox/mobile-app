@@ -53,7 +53,12 @@ android {
                 'appAuthRedirectScheme': 'teammail.mobile'
         ]
         testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
-        testInstrumentationRunnerArguments clearPackageData: "true"
+        // Orchestrator wipes app data between instrumentation tests. That is the
+        // right default for independent scenarios, but the private smoke run
+        // needs a second Patrol invocation to rehydrate a stored session, so it
+        // passes -PclearPackageData=false and clears data explicitly instead.
+        // Guarded by scripts/tests/workflow-policy.test.mjs.
+        testInstrumentationRunnerArguments clearPackageData: (project.findProperty("clearPackageData") ?: "true").toString()
     }
 
     compileOptions {
