@@ -49,11 +49,6 @@ jobs:
           bundler-cache: true
           working-directory: ${{ matrix.os }}
 
-      - name: Setup Firebase env
-        env:
-          FIREBASE_ENV: ${{ secrets.FIREBASE_ENV }}
-        run: ./scripts/setup-firebase.sh
-
       - name: Setup Java
         if: matrix.os == 'android'
         uses: actions/setup-java@v4

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "906017885948",
+    "project_id": "numberinbox",
+    "storage_bucket": "numberinbox.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:906017885948:android:cacd7c3e0dcec9ba549179",
+        "android_client_info": {
+          "package_name": "com.numberinbox.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnCrD9IrcXa-Bu-rBSXTm910ikpERGcjI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

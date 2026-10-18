@@ -7,21 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		ABCD00000000000000000003 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */; };
-		ABCD00000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		5EF7DAF102A597FC6BE2E8FA /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 31EB61397EEDB4F7D0E4371B /* GoogleService-Info.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		756BBC4C51FCB44047AB39E4 /* Pods_TeamMailShareExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 143BD7B2CF181BA69CDE351A /* Pods_TeamMailShareExtension.framework */; };
 		84EC933C2F236E8300A0EDC7 /* SentryConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EC933B2F236E7800A0EDC7 /* SentryConfig.swift */; };
 		84EC933E2F23705E00A0EDC7 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EC933D2F23705D00A0EDC7 /* SentryManager.swift */; };
+		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
+		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
+		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
 		A14E00012F6E000000000001 /* SentryManagerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A14E00022F6E000000000002 /* SentryManagerTests.swift */; };
 		A14E00032F6E000000000003 /* SentryConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EC933B2F236E7800A0EDC7 /* SentryConfig.swift */; };
 		A14E00042F6E000000000004 /* SentryManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84EC933D2F23705D00A0EDC7 /* SentryManager.swift */; };
 		A14E00052F6E000000000005 /* TwakeLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5EFC07C2B328B9F00829056 /* TwakeLogger.swift */; };
-		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
-		97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FD1CF9000F007C117D /* Assets.xcassets */; };
-		97C147011CF9000F007C117D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FF1CF9000F007C117D /* LaunchScreen.storyboard */; };
+		ABCD00000000000000000003 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */; };
+		ABCD00000000000000000004 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */; };
 		B561AD69C2BE6DF40BF29406 /* Pods_TwakeMailNSE.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = EA243B93F65E4E3CD7DC0348 /* Pods_TwakeMailNSE.framework */; };
 		C06B95712FAC780E009C15B4 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = C06B95702FAC7800009C15B4 /* SceneDelegate.swift */; };
 		CDFECA8C54311B749F044831 /* Pods_Runner.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5810EDDA99BEFEACD742F507 /* Pods_Runner.framework */; };
@@ -127,14 +128,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
-		ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		06C73A54FA0478D3C89AB5E5 /* Pods-Runner.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.profile.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.profile.xcconfig"; sourceTree = "<group>"; };
 		07753111B751BFDB3187FE6F /* Pods-TeamMailShareExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TeamMailShareExtension.debug.xcconfig"; path = "Target Support Files/Pods-TeamMailShareExtension/Pods-TeamMailShareExtension.debug.xcconfig"; sourceTree = "<group>"; };
 		143BD7B2CF181BA69CDE351A /* Pods_TeamMailShareExtension.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_TeamMailShareExtension.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
 		1FB76FA91BBCB2BF7B08705B /* Pods-TeamMailShareExtension.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TeamMailShareExtension.profile.xcconfig"; path = "Target Support Files/Pods-TeamMailShareExtension/Pods-TeamMailShareExtension.profile.xcconfig"; sourceTree = "<group>"; };
+		31EB61397EEDB4F7D0E4371B /* GoogleService-Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; name = "GoogleService-Info.plist"; path = "Runner/GoogleService-Info.plist"; sourceTree = "<group>"; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		4D124E74293A67D900BA5186 /* RunnerProfile.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = RunnerProfile.entitlements; sourceTree = "<group>"; };
 		5810EDDA99BEFEACD742F507 /* Pods_Runner.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_Runner.framework; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -146,7 +146,6 @@
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
 		84EC933B2F236E7800A0EDC7 /* SentryConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryConfig.swift; sourceTree = "<group>"; };
 		84EC933D2F23705D00A0EDC7 /* SentryManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManager.swift; sourceTree = "<group>"; };
-		A14E00022F6E000000000002 /* SentryManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManagerTests.swift; sourceTree = "<group>"; };
 		9740EEB21CF90195004384FC /* Debug.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Debug.xcconfig; path = Flutter/Debug.xcconfig; sourceTree = "<group>"; };
 		9740EEB31CF90195004384FC /* Generated.xcconfig */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.xcconfig; name = Generated.xcconfig; path = Flutter/Generated.xcconfig; sourceTree = "<group>"; };
 		97C146EE1CF9000F007C117D /* Runner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Runner.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -154,6 +153,9 @@
 		97C146FD1CF9000F007C117D /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		97C147001CF9000F007C117D /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		97C147021CF9000F007C117D /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A14E00022F6E000000000002 /* SentryManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SentryManagerTests.swift; sourceTree = "<group>"; };
+		ABCD00000000000000000001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		ABCD00000000000000000002 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		AF31502A83CA492E27C36A7B /* Pods-TwakeMailNSE.profile.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TwakeMailNSE.profile.xcconfig"; path = "Target Support Files/Pods-TwakeMailNSE/Pods-TwakeMailNSE.profile.xcconfig"; sourceTree = "<group>"; };
 		B2EAFF659572E6B9F5AFAAF8 /* Pods-Runner.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.debug.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"; sourceTree = "<group>"; };
 		BC08294F5AE09BF8CC592AD1 /* Pods-TeamMailShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-TeamMailShareExtension.release.xcconfig"; path = "Target Support Files/Pods-TeamMailShareExtension/Pods-TeamMailShareExtension.release.xcconfig"; sourceTree = "<group>"; };
@@ -278,6 +280,7 @@
 				97C146EF1CF9000F007C117D /* Products */,
 				F62B48DC0DFBD6D5D355E5FE /* Pods */,
 				601CDD7C97AAAE9C3FB007DB /* Frameworks */,
+				31EB61397EEDB4F7D0E4371B /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -678,6 +681,7 @@
 				3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */,
 				97C146FE1CF9000F007C117D /* Assets.xcassets in Resources */,
 				97C146FC1CF9000F007C117D /* Main.storyboard in Resources */,
+				5EF7DAF102A597FC6BE2E8FA /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

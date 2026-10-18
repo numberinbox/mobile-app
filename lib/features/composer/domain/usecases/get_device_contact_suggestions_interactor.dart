@@ -17,7 +17,11 @@ class GetDeviceContactSuggestionsInteractor {
     try {
       final resultList = await _contactRepository.getContactSuggestions(autoCompletePattern);
       final listEmailAddress = resultList.map((contact) => contact.toEmailAddress()).toList();
-      log('GetDeviceContactSuggestionsInteractor::execute:listEmailAddress: $listEmailAddress');
+      // Names, emails and derived +E164 addresses stay out of the log line.
+      // SentryBreadcrumbHandler accepts trace only and SentryEventHandler
+      // error/critical only, so an info line cannot leave the device today -
+      // but one log-level change would ship the user's address book.
+      log('GetDeviceContactSuggestionsInteractor::execute:suggestionCount: ${listEmailAddress.length}');
       return Right<Failure, Success>(GetDeviceContactSuggestionsSuccess(listEmailAddress));
     } catch (exception) {
       return Left<Failure, Success>(GetDeviceContactSuggestionsFailure(exception));
