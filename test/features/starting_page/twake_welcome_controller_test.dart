@@ -104,13 +104,19 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
   int verifyCalls = 0;
   Object? verifyError;
   Object? startOtpError;
+  int startOtpCalls = 0;
   OtpSession? session;
+
+  /// E.164 numbers sent to [startOtp], in order, for gate assertions.
+  final List<String> startOtpNumbers = [];
 
   /// Overrides the JMAP URL inside the default session, for the origin checks.
   String? sessionUrl;
 
   @override
   Future<void> startOtp(String rawE164) async {
+    startOtpCalls++;
+    startOtpNumbers.add(rawE164);
     final error = startOtpError;
     if (error != null) throw error;
   }
@@ -397,6 +403,31 @@ void main() {
       await controller.sendCode();
       expect(controller.error, 'Enter your phone number');
       expect(controller.phase, OtpPhase.phone);
+    });
+
+    test('invalid local number does not call startOtp', () async {
+      // Extra national digit and too-short input both fail local validation;
+      // neither may reach the OTP endpoint so raw invalid values are never
+      // sent out at all.
+      final auth = ScriptedAuthClient();
+      Get.replace<GetSessionInteractor>(ControllableGetSessionInteractor());
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      // Pin Thailand like the harness controller: the tooling locale may
+      // otherwise resolve a different default country for these Thai values.
+      ctrl.onCountrySelected(
+        countries.firstWhere((c) => c.code == 'TH'),
+      );
+
+      for (final invalid in ['08123456789', '0812', 'abcdefghij']) {
+        ctrl.phoneController.text = invalid;
+        await ctrl.sendCode();
+        expect(ctrl.error, isNotNull, reason: '"$invalid" must be reported');
+        expect(ctrl.phase, OtpPhase.phone);
+      }
+      expect(auth.startOtpCalls, 0,
+          reason: 'invalid input must not reach startOtp');
+      expect(auth.startOtpNumbers, isEmpty);
+      ctrl.dispose();
     });
 
     test('short phone sets error', () async {
