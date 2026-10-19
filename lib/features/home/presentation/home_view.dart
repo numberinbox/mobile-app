@@ -9,7 +9,18 @@ import 'package:tmail_ui_user/features/home/presentation/home_controller.dart';
 class HomeView extends GetWidget<HomeController> {
   const HomeView({Key? key}) : super(key: key);
 
-  static const double _markSize = 120;
+  /// The same canvas the native splashes paint (256 dp at mdpi / iOS 1x),
+  /// from the same artwork the launch screens use. Its mark occupies
+  /// 400/1024 of the canvas, so the visible mark is 100 dp wide, centered
+  /// like the native frame, and never rescales at the handoff.
+  static const double _markCanvasSize = 256;
+
+  /// Vertical extent below the viewport center that the visible mark spans
+  /// (100/2 dp) plus the wordmark gap.
+  static const double _belowMarkExtent = _markVisibleSize / 2 + 22;
+
+  /// The artwork's opaque region inside the 1024 px canvas is 400 px wide.
+  static const double _markVisibleSize = 100;
 
   /// Dark icons on a white surface, matching the native splash so the
   /// native-to-Flutter transition shows no colour change. Kept local to this
@@ -33,14 +44,15 @@ class HomeView extends GetWidget<HomeController> {
             // The mark itself stays at viewport center; the wordmark and
             // spinner flow below it as the second startup stage.
             final belowCenterTop =
-                constraints.maxHeight / 2 + _markSize / 2 + 22;
+                constraints.maxHeight / 2 + _belowMarkExtent;
             return Stack(
               children: [
                 const Center(
                   child: Image(
-                    image: AssetImage('assets/images/numberinbox_mark.png'),
-                    width: _markSize,
-                    height: _markSize,
+                    image:
+                        AssetImage('assets/splash/numberinbox_splash_mark.png'),
+                    width: _markCanvasSize,
+                    height: _markCanvasSize,
                   ),
                 ),
                 Positioned(

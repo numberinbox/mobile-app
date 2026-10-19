@@ -240,4 +240,59 @@ void main() {
       }
     }
   });
+
+  test('the splash mark source is bundled in the app so the loading screen '
+      'can show the same artwork', () {
+    final assets = ((pubspec['flutter'] as Map)['assets'] as List?) ?? const [];
+    expect(
+      assets.contains('assets/splash/'),
+      isTrue,
+      reason: 'the Flutter loading screen renders '
+              'assets/splash/numberinbox_splash_mark.png, so the folder must '
+              'be bundled',
+    );
+  });
+
+  test('every native splash stage shows the same visible mark', () async {
+    // iOS LaunchImage 1x paints at its point size (256x256 pt canvas);
+    // Android mdpi bitmaps paint at their pixel size as dp. The platforms
+    // center the canvas in the full window, so equal canvases and visible
+    // widths keep the handoff stationary.
+    final stages = await Future.wait([
+      _visibleMark('ios/Runner/Assets.xcassets/LaunchImage.imageset/'
+          'LaunchImage.png'),
+      _visibleMark('android/app/src/main/res/drawable-mdpi/splash.png'),
+      _visibleMark(
+          'android/app/src/main/res/drawable-mdpi/android12splash.png'),
+    ]);
+
+    final widths = stages.map((s) => s.$1).toList();
+    for (var i = 1; i < widths.length; i++) {
+      expect(widths[i], closeTo(widths[0], 1),
+          reason: 'stage ${stages[i].$4} shows ${stages[i].$1} dp while '
+              'stage ${stages[0].$4} shows ${stages[0].$1} dp');
+    }
+    for (final stage in stages) {
+      expect(stage.$1, closeTo(100, 1),
+          reason: '${stage.$4} should show the ~100 dp visible mark, '
+              'got ${stage.$1} dp');
+      expect((stage.$2 - 0.5).abs(), lessThanOrEqualTo(0.01),
+          reason: '${stage.$4} mark is off-center horizontally');
+      expect((stage.$3 - 0.5).abs(), lessThanOrEqualTo(0.01),
+          reason: '${stage.$4} mark is off-center vertically');
+    }
+  });
+}
+
+/// Visible mark measured in dp: (widthDp, centerXFraction, centerYFraction, name).
+Future<(double, double, double, String)> _visibleMark(String path) async {
+  final image = await _decodePng(path);
+  final rgba = await _rgbaBytes(image);
+  // Android 12 canvases are 288 dp; regular splash 256 dp; iOS 1x is points.
+  final canvasDp = path.contains('android12') ? 288.0 : 256.0;
+  final bounds = _opaqueBounds(rgba, image.width, image.height)!;
+  final widthDp = (bounds[2] - bounds[0]) / image.width * canvasDp;
+  final centerXFrac = (bounds[0] + bounds[2]) / 2 / image.width;
+  final centerYFrac = (bounds[1] + bounds[3]) / 2 / image.height;
+  return (widthDp, centerXFrac, centerYFrac, path);
 }

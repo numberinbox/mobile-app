@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'dart:ui' as ui;
+
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/utils/app_toast.dart';
@@ -86,7 +89,20 @@ void main() {
                 ),
       );
 
-  Future<void> pumpHome(WidgetTester tester) async {
+  Future<void> pumpHome(
+    WidgetTester tester, {
+    Size? logicalSize,
+    double devicePixelRatio = 1,
+    FakeViewPadding? padding,
+  }) async {
+    tester.view.devicePixelRatio = devicePixelRatio;
+    if (logicalSize != null) {
+      tester.view.physicalSize = logicalSize * devicePixelRatio;
+    }
+    if (padding != null) {
+      tester.view.padding = padding;
+    }
+    addTearDown(tester.view.reset);
     Get.testMode = true;
     final appToast = MockAppToast();
     final imagePaths = MockImagePaths();
@@ -137,7 +153,7 @@ void main() {
   testWidgets('mark stays at viewport center', (tester) async {
     await pumpHome(tester);
 
-    final mark = imageWithAsset('assets/images/numberinbox_mark.png');
+    final mark = imageWithAsset('assets/splash/numberinbox_splash_mark.png');
     expect(mark, findsOneWidget);
     final markCenter = tester.getCenter(mark);
     final viewCenter = tester.getCenter(find.byType(HomeView));
@@ -148,15 +164,24 @@ void main() {
   testWidgets('wordmark and spinner appear below the mark', (tester) async {
     await pumpHome(tester);
 
-    final mark = imageWithAsset('assets/images/numberinbox_mark.png');
+    final mark = imageWithAsset('assets/splash/numberinbox_splash_mark.png');
     final wordmark = svgAsset('assets/images/numberinbox_wordmark.svg');
     expect(mark, findsOneWidget);
     expect(wordmark, findsOneWidget);
     expect(find.byType(CupertinoActivityIndicator), findsOneWidget);
 
-    final markBottom = tester.getBottomLeft(mark).dy;
+    // The canvas carries quiet padding, so "below the mark" means below the
+    // visible artwork, not below the invisible canvas edge.
+    final art =
+        (await tester.runAsync(() => _decodePng(
+                'assets/splash/numberinbox_splash_mark.png')))!;
+    final bounds = (await tester.runAsync(() => _alphaBounds(art)))!;
+    final markBox = tester.getSize(mark);
+    final markCanvasCenter = tester.getCenter(mark).dy;
+    final visibleMarkBottom = markCanvasCenter +
+        (bounds[3] / art.height - 0.5) * markBox.height;
     final wordmarkTop = tester.getTopLeft(wordmark).dy;
-    expect(wordmarkTop, greaterThan(markBottom));
+    expect(wordmarkTop, greaterThan(visibleMarkBottom));
 
     final wordmarkBottom = tester.getBottomLeft(wordmark).dy;
     final spinnerTop =
@@ -227,4 +252,100 @@ void main() {
       reason: 'the light wordmark is required now that the background is white',
     );
   });
+
+  testWidgets(
+      'mark anchor holds across viewport sizes and unequal system insets',
+      (tester) async {
+    // One wide-short phone profile and one tall-narrow profile with status/
+    // navigation insets that do not cancel each other out. The native splash
+    // anchors on the full window center on both, so the Flutter mark must too.
+    final configs = [
+      (const Size(360, 640), 3.0, const FakeViewPadding(top: 24, bottom: 48)),
+      (const Size(390, 844), 3.0, const FakeViewPadding(top: 59, bottom: 34)),
+    ];
+    for (final (size, ratio, insets) in configs) {
+      await pumpHome(
+        tester,
+        logicalSize: size,
+        devicePixelRatio: ratio,
+        padding: insets,
+      );
+
+      final mark = imageWithAsset('assets/splash/numberinbox_splash_mark.png');
+      expect(mark, findsOneWidget, reason: 'no mark at $size');
+      final markCenter = tester.getCenter(mark);
+      final viewCenter = tester.getCenter(find.byType(HomeView));
+      expect((markCenter.dx - viewCenter.dx).abs(), lessThanOrEqualTo(2),
+          reason: 'mark dx drifted at $size with $insets');
+      expect((markCenter.dy - viewCenter.dy).abs(), lessThanOrEqualTo(2),
+          reason: 'mark dy drifted at $size with $insets');
+    }
+  });
+
+  testWidgets('mark anchor stays fixed while the wordmark and spinner exist',
+      (tester) async {
+    await pumpHome(tester);
+
+    final mark = imageWithAsset('assets/splash/numberinbox_splash_mark.png');
+    expect(mark, findsOneWidget);
+    final earlyCenter = tester.getCenter(mark);
+
+    // Wordmark/spinner decode asynchronously; the mark must not move when
+    // they arrive.
+    await tester.pump(const Duration(milliseconds: 500));
+    final settledCenter = tester.getCenter(mark);
+    expect((settledCenter.dx - earlyCenter.dx).abs(), lessThanOrEqualTo(0.5),
+        reason: 'the wordmark/spinner stream shifted the mark horizontally');
+    expect((settledCenter.dy - earlyCenter.dy).abs(), lessThanOrEqualTo(0.5),
+        reason: 'the wordmark/spinner stream shifted the mark vertically');
+  });
+
+  testWidgets('mark shows the same visible size and centering as native splash',
+      (tester) async {
+    await pumpHome(tester);
+
+    final mark = imageWithAsset('assets/splash/numberinbox_splash_mark.png');
+    expect(mark, findsOneWidget);
+    final box = tester.getSize(mark);
+
+    final art = (await tester.runAsync(
+            () => _decodePng('assets/splash/numberinbox_splash_mark.png')))!;
+    final bounds = (await tester.runAsync(() => _alphaBounds(art)))!;
+    final visibleWidth = box.width * (bounds[2] - bounds[0]) / art.width;
+    final centerOffset =
+        ((bounds[1] + bounds[3]) / 2 / art.height - 0.5) * box.height;
+
+    expect(visibleWidth, closeTo(100, 1),
+        reason: 'the native splash shows a ~100 dp visible mark; the Flutter '
+            'loading screen shows $visibleWidth dp');
+    expect(centerOffset.abs(), lessThanOrEqualTo(1),
+        reason: 'the mark art is off-center vertically by '
+            '${centerOffset.toStringAsFixed(2)} dp in the box');
+  });
+}
+
+/// Decode a repo-relative PNG the same way the branding tests do.
+Future<ui.Image> _decodePng(String path) async {
+  final bytes = await File(path).readAsBytes();
+  final codec = await ui.instantiateImageCodec(bytes);
+  final frame = await codec.getNextFrame();
+  return frame.image;
+}
+
+/// (left, top, right, bottom) exclusive of pixels with alpha > 16.
+Future<List<int>> _alphaBounds(ui.Image image) async {
+  final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+  final rgba = data!.buffer.asUint8List();
+  var left = image.width, top = image.height, right = -1, bottom = -1;
+  for (var y = 0; y < image.height; y++) {
+    for (var x = 0; x < image.width; x++) {
+      if (rgba[(y * image.width + x) * 4 + 3] > 16) {
+        if (x < left) left = x;
+        if (y < top) top = y;
+        if (x > right) right = x;
+        if (y > bottom) bottom = y;
+      }
+    }
+  }
+  return [left, top, right + 1, bottom + 1];
 }
