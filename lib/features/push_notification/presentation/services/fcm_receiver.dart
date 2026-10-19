@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:core/utils/app_logger.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_message_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_service.dart';
 
@@ -35,10 +36,13 @@ Future<void> handleFirebaseBackgroundMessage(
       refreshSentryConfiguration: refreshSentryConfiguration,
       invalidateSentryConfiguration: invalidateSentryConfiguration,
       timeout: sentryRefreshTimeout,
-    ).whenComplete(
-      () => (handleMessage ??
-          FcmService.instance.handleFirebaseBackgroundMessage)(message),
     );
+    if (handleMessage != null) {
+      handleMessage(message);
+      return;
+    }
+    if (await _handlePlatformPushMessage(message)) return;
+    FcmService.instance.handleFirebaseBackgroundMessage(message);
   } catch (e, st) {
     logError(
       'FcmReceiver::handleFirebaseBackgroundMessage: throw exception',
@@ -46,6 +50,18 @@ Future<void> handleFirebaseBackgroundMessage(
       stackTrace: st,
     );
   }
+}
+
+/// NumberInbox platform pushes are processed inline and awaited: the Android
+/// background isolate may be torn down as soon as this callback returns, so a
+/// fire-and-forget stream handoff would lose the account lookup and the JMAP
+/// work. Returns true when the message was such a push.
+Future<bool> _handlePlatformPushMessage(RemoteMessage message) async {
+  final data = message.data;
+  if (data.isEmpty) return false;
+  if (NumberInboxPushMessage.tryParseFromFcmData(data) == null) return false;
+  await FcmMessageController.instance.handlePushPayload(data);
+  return true;
 }
 
 Future<void> _refreshSentryForBackgroundMessage({
@@ -113,12 +129,26 @@ class FcmReceiver {
 
   Future onInitialFcmListener() async {
     _onBackgroundMessage();
+    _onForegroundMessage();
 
     await _onHandleFcmToken();
   }
 
   void _onBackgroundMessage() {
     FirebaseMessaging.onBackgroundMessage(handleFirebaseBackgroundMessage);
+  }
+
+  void _onForegroundMessage() {
+    FirebaseMessaging.onMessage.listen(
+      FcmService.instance.handleFirebaseForegroundMessage,
+      onError: (e, st) {
+        logError(
+          'FcmReceiver::_onForegroundMessage:onMessage:',
+          exception: e,
+          stackTrace: st,
+        );
+      },
+    );
   }
 
   Future<String?> _getInitialToken() async {

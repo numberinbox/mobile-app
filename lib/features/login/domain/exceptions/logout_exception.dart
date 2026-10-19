@@ -6,3 +6,10 @@ class UserCancelledLogoutOIDCFlowException extends AppBaseException {
   @override
   String get exceptionName => 'UserCancelledLogoutOIDCFlowException';
 }
+
+class RevokeFcmRegistrationFailedException extends AppBaseException {
+  RevokeFcmRegistrationFailedException([super.message]);
+
+  @override
+  String get exceptionName => 'RevokeFcmRegistrationFailedException';
+}

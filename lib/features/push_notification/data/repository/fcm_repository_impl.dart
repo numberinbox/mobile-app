@@ -59,11 +59,10 @@ class FCMRepositoryImpl extends FCMRepository {
     final listEmails = emailChangeResponse?.created ?? [];
     listEmails.sortBy(EmailComparator(EmailComparatorProperty.receivedAt)..setIsAscending(true));
 
-    if (listEmails.isNotEmpty) {
-      return EmailsResponse(emailList: listEmails);
-    } else {
-      return const EmailsResponse();
-    }
+    return EmailsResponse(
+      emailList: listEmails,
+      emailChangeResponse: emailChangeResponse,
+    );
   }
 
   @override

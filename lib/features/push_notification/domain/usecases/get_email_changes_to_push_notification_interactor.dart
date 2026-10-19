@@ -43,7 +43,14 @@ class GetEmailChangesToPushNotificationInteractor {
         ?.map((email) => email.toPresentationEmail())
         .toList() ?? [];
 
-      yield Right<Failure, Success>(GetEmailChangesToPushNotificationSuccess(accountId, userName, presentationEmailList));
+      yield Right<Failure, Success>(GetEmailChangesToPushNotificationSuccess(
+        accountId,
+        userName,
+        presentationEmailList,
+        // The delivery cursor must be the Email/changes state: the Email/get
+        // state can move past changes that were not processed yet.
+        newState: emailsResponse.emailChangeResponse?.newStateChanges,
+      ));
     } catch (e) {
       yield Left<Failure, Success>(GetEmailChangesToPushNotificationFailure(e));
     }
