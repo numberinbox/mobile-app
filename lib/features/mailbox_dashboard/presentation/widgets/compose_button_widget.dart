@@ -1,6 +1,6 @@
 
-import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -27,16 +27,6 @@ class ComposeButtonWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryActionStyle = LinagoraSidebarButtonStyles.primaryAction(context);
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    // The light theme keeps the TMail compose brand color instead of the
-    // design system primary action color, which stays in use for dark mode.
-    final style = isDark
-        ? primaryActionStyle
-        : primaryActionStyle.copyWith(
-            backgroundColor: const WidgetStatePropertyAll(AppColor.colorComposeButton),
-            foregroundColor: const WidgetStatePropertyAll(Colors.white),
-          );
-    final iconColor = style.foregroundColor?.resolve(const <WidgetState>{})
-        ?? Colors.white;
     final resolvedPadding = padding ?? const EdgeInsetsDirectional.only(
       start: 16,
       end: 16,
@@ -47,22 +37,60 @@ class ComposeButtonWidget extends StatelessWidget {
         .resolve(Directionality.of(context))
         .horizontal;
     final defaultWidth = ResponsiveUtils.sidebarMenuWidth - horizontalPadding;
+    final resolvedWidth = width ?? (defaultWidth < 0 ? 0 : defaultWidth);
 
-    return LinagoraSidebarPrimaryAction(
-      label: AppLocalizations.of(context).compose,
-      onPressed: onTapAction,
-      buttonKey: const Key(UiKeys.composeEmailPrimaryAction),
-      iconSpacing: LinagoraSidebarButtonStyles.primaryActionIconSpacing,
-      outerPadding: resolvedPadding,
-      width: width ?? (defaultWidth < 0 ? 0 : defaultWidth),
-      alignment: AlignmentDirectional.centerStart,
-      style: style,
-      iconWidget: SvgPicture.asset(
-        imagePaths.icPenNoBorder,
-        width: 12,
-        height: 12,
-        colorFilter: iconColor.asFilter(),
-        fit: BoxFit.contain,
+    if (isDark) {
+      return LinagoraSidebarPrimaryAction(
+        label: AppLocalizations.of(context).compose,
+        onPressed: onTapAction,
+        buttonKey: const Key(UiKeys.composeEmailPrimaryAction),
+        iconSpacing: LinagoraSidebarButtonStyles.primaryActionIconSpacing,
+        outerPadding: resolvedPadding,
+        width: resolvedWidth,
+        alignment: AlignmentDirectional.centerStart,
+        style: primaryActionStyle,
+        iconWidget: SvgPicture.asset(
+          imagePaths.icPenNoBorder,
+          width: 12,
+          height: 12,
+          colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+          fit: BoxFit.contain,
+        ),
+      );
+    }
+
+    final style = primaryActionStyle.copyWith(
+      backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+      foregroundColor: const WidgetStatePropertyAll(Colors.white),
+    );
+    final iconColor = style.foregroundColor?.resolve(const <WidgetState>{})
+        ?? Colors.white;
+
+    return Padding(
+      padding: resolvedPadding,
+      child: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: NumberInboxPalette.primaryActionGradient,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: LinagoraSidebarPrimaryAction(
+            label: AppLocalizations.of(context).compose,
+            onPressed: onTapAction,
+            buttonKey: const Key(UiKeys.composeEmailPrimaryAction),
+            iconSpacing: LinagoraSidebarButtonStyles.primaryActionIconSpacing,
+            width: resolvedWidth,
+            style: style,
+            iconWidget: SvgPicture.asset(
+              imagePaths.icPenNoBorder,
+              width: 12,
+              height: 12,
+              colorFilter: ColorFilter.mode(iconColor, BlendMode.srcIn),
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
     );
   }

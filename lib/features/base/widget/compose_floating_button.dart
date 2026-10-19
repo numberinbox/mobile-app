@@ -1,6 +1,7 @@
 
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/style_utils.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/floating_button/scrolling_floating_button_animated.dart';
@@ -47,11 +48,15 @@ class ComposeFloatingButton extends StatelessWidget {
         ),
         onPress: onTap,
         scrollController: scrollController,
-        // Light mode adopts the brand action green; dark mode keeps the prior
-        // blue so the existing dark-theme design is unchanged.
+        // Light mode paints the shared brand gradient; dark mode keeps the
+        // prior blue so the existing dark-theme design is unchanged. The
+        // gradient and color must not both be set on the decoration.
+        gradient: Theme.of(context).brightness == Brightness.dark
+            ? null
+            : NumberInboxPalette.primaryActionGradient,
         color: Theme.of(context).brightness == Brightness.dark
             ? AppColor.blue700
-            : AppColor.colorComposeButton,
+            : null,
         width: 154,
         height: 60,
         animateIcon: false

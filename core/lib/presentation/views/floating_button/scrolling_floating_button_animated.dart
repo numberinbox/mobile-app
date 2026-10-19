@@ -37,6 +37,10 @@ class ScrollingFloatingButtonAnimated extends StatefulWidget {
   /// Color to set the button background color
   final Color? color;
 
+  /// Optional gradient to paint instead of [color]. When provided, [color]
+  /// must be absent so the decoration never carries both fields.
+  final Gradient? gradient;
+
   /// Value to indicate if animate or not the icon
   final bool? animateIcon;
 
@@ -53,6 +57,7 @@ class ScrollingFloatingButtonAnimated extends StatefulWidget {
       this.curve,
       this.limitIndicator = 10.0,
       this.color = Colors.blueAccent,
+      this.gradient,
       this.animateIcon = true})
       : super(key: key);
 
@@ -135,7 +140,8 @@ class _ScrollingFloatingButtonAnimatedState
           child: Ink(
             decoration: BoxDecoration(
                 borderRadius: BorderRadius.all(Radius.circular(widget.height! / 2)),
-                color: widget.color),
+                gradient: widget.gradient,
+                color: widget.gradient == null ? widget.color : null),
             child: Row(
               mainAxisAlignment: _onTop ? MainAxisAlignment.spaceEvenly : MainAxisAlignment.center,
               children: [
