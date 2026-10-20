@@ -127,6 +127,36 @@ class FcmReceiver {
 
   static const int MAX_COUNT_RETRY_TO_GET_FCM_TOKEN = 3;
 
+  /// Acquires the FCM token with bounded retries.
+  ///
+  /// The token is a credential: only its presence is ever logged, never its
+  /// value or the raw payload of acquisition failures. [fetchToken] and
+  /// [delayBetweenAttempts] are injectable so tests can pin the logging
+  /// contract without touching Firebase.
+  static Future<String?> acquireFcmToken(
+    Future<String?> Function() fetchToken, {
+    Duration Function(int attempt)? delayBetweenAttempts,
+  }) async {
+    final delay = delayBetweenAttempts ?? (attempt) => Duration(seconds: 1 << (attempt - 1));
+    for (var attempt = 1; attempt <= MAX_COUNT_RETRY_TO_GET_FCM_TOKEN; attempt++) {
+      try {
+        final token = await fetchToken();
+        log('FcmReceiver::acquireFcmToken:token: ${token != null ? '<fresh-token>' : null}');
+        return token;
+      } catch (e) {
+        if (attempt < MAX_COUNT_RETRY_TO_GET_FCM_TOKEN) {
+          logWarning('FcmReceiver::acquireFcmToken: attempt $attempt failed');
+          await Future.delayed(delay(attempt));
+        } else {
+          logError(
+            'FcmReceiver::acquireFcmToken: all $MAX_COUNT_RETRY_TO_GET_FCM_TOKEN attempts failed',
+          );
+        }
+      }
+    }
+    return null;
+  }
+
   Future onInitialFcmListener() async {
     _onBackgroundMessage();
     _onForegroundMessage();
@@ -151,27 +181,8 @@ class FcmReceiver {
     );
   }
 
-  Future<String?> _getInitialToken() async {
-    for (var attempt = 1; attempt <= MAX_COUNT_RETRY_TO_GET_FCM_TOKEN; attempt++) {
-      try {
-        final token = await FirebaseMessaging.instance.getToken();
-        log('FcmReceiver::_getInitialToken:token: $token');
-        return token;
-      } catch (e, st) {
-        if (attempt < MAX_COUNT_RETRY_TO_GET_FCM_TOKEN) {
-          logWarning('FcmReceiver::_getInitialToken: attempt $attempt failed: $e');
-          await Future.delayed(Duration(seconds: 1 << (attempt - 1)));
-        } else {
-          logError(
-            'FcmReceiver::_getInitialToken: all $MAX_COUNT_RETRY_TO_GET_FCM_TOKEN attempts failed',
-            exception: e,
-            stackTrace: st,
-          );
-        }
-      }
-    }
-    return null;
-  }
+  Future<String?> _getInitialToken() =>
+      acquireFcmToken(FirebaseMessaging.instance.getToken);
 
   Future _onHandleFcmToken() async {
     var currentToken = await _getInitialToken();

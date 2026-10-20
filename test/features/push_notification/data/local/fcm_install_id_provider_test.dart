@@ -2,6 +2,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tmail_ui_user/features/push_notification/data/local/fcm_install_id_provider.dart';
 
+/// Stands in for the platform-backed SharedPreferences whose `getString` reads
+/// only see writes after the setter round-trip completes. Without the artificial
+/// round-trip delay the in-memory mock synchronizes writes and hides the race
+/// the production plugin exposes.
+class FakeRoundTripSharedPreferences extends Fake implements SharedPreferences {
+  FakeRoundTripSharedPreferences(this._store);
+
+  final Map<String, String> _store;
+
+  @override
+  String? getString(String key) => _store[key];
+
+  @override
+  Future<bool> setString(String key, String value) async {
+    await Future<void>.delayed(const Duration(milliseconds: 10));
+    _store[key] = value;
+    return true;
+  }
+}
+
 void main() {
   late SharedPreferences sharedPreferences;
   late FcmInstallIdProvider provider;
@@ -40,6 +60,35 @@ void main() {
         final second = await provider.getInstallId();
 
         expect(second, equals(first));
+      },
+    );
+
+    test(
+      'WHEN concurrent registration paths ask for the install id before anything is stored\n'
+      'THEN every caller receives the same UUID and that UUID is the one persisted\n'
+      '(needs the platform round-trip semantics)',
+      () async {
+        final store = <String, String>{};
+        final platformBackedProvider = FcmInstallIdProvider(
+          FakeRoundTripSharedPreferences(store),
+        );
+
+        final concurrent = await Future.wait([
+          platformBackedProvider.getInstallId(),
+          platformBackedProvider.getInstallId(),
+          platformBackedProvider.getInstallId(),
+        ]);
+
+        expect(concurrent.first, isNotNull);
+        expect(
+          concurrent,
+          everyElement(equals(concurrent.first)),
+          reason: 'two callers holding different ids would register the device '
+              'under identities which are no longer recoverable',
+        );
+        final later = await platformBackedProvider.getInstallId();
+        expect(later, equals(concurrent.first),
+            reason: 'the identity returned to any caller must be the persisted one');
       },
     );
 

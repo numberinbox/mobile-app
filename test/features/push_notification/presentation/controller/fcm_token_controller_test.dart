@@ -1,5 +1,9 @@
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
+import 'package:core/utils/logging/app_logger_registry.dart';
+import 'package:core/utils/logging/log_handler.dart';
+import 'package:core/utils/logging/log_level.dart';
+import 'package:core/utils/logging/log_record.dart';
 import 'package:dartz/dartz.dart';
 import 'package:fcm/model/device_client_id.dart';
 import 'package:fcm/model/fcm_token.dart';
@@ -130,4 +134,119 @@ void main() {
       },
     );
   });
+
+  group('token logging contract (M3)', () {
+    late _CapturingLogHandler logs;
+
+    setUp(() {
+      logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+    });
+
+    tearDown(() => AppLoggerRegistry.instance.resetForTesting());
+
+    test(
+      'WHEN a new FCM token arrives for registration\n'
+      'THEN the token never reaches a log sink',
+      () async {
+        when(registerPlatformInteractor.execute(any))
+            .thenAnswer((_) => Stream.fromIterable([
+                  Right<Failure, Success>(
+                    RegisterNewFirebaseRegistrationTokenLoading(),
+                  ),
+                ]));
+
+        controller.onFcmTokenChanged(tokenMarker);
+        await pumpEventQueue();
+
+        expect(
+          logs.everything,
+          isNot(contains(tokenMarker)),
+          reason: 'the FCM device token is a credential and must never be '
+              'written to a log sink',
+        );
+      },
+    );
+
+    test(
+      'WHEN the platform accepts the registration\n'
+      'THEN neither the registration token nor its id reach a log sink',
+      () async {
+        controller.handleSuccessViewState(
+          RegisterNewFirebaseRegistrationTokenSuccess(FirebaseRegistration(
+            id: FirebaseRegistrationId(Id(registrationIdMarker)),
+            token: FcmToken(tokenMarker),
+            deviceClientId: DeviceClientId(storedInstallId),
+            expires: FirebaseRegistrationExpiredTime(
+              UTCDate(DateTime.parse('2026-11-17T00:00:00Z')),
+            ),
+          )),
+        );
+
+        expect(
+          logs.everything,
+          isNot(contains(tokenMarker)),
+          reason: 'the registration object carries the token and must not be '
+              'printed as a whole',
+        );
+        expect(
+          logs.everything,
+          isNot(contains(registrationIdMarker)),
+          reason: 'the registration object carries its own id and must not be '
+              'printed as a whole',
+        );
+        expect(
+          logs.records,
+          isNotEmpty,
+          reason: 'a safe fixed event name keeps the flow diagnosable',
+        );
+      },
+    );
+
+    test(
+      'WHEN the registration fails\n'
+      'THEN the failure payload must not reach a log sink',
+      () async {
+        const failureSecret = 'backend-response-secret-zzz999';
+
+        controller.handleFailureViewState(
+          RegisterNewFirebaseRegistrationTokenFailure(
+            Exception(failureSecret),
+          ),
+        );
+
+        expect(
+          logs.everything,
+          isNot(contains(failureSecret)),
+          reason: 'response bodies must never reach a log sink',
+        );
+        expect(
+          logs.records.where((record) => record.level == Level.error),
+          isNotEmpty,
+          reason: 'the failure must still be reported, as a fixed event name',
+        );
+      },
+    );
+  });
+}
+
+/// A simpler install id constant to align with the existing registration tests.
+const storedInstallId = '43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5';
+const tokenMarker = 'TOKENTOKEN-MARKER-zzz999-the-fcm-device-token';
+const registrationIdMarker =
+    'REGISTRATION-ID-MARKER-aab555111registration';
+
+/// Everything a log sink would ever see: the message plus the folded
+/// exception, extras and stack trace of every record.
+class _CapturingLogHandler extends LogHandler {
+  final List<LogRecord> records = <LogRecord>[];
+
+  @override
+  String get handlerKey => 'capturing-log-handler-for-tests';
+
+  @override
+  void handle(LogRecord record) => records.add(record);
+
+  String get everything =>
+      records.map((record) => record.rawMessage).join('\n');
 }

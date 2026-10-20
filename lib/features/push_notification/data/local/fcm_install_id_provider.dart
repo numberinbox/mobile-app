@@ -15,7 +15,23 @@ class FcmInstallIdProvider {
 
   final SharedPreferences _sharedPreferences;
 
-  Future<String?> getInstallId() async {
+  /// The generate+persist cycle is memoized so concurrent registration paths
+  /// share one UUID instead of racing between "read nothing stored" and the
+  /// platform write round-trip completing.
+  Future<String?>? _pendingInstallId;
+
+  Future<String?> getInstallId() {
+    final pending = _pendingInstallId ??= _acquireInstallId();
+    return pending.whenComplete(() {
+      // Clear once settled: a successful acquire is persisted and any later
+      // read rebuilds from storage; a failed one is retried on the next call.
+      if (identical(_pendingInstallId, pending)) {
+        _pendingInstallId = null;
+      }
+    });
+  }
+
+  Future<String?> _acquireInstallId() async {
     final stored = _sharedPreferences.getString(installIdKey);
     if (stored != null) {
       return stored;

@@ -50,20 +50,16 @@ import 'package:tmail_ui_user/features/push_notification/data/network/fcm_regist
 import 'package:tmail_ui_user/features/push_notification/data/repository/fcm_repository_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/repository/fcm_repository.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/delete_firebase_registration_cache_interactor.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/usecases/destroy_firebase_registration_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_email_changes_to_push_notification_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_email_changes_to_remove_notification_interactor.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_firebase_registration_by_device_id_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_mailboxes_not_put_notifications_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_new_receive_email_from_notification_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_firebase_registration_interactor.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/usecases/register_new_firebase_registration_token_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/register_platform_fcm_token_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/revoke_platform_fcm_registration_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_firebase_registration_interator.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/usecases/update_firebase_registration_token_interactor.dart';
 import 'package:tmail_ui_user/features/thread/data/datasource/thread_datasource.dart';
 import 'package:tmail_ui_user/features/thread/data/datasource_impl/thread_datasource_impl.dart';
 import 'package:tmail_ui_user/features/thread/data/local/email_cache_manager.dart';
@@ -156,8 +152,11 @@ class FcmInteractorBindings extends InteractorsBindings {
     Get.lazyPut(() => GetEmailChangesToRemoveNotificationInteractor(
       Get.find<FCMRepositoryImpl>(),
       Get.find<EmailRepository>()));
-    Get.lazyPut(() => GetFirebaseRegistrationByDeviceIdInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => RegisterNewFirebaseRegistrationTokenInteractor(Get.find<FCMRepositoryImpl>()));
+    Get.lazyPut(() => StoreFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
+    Get.lazyPut(() => GetStoredFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
+    Get.lazyPut(() => DeleteFirebaseRegistrationCacheInteractor(Get.find<FCMRepositoryImpl>()));
+    Get.lazyPut(() => GetMailboxesNotPutNotificationsInteractor(Get.find<FCMRepositoryImpl>()));
+    // NumberInbox platform registration path (POST/DELETE /v1/fcm-registrations).
     Get.lazyPut(() => RegisterPlatformFcmTokenInteractor(
       Get.find<FcmRegistrationApi>(),
       Get.find<FcmInstallIdProvider>(),
@@ -165,13 +164,6 @@ class FcmInteractorBindings extends InteractorsBindings {
     Get.lazyPut(() => RevokePlatformFcmRegistrationInteractor(
       Get.find<FcmRegistrationApi>(),
       Get.find<CredentialRepository>()));
-    Get.lazyPut(() => StoreFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => GetStoredFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => DestroyFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => UpdateFirebaseRegistrationTokenInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => DeleteFirebaseRegistrationCacheInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => DestroyFirebaseRegistrationInteractor(Get.find<FCMRepositoryImpl>()));
-    Get.lazyPut(() => GetMailboxesNotPutNotificationsInteractor(Get.find<FCMRepositoryImpl>()));
     Get.lazyPut(() => GetNewReceiveEmailFromNotificationInteractor(
       Get.find<FCMRepositoryImpl>(),
       Get.find<EmailRepository>()));

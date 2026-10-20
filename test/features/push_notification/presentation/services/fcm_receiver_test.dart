@@ -2,6 +2,10 @@ import 'dart:async';
 
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
+import 'package:core/utils/logging/app_logger_registry.dart';
+import 'package:core/utils/logging/log_handler.dart';
+import 'package:core/utils/logging/log_level.dart';
+import 'package:core/utils/logging/log_record.dart';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -265,4 +269,81 @@ void main() {
       expect(callbackCompleted, isTrue);
     },
   );
+
+  group('token acquisition logging contract (M3)', () {
+    _CapturingLogHandler logs = _CapturingLogHandler();
+
+    setUp(() {
+      logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+    });
+
+    tearDown(() => AppLoggerRegistry.instance.resetForTesting());
+
+    test(
+      'WHEN the initial FCM token is acquired\n'
+      'THEN the token never reaches a log sink',
+      () async {
+        const tokenMarker = 'TOKENTOKEN-MARKER-startup-fcm-device-token';
+
+        await FcmReceiver.acquireFcmToken(
+          () async => tokenMarker,
+          delayBetweenAttempts: (_) => Duration.zero,
+        );
+
+        expect(
+          logs.everything,
+          isNot(contains(tokenMarker)),
+          reason: 'the FCM device token is a credential and must never be '
+              'written to a log sink',
+        );
+        expect(
+          logs.records,
+          isNotEmpty,
+          reason: 'acquisition must stay diagnosable without the value',
+        );
+      },
+    );
+
+    test(
+      'WHEN token acquisition keeps failing\n'
+      'THEN the failure is reported without the throwable payload',
+      () async {
+        const failureSecret = 'token-channel-secret-zzz999';
+
+        final token = await FcmReceiver.acquireFcmToken(
+          () => Future.error(Exception(failureSecret)),
+          delayBetweenAttempts: (_) => Duration.zero,
+        );
+
+        expect(token, isNull,
+            reason: 'exhausted retries yield no token instead of crashing');
+        expect(
+          logs.everything,
+          isNot(contains(failureSecret)),
+          reason: 'the throwable payload must never reach a log sink',
+        );
+        expect(
+          logs.records.where((record) => record.level == Level.error),
+          isNotEmpty,
+          reason: 'the exhaustion must still be reported, as a fixed event name',
+        );
+      },
+    );
+  });
+}
+
+/// Everything a log sink would ever see: the message plus the folded
+/// exception, extras and stack trace of every record.
+class _CapturingLogHandler extends LogHandler {
+  final List<LogRecord> records = <LogRecord>[];
+
+  @override
+  String get handlerKey => 'capturing-log-handler-for-tests';
+
+  @override
+  void handle(LogRecord record) => records.add(record);
+
+  String get everything =>
+      records.map((record) => record.rawMessage).join('\n');
 }

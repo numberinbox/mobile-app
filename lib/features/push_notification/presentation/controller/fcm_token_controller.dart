@@ -42,7 +42,8 @@ class FcmTokenController extends PushBaseController {
   }
 
   void onFcmTokenChanged(String? newToken) {
-    log('FcmTokenController::onFcmTokenChanged():newToken: $newToken');
+    // The token is a credential; only its presence is logged.
+    log('FcmTokenController::onFcmTokenChanged():newToken: ${newToken != null ? '<fresh-token>' : null}');
     if (newToken != null) {
       _registerFcmTokenOnPlatform(FcmToken(newToken));
     } else {
@@ -76,7 +77,9 @@ class FcmTokenController extends PushBaseController {
 
   @override
   void handleFailureViewState(Failure failure) {
-    log('FcmTokenController::_handleFailureViewState(): $failure');
+    // Fixed event name only: the state classes stringify their props
+    // (exception payload included) and must not reach a log sink.
+    logError('FcmTokenController::handleFailureViewState(): RegisterNewFirebaseRegistrationTokenFailure');
     if (failure is RegisterNewFirebaseRegistrationTokenFailure) {
       _deleteFirebaseRegistrationInCache();
     }
@@ -84,7 +87,9 @@ class FcmTokenController extends PushBaseController {
 
   @override
   void handleSuccessViewState(Success success) {
-    log('FcmTokenController::_handleSuccessViewState(): $success');
+    // The success state stringifies into the full registration object
+    // (token included); log the fixed event name instead.
+    log('FcmTokenController::handleSuccessViewState(): RegisterNewFirebaseRegistrationTokenSuccess');
     if (success is RegisterNewFirebaseRegistrationTokenSuccess) {
       _storeFirebaseRegistrationToCache(success.firebaseRegistration);
     }
