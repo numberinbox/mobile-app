@@ -34,9 +34,18 @@ class AccountDeletionPage extends StatefulWidget {
 }
 
 class _AccountDeletionPageState extends State<AccountDeletionPage> {
-  static const _requestIdKey = 'numberinbox.accountDeletion.requestId';
-  static const _statusTokenKey = 'numberinbox.accountDeletion.statusToken';
-  static const _idempotencyKey = 'numberinbox.accountDeletion.idempotencyKey';
+  static const _requestIdSuffix = 'requestId';
+  static const _statusTokenSuffix = 'statusToken';
+  static const _idempotencyKeySuffix = 'idempotencyKey';
+
+  // Keys written before request state was scoped to an account. Deleting them
+  // prevents one account's pending deletion from being resumed by another
+  // account signed in on the same device.
+  static const _legacyKeys = <String>[
+    'numberinbox.accountDeletion.requestId',
+    'numberinbox.accountDeletion.statusToken',
+    'numberinbox.accountDeletion.idempotencyKey',
+  ];
 
   final _phoneController = TextEditingController();
   final _storage = const FlutterSecureStorage();
@@ -46,6 +55,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
   Timer? _pollTimer;
   String? _requestId;
   String? _statusToken;
+  String? _storageScope;
   String? _error;
   bool _loading = true;
 
@@ -66,14 +76,28 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
     _restorePendingRequest();
   }
 
+  String _scopedKey(String suffix) =>
+      'numberinbox.accountDeletion.$_storageScope.$suffix';
+
+  String _scopeFor(String username) => username.trim().toLowerCase();
+
+  Future<void> _deleteLegacyKeys() async {
+    for (final key in _legacyKeys) {
+      await _storage.delete(key: key);
+    }
+  }
+
   Future<void> _restorePendingRequest() async {
     try {
       final auth = await credentials.getAuthenticationInfoStored();
+      _storageScope = _scopeFor(auth.username);
+      await _deleteLegacyKeys();
       final number = auth.username.split('@').first;
       final matching = countries.where((c) => number.startsWith(c.dialCode)).toList()
         ..sort((a, b) => b.dialCode.length.compareTo(a.dialCode.length));
-      final requestId = await _storage.read(key: _requestIdKey);
-      final statusToken = await _storage.read(key: _statusTokenKey);
+      final requestId = await _storage.read(key: _scopedKey(_requestIdSuffix));
+      final statusToken =
+          await _storage.read(key: _scopedKey(_statusTokenSuffix));
       if (!mounted) return;
       setState(() {
         if (matching.isNotEmpty) _country = matching.first;
@@ -143,16 +167,20 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
         _submitting = true;
         _error = null;
       });
-      final key = await _storage.read(key: _idempotencyKey) ?? const Uuid().v4();
-      await _storage.write(key: _idempotencyKey, value: key);
+      _storageScope = _scopeFor(auth.username);
+      final key = await _storage.read(key: _scopedKey(_idempotencyKeySuffix)) ??
+          const Uuid().v4();
+      await _storage.write(key: _scopedKey(_idempotencyKeySuffix), value: key);
       final result = await client.request(
         confirmE164: confirmed,
         username: auth.username,
         password: auth.password,
         idempotencyKey: key,
       );
-      await _storage.write(key: _requestIdKey, value: result.requestId);
-      await _storage.write(key: _statusTokenKey, value: result.statusToken);
+      await _storage.write(
+          key: _scopedKey(_requestIdSuffix), value: result.requestId);
+      await _storage.write(
+          key: _scopedKey(_statusTokenSuffix), value: result.statusToken);
       if (!mounted) return;
       setState(() {
         _requestId = result.requestId;
@@ -212,9 +240,11 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
     if (_completed) return;
     _completed = true;
     _pollTimer?.cancel();
-    await _storage.delete(key: _requestIdKey);
-    await _storage.delete(key: _statusTokenKey);
-    await _storage.delete(key: _idempotencyKey);
+    if (_storageScope != null) {
+      await _storage.delete(key: _scopedKey(_requestIdSuffix));
+      await _storage.delete(key: _scopedKey(_statusTokenSuffix));
+      await _storage.delete(key: _scopedKey(_idempotencyKeySuffix));
+    }
     if (widget.onDeleted != null) {
       await widget.onDeleted!();
       return;
