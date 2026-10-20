@@ -31,7 +31,7 @@ class FcmService {
   }
 
   void handleToken(String? token) {
-    log('FcmService::handleToken():token: $token');
+    log('FcmService::handleToken():token: ${token != null ? '<fresh-token>' : null}');
     fcmTokenStreamController?.add(token);
   }
 
