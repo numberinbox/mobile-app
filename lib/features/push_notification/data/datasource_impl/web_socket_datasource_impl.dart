@@ -29,34 +29,22 @@ class WebSocketDatasourceImpl implements WebSocketDatasource {
     return Future.sync(() async {
       _verifyWebSocketCapabilities(session, accountId);
       final webSocketTicket = await _webSocketApi.getWebSocketTicket(session, accountId);
-      final webSocketUri = _getWebSocketUri(session, accountId);
+      final webSocketUri = _resolveSecureWebSocketUri(session, accountId);
 
       WebSocketChannel webSocketChannel;
       if (webSocketTicket != null) {
         webSocketChannel = WebSocketChannel.connect(
-          Uri.parse('${webSocketUri.ensureWebSocketUri().toString()}?ticket=$webSocketTicket'),
+          Uri.parse('${webSocketUri.toString()}?ticket=$webSocketTicket'),
           protocols: ["jmap"],
         );
       } else {
         final authHeader = _getBasicAuthHeader();
-        final httpClient = HttpClient()
-          ..badCertificateCallback = (cert, host, port) => true;
-        if (authHeader != null) {
-          final ws = await WebSocket.connect(
-            webSocketUri.ensureWebSocketUri().toString(),
-            headers: {'Authorization': authHeader},
-            protocols: ["jmap"],
-            customClient: httpClient,
-          );
-          webSocketChannel = IOWebSocketChannel(ws);
-        } else {
-          final ws = await WebSocket.connect(
-            webSocketUri.ensureWebSocketUri().toString(),
-            protocols: ["jmap"],
-            customClient: httpClient,
-          );
-          webSocketChannel = IOWebSocketChannel(ws);
-        }
+        final ws = await WebSocket.connect(
+          webSocketUri.toString(),
+          headers: authHeader != null ? {'Authorization': authHeader} : null,
+          protocols: ["jmap"],
+        );
+        webSocketChannel = IOWebSocketChannel(ws);
       }
 
       await webSocketChannel.ready;
@@ -73,6 +61,22 @@ class WebSocketDatasourceImpl implements WebSocketDatasource {
       logWarning('WebSocketDatasourceImpl::_getBasicAuthHeader: $e');
       return null;
     }
+  }
+
+  Uri _resolveSecureWebSocketUri(Session session, AccountId accountId) {
+    final webSocketUri = _getWebSocketUri(session, accountId).ensureWebSocketUri();
+    if (webSocketUri.scheme == 'ws' && !_isLoopbackHost(webSocketUri.host)) {
+      throw WebSocketInsecureSchemeException(
+        'Refusing plaintext WebSocket connection to ${webSocketUri.host}',
+      );
+    }
+    return webSocketUri;
+  }
+
+  bool _isLoopbackHost(String host) {
+    final normalizedHost = host.toLowerCase();
+    if (normalizedHost == 'localhost') return true;
+    return InternetAddress.tryParse(normalizedHost)?.isLoopback ?? false;
   }
 
   WebSocketCapability? _findWebSocketCapability(Session session, AccountId accountId) {
