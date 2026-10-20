@@ -272,3 +272,44 @@ contract/selector handoff, device results and remaining blockers. Mark each chec
 item proved only by evidence that exercises it. Update stale platform M5/B5 status
 through the platform agent after the evidence is available. No store upload or
 production deployment is implied by a passing unit test or by this handoff.
+
+## 6. Post-audit security follow-ups (M7–M11)
+
+A security review of the M3–M5 work raised these; each was fixed TDD-first with a
+RED captured before the change. A proposed at-rest encryption item was dropped: it
+diverges from upstream and is out of scope for this fork (see the Fork policy in
+`AGENTS.md`).
+
+### M7 — Verify the WebSocket TLS path (T1)
+
+RED: `web_socket_datasource_impl_test.dart` proved the socket trusted a self-signed
+certificate and read the Basic credentials before connecting. GREEN: `badCertificate
+Callback` removed, one verified `WebSocket.connect`, `WebSocketInsecureSchemeException`
+for non-loopback `ws://` (loopback kept for local/test servers). Commit `ddd563cd3`.
+
+### M8 — Report platform push completion only after success (T2)
+
+RED: a failed cursor lookup, `Email/changes`, or cursor write still recorded the
+delivery as processed, so FCM redelivery was permanently deduplicated. GREEN: the
+listener chain returns `Future<bool>` and the controller records the delivery only on
+a fully successful dispatch; a controller-level test proves no record when the
+pipeline reports incomplete. Commit `3385cc0e3`.
+
+### M9 — Scope deletion state to the signed-in account (T3)
+
+RED: pending deletion request id, status token, and idempotency key were device-wide,
+so switching accounts could resume another account's request. GREEN: keys are scoped
+by normalized username and legacy unscoped keys are deleted on restore. Commit
+`ba396b884`.
+
+### M10 — Redact the FCM device token from logs (T5)
+
+RED: `FcmService::handleToken` logged the raw token to every sink. GREEN: only token
+presence is logged, matching `FcmReceiver`. Commit `9b1f6caed`.
+
+### M11 — Remove the retired JMAP registration path (T6)
+
+RED: no test could prove the path was dead while it stayed bound. GREEN: the four
+registration interactors, `FcmApi`, the network datasource, request models, states and
+their bindings are deleted; the cache and platform register/revoke paths are kept.
+Commit `cab03063d`.
