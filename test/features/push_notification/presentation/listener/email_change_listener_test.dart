@@ -20,8 +20,11 @@ import 'package:tmail_ui_user/features/email/presentation/action/email_ui_action
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/controller/mailbox_dashboard_controller.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/fcm_exception.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_email_changes_to_push_notification_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/get_new_receive_email_from_notification_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_email_delivery_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/store_email_delivery_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_email_changes_to_push_notification_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_new_receive_email_from_notification_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/action/push_notification_state_change_action.dart';
@@ -40,6 +43,7 @@ import 'email_change_listener_test.mocks.dart';
   MockSpec<StoreEmailDeliveryStateInteractor>(),
   MockSpec<GetEmailChangesToPushNotificationInteractor>(),
   MockSpec<GetStoredEmailStateInteractor>(),
+  MockSpec<GetNewReceiveEmailFromNotificationInteractor>(),
 ])
 
 /// The state the app already displays and has cached locally when the push
@@ -67,6 +71,7 @@ void main() {
   late MockStoreEmailDeliveryStateInteractor mockStoreEmailDeliveryStateInteractor;
   late MockGetEmailChangesToPushNotificationInteractor mockGetEmailChangesToPushNotificationInteractor;
   late MockGetStoredEmailStateInteractor mockGetStoredEmailStateInteractor;
+  late MockGetNewReceiveEmailFromNotificationInteractor mockGetNewReceiveEmailFromNotificationInteractor;
 
   setUpAll(() {
     Get.testMode = true;
@@ -75,6 +80,7 @@ void main() {
     mockStoreEmailDeliveryStateInteractor = MockStoreEmailDeliveryStateInteractor();
     mockGetEmailChangesToPushNotificationInteractor = MockGetEmailChangesToPushNotificationInteractor();
     mockGetStoredEmailStateInteractor = MockGetStoredEmailStateInteractor();
+    mockGetNewReceiveEmailFromNotificationInteractor = MockGetNewReceiveEmailFromNotificationInteractor();
     // Get.put/Get.reset run the GetX lifecycle; the mock's fakes would throw.
     when(mockDashBoardController.onStart).thenReturn(InternalFinalCallback<void>(callback: () {}));
     when(mockDashBoardController.onDelete).thenReturn(InternalFinalCallback<void>(callback: () {}));
@@ -83,6 +89,7 @@ void main() {
     Get.put<StoreEmailDeliveryStateInteractor>(mockStoreEmailDeliveryStateInteractor);
     Get.put<GetEmailChangesToPushNotificationInteractor>(mockGetEmailChangesToPushNotificationInteractor);
     Get.put<GetStoredEmailStateInteractor>(mockGetStoredEmailStateInteractor);
+    Get.put<GetNewReceiveEmailFromNotificationInteractor>(mockGetNewReceiveEmailFromNotificationInteractor);
   });
 
   setUp(() {
@@ -91,6 +98,7 @@ void main() {
     clearInteractions(mockStoreEmailDeliveryStateInteractor);
     clearInteractions(mockGetEmailChangesToPushNotificationInteractor);
     clearInteractions(mockGetStoredEmailStateInteractor);
+    clearInteractions(mockGetNewReceiveEmailFromNotificationInteractor);
     when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any)).thenAnswer((_) async* {
       yield dartz.Right<Failure, Success>(
           GetStoredEmailDeliveryStateSuccess(State(_cachedAndDisplayedState)));
@@ -471,6 +479,203 @@ void main() {
         } finally {
           debugDefaultTargetPlatformOverride = null;
           unmockLocalNotificationChannel();
+        }
+      },
+    );
+  });
+
+  group('EmailChangeListener::platform push completion reporting', () {
+    test(
+      'WHEN the delivery cursor lookup fails\n'
+      'THEN the push reports incomplete so the delivery is not marked processed',
+      () async {
+        when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any))
+            .thenAnswer((_) async* {
+          yield dartz.Left<Failure, Success>(GetStoredEmailDeliveryStateFailure(
+            Exception('delivery cache unavailable'),
+          ));
+        });
+
+        final completed = await EmailChangeListener.instance
+            .processPlatformPushNotification(
+          newState: FcmUtils.createPlatformPushState(),
+          accountId: AccountFixtures.aliceAccountId,
+          userName: _userName,
+          session: SessionFixtures.aliceSession,
+        );
+
+        expect(completed, isFalse);
+        verifyNever(mockGetEmailChangesToPushNotificationInteractor.execute(
+          any,
+          any,
+          any,
+          any,
+          propertiesCreated: anyNamed('propertiesCreated'),
+          propertiesUpdated: anyNamed('propertiesUpdated'),
+        ));
+        verifyNever(mockStoreEmailDeliveryStateInteractor.execute(any, any, any));
+      },
+    );
+
+    test(
+      'WHEN the Email/changes fetch fails\n'
+      'THEN the push reports incomplete and the cursor is not advanced',
+      () async {
+        when(mockGetEmailChangesToPushNotificationInteractor.execute(
+          any,
+          any,
+          any,
+          any,
+          propertiesCreated: anyNamed('propertiesCreated'),
+          propertiesUpdated: anyNamed('propertiesUpdated'),
+        )).thenAnswer((_) async* {
+          yield dartz.Left<Failure, Success>(
+              GetEmailChangesToPushNotificationFailure(Exception('backend down')));
+        });
+
+        final completed = await EmailChangeListener.instance
+            .processPlatformPushNotification(
+          newState: FcmUtils.createPlatformPushState(),
+          accountId: AccountFixtures.aliceAccountId,
+          userName: _userName,
+          session: SessionFixtures.aliceSession,
+        );
+
+        expect(completed, isFalse);
+        verifyNever(mockStoreEmailDeliveryStateInteractor.execute(any, any, any));
+      },
+    );
+
+    test(
+      'WHEN the delivery cursor write fails\n'
+      'THEN the push reports incomplete so a redelivery can retry it',
+      () async {
+        when(mockStoreEmailDeliveryStateInteractor.execute(any, any, any))
+            .thenAnswer((_) async* {
+          yield dartz.Left<Failure, Success>(
+              StoreEmailDeliveryStateFailure(Exception('disk full')));
+        });
+
+        final completed = await EmailChangeListener.instance
+            .processPlatformPushNotification(
+          newState: FcmUtils.createPlatformPushState(),
+          accountId: AccountFixtures.aliceAccountId,
+          userName: _userName,
+          session: SessionFixtures.aliceSession,
+        );
+
+        expect(completed, isFalse);
+      },
+    );
+
+    test(
+      'WHEN a foreground push cannot fetch the new emails\n'
+      'THEN the foreground pipeline reports incomplete',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        try {
+          when(mockGetNewReceiveEmailFromNotificationInteractor.execute(
+            session: anyNamed('session'),
+            accountId: anyNamed('accountId'),
+            userName: anyNamed('userName'),
+            newState: anyNamed('newState'),
+          )).thenAnswer((_) async* {
+            yield dartz.Left<Failure, Success>(
+                GetNewReceiveEmailFromNotificationFailure(
+                    Exception('network down')));
+          });
+          when(mockStoreEmailDeliveryStateInteractor.execute(any, any, any))
+              .thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(StoreEmailDeliveryStateSuccess());
+          });
+
+          final completed = await EmailChangeListener.instance
+              .processForegroundPlatformPushNotification(
+            newState: State(_incomingLegacyServerState),
+            accountId: AccountFixtures.aliceAccountId,
+            userName: _userName,
+            session: SessionFixtures.aliceSession,
+          );
+
+          expect(completed, isFalse);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    test(
+      'WHEN the foreground delivery cursor write fails\n'
+      'THEN the foreground pipeline reports incomplete',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        try {
+          when(mockGetNewReceiveEmailFromNotificationInteractor.execute(
+            session: anyNamed('session'),
+            accountId: anyNamed('accountId'),
+            userName: anyNamed('userName'),
+            newState: anyNamed('newState'),
+          )).thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(
+                GetNewReceiveEmailFromNotificationSuccess(
+              AccountFixtures.aliceAccountId,
+              SessionFixtures.aliceSession,
+              const [],
+            ));
+          });
+          when(mockStoreEmailDeliveryStateInteractor.execute(any, any, any))
+              .thenAnswer((_) async* {
+            yield dartz.Left<Failure, Success>(
+                StoreEmailDeliveryStateFailure(Exception('disk full')));
+          });
+
+          final completed = await EmailChangeListener.instance
+              .processForegroundPlatformPushNotification(
+            newState: State(_incomingLegacyServerState),
+            accountId: AccountFixtures.aliceAccountId,
+            userName: _userName,
+            session: SessionFixtures.aliceSession,
+          );
+
+          expect(completed, isFalse);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
+      },
+    );
+
+    test(
+      'WHEN there are no new emails to fetch\n'
+      'THEN the no-change result is a success, not a retriable failure',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        try {
+          when(mockGetNewReceiveEmailFromNotificationInteractor.execute(
+            session: anyNamed('session'),
+            accountId: anyNamed('accountId'),
+            userName: anyNamed('userName'),
+            newState: anyNamed('newState'),
+          )).thenAnswer((_) async* {
+            yield dartz.Left<Failure, Success>(
+                GetNewReceiveEmailFromNotificationFailure(
+                    const EmailStateNoChangeException()));
+          });
+          when(mockStoreEmailDeliveryStateInteractor.execute(any, any, any))
+              .thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(StoreEmailDeliveryStateSuccess());
+          });
+
+          final completed = await EmailChangeListener.instance
+              .processForegroundPlatformPushNotification(
+            newState: State(_incomingLegacyServerState),
+            accountId: AccountFixtures.aliceAccountId,
+            userName: _userName,
+            session: SessionFixtures.aliceSession,
+          );
+
+          expect(completed, isTrue);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
         }
       },
     );

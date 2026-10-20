@@ -6,6 +6,7 @@ import 'package:core/presentation/state/success.dart';
 import 'package:core/utils/sentry/sentry_config.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
@@ -28,7 +29,10 @@ import 'package:tmail_ui_user/features/login/data/network/interceptors/authoriza
 import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_email_delivery_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_message_controller.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/listener/email_change_listener.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_service.dart';
 
 import 'fcm_message_controller_test.mocks.dart';
@@ -166,6 +170,22 @@ SentryUserCache _user(String id) => SentryUserCache(
 final _backendMailDeliveredPayload =
     Map<String, dynamic>.from(platformMailDeliveredPushPayload);
 const _platformApiUrl = 'https://api.numberinbox.com';
+
+class _FailingStoredEmailDeliveryStateInteractor
+    implements GetStoredEmailDeliveryStateInteractor {
+  @override
+  Stream<dartz.Either<Failure, Success>> execute(
+    AccountId accountId,
+    UserName userName,
+  ) async* {
+    yield dartz.Left<Failure, Success>(
+      GetStoredEmailDeliveryStateFailure(Exception('delivery cache unavailable')),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 void main() {
   test('background isolate does not initialize Sentry without consent', () async {
@@ -1149,6 +1169,77 @@ void main() {
           ),
           <String, dynamic>{'EmailDelivery': 'derived-real-state'},
         );
+      },
+    );
+  });
+
+  group('FcmMessageController::platform push completion gating', () {
+    test(
+      'WHEN the platform push pipeline reports incomplete\n'
+      'THEN the delivery is not recorded as processed so a redelivery can retry it',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        try {
+          final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+          final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+          final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+          final mockGetSessionInteractor = MockGetSessionInteractor();
+          final mockFcmCacheManager = MockFCMCacheManager();
+          Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+          Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+          Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+          Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+          Get.put<FCMCacheManager>(mockFcmCacheManager);
+          when(mockFcmCacheManager.hasProcessedDelivery(
+            stalwartAccountId: anyNamed('stalwartAccountId'),
+            deliveryId: anyNamed('deliveryId'),
+            now: anyNamed('now'),
+            ttl: anyNamed('ttl'),
+          )).thenAnswer((_) async => false);
+          when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(GetCredentialViewState(
+              Uri.parse('https://jmap.numberinbox.com'),
+              UserName('+66841234567@numberinbox.com'),
+              Password('stalwart-password'),
+              PersonalAccount(
+                'personal-account-id',
+                AuthenticationType.basic,
+                isSelected: true,
+                accountId: AccountFixtures.aliceAccountId,
+                apiUrl: _platformApiUrl,
+              ),
+              stateChange: null,
+            ));
+          });
+          when(mockGetSessionInteractor.execute(
+              stateChange: null)).thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(GetSessionSuccess(
+              SessionFixtures.aliceSession,
+              stateChange: null,
+            ));
+          });
+          when(mockAuthorizationInterceptors.authenticationType)
+              .thenReturn(AuthenticationType.basic);
+
+          EmailChangeListener.instance
+              .setStoredEmailDeliveryStateInteractorForTesting(
+            _FailingStoredEmailDeliveryStateInteractor(),
+          );
+
+          FcmMessageController.instance
+              .handlePushPayload(_backendMailDeliveredPayload);
+          await pumpEventQueue();
+
+          verifyNever(mockFcmCacheManager.recordProcessedDelivery(
+            stalwartAccountId: anyNamed('stalwartAccountId'),
+            deliveryId: anyNamed('deliveryId'),
+            now: anyNamed('now'),
+            ttl: anyNamed('ttl'),
+            maxEntries: anyNamed('maxEntries'),
+          ));
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+        }
       },
     );
   });

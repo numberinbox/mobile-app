@@ -704,12 +704,11 @@ class FcmMessageController extends PushBaseController {
         // isolate may be torn down as soon as the FCM callback returns, so
         // the JMAP fetch and the notification work must have completed by
         // then.
-        await EmailChangeListener.instance.processPlatformPushNotification(
+        return await EmailChangeListener.instance.processPlatformPushNotification(
           newState: pushState,
           accountId: accountId,
           userName: userName,
           session: session);
-        return true;
       }
 
       final mapTypeState = mapTypeStateForPlatformPush(
@@ -718,16 +717,11 @@ class FcmMessageController extends PushBaseController {
         isForeground: isForeground,
       );
       logTrace('FcmMessageController::_dispatchPlatformPushAction: Mapping platform push to action ${mapTypeState.toString()}');
-      mappingTypeStateToAction(
-        mapTypeState,
-        accountId,
-        userName,
-        emailChangeListener: EmailChangeListener.instance,
-        mailboxChangeListener: MailboxChangeListener.instance,
-        labelChangeListener: LabelChangeListener.instance,
-        isForeground: isForeground,
+      return await EmailChangeListener.instance.processForegroundPlatformPushNotification(
+        newState: pushState,
+        accountId: accountId,
+        userName: userName,
         session: session);
-      return true;
     } catch (e, st) {
       logError(
         'FcmMessageController::_dispatchPlatformPushAction: the platform push dispatch failed',
