@@ -1,6 +1,4 @@
-import 'package:fcm/model/device_client_id.dart';
 import 'package:fcm/model/firebase_registration.dart';
-import 'package:fcm/model/firebase_registration_id.dart';
 import 'package:fcm/model/type_name.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
@@ -8,8 +6,6 @@ import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/email_changes_properties.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/model/register_new_token_request.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/model/update_token_expired_time_request.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/email_response.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart' as jmap;
 
@@ -29,17 +25,9 @@ abstract class FCMRepository {
 
   Future<void> storeFirebaseRegistration(FirebaseRegistration firebaseRegistration);
 
-  Future<FirebaseRegistration> getFirebaseRegistrationByDeviceId(DeviceClientId deviceId);
-
-  Future<FirebaseRegistration> registerNewFirebaseRegistrationToken(RegisterNewTokenRequest newTokenRequest);
-
   Future<FirebaseRegistration> getStoredFirebaseRegistration();
 
   Future<void> deleteFirebaseRegistrationCache();
-
-  Future<void> destroyFirebaseRegistration(FirebaseRegistrationId registrationId);
-
-  Future<void> updateFirebaseRegistrationToken(UpdateTokenExpiredTimeRequest expiredTimeRequest);
 
   Future<List<PresentationMailbox>> getExcludedMailboxesForNotification(Session session, AccountId accountId);
 

@@ -1,8 +1,6 @@
 import 'package:core/data/model/source_type/data_source_type.dart';
 import 'package:core/utils/app_logger.dart';
-import 'package:fcm/model/device_client_id.dart';
 import 'package:fcm/model/firebase_registration.dart';
-import 'package:fcm/model/firebase_registration_id.dart';
 import 'package:fcm/model/type_name.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/properties/properties.dart';
@@ -22,8 +20,6 @@ import 'package:tmail_ui_user/features/mailbox/data/datasource/mailbox_datasourc
 import 'package:tmail_ui_user/features/push_notification/data/datasource/fcm_datasource.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/fcm_exception.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/email_changes_properties.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/model/register_new_token_request.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/model/update_token_expired_time_request.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/repository/fcm_repository.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/utils/fcm_constants.dart';
 import 'package:tmail_ui_user/features/thread/data/datasource/thread_datasource.dart';
@@ -81,16 +77,6 @@ class FCMRepositoryImpl extends FCMRepository {
   }
 
   @override
-  Future<FirebaseRegistration> getFirebaseRegistrationByDeviceId(DeviceClientId deviceId) {
-    return _fcmDatasource[DataSourceType.network]!.getFirebaseRegistrationByDeviceId(deviceId);
-  }
-
-  @override
-  Future<FirebaseRegistration> registerNewFirebaseRegistrationToken(RegisterNewTokenRequest newTokenRequest) {
-    return _fcmDatasource[DataSourceType.network]!.registerNewFirebaseRegistrationToken(newTokenRequest);
-  }
-
-  @override
   Future<FirebaseRegistration> getStoredFirebaseRegistration()  {
     return _fcmDatasource[DataSourceType.local]!.getStoredFirebaseRegistration();
   }
@@ -100,11 +86,6 @@ class FCMRepositoryImpl extends FCMRepository {
     return _fcmDatasource[DataSourceType.local]!.storeFirebaseRegistration(firebaseRegistration);
   }
   
-  @override
-  Future<void> destroyFirebaseRegistration(FirebaseRegistrationId registrationId) {
-    return _fcmDatasource[DataSourceType.network]!.destroyFirebaseRegistration(registrationId);
-  }
-
   @override
   Future<List<PresentationMailbox>> getExcludedMailboxesForNotification(
     Session session,
@@ -190,11 +171,6 @@ class FCMRepositoryImpl extends FCMRepository {
     } else {
       return listEmails.listEmailIds;
     }
-  }
-
-  @override
-  Future<void> updateFirebaseRegistrationToken(UpdateTokenExpiredTimeRequest expiredTimeRequest) {
-    return _fcmDatasource[DataSourceType.network]!.updateFirebaseRegistrationToken(expiredTimeRequest);
   }
 
   @override

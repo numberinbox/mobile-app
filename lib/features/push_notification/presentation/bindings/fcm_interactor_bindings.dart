@@ -40,12 +40,9 @@ import 'package:tmail_ui_user/features/offline_mode/manager/opened_email_cache_m
 import 'package:tmail_ui_user/features/offline_mode/manager/opened_email_cache_worker_queue.dart';
 import 'package:tmail_ui_user/features/offline_mode/manager/sending_email_cache_manager.dart';
 import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
-import 'package:tmail_ui_user/features/push_notification/data/datasource/fcm_datasource.dart';
 import 'package:tmail_ui_user/features/push_notification/data/datasource_impl/cache_fcm_datasource_impl.dart';
-import 'package:tmail_ui_user/features/push_notification/data/datasource_impl/fcm_datasource_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/data/local/fcm_cache_manager.dart';
 import 'package:tmail_ui_user/features/push_notification/data/local/fcm_install_id_provider.dart';
-import 'package:tmail_ui_user/features/push_notification/data/network/fcm_api.dart';
 import 'package:tmail_ui_user/features/push_notification/data/network/fcm_registration_api.dart';
 import 'package:tmail_ui_user/features/push_notification/data/repository/fcm_repository_impl.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/repository/fcm_repository.dart';
@@ -74,7 +71,6 @@ class FcmInteractorBindings extends InteractorsBindings {
 
   @override
   void bindingsDataSource() {
-    Get.lazyPut<FCMDatasource>(() => Get.find<FcmDatasourceImpl>());
     Get.lazyPut<ThreadDataSource>(() => Get.find<ThreadDataSourceImpl>());
     Get.lazyPut<MailboxDataSource>(() => Get.find<MailboxDataSourceImpl>());
     Get.lazyPut<EmailDataSource>(() => Get.find<EmailDataSourceImpl>());
@@ -92,10 +88,6 @@ class FcmInteractorBindings extends InteractorsBindings {
     Get.lazyPut<FcmRegistrationApi>(
       () => FcmRegistrationApi(Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl))));
     Get.lazyPut(() => FcmInstallIdProvider(Get.find<SharedPreferences>()));
-    Get.lazyPut(() => FcmDatasourceImpl(
-      Get.find<FcmApi>(),
-      Get.find<RemoteExceptionThrower>(),
-    ));
     Get.lazyPut(() => ThreadDataSourceImpl(
       Get.find<ThreadAPI>(),
       Get.find<ThreadIsolateWorker>(),
@@ -183,7 +175,6 @@ class FcmInteractorBindings extends InteractorsBindings {
     Get.lazyPut(() => FCMRepositoryImpl(
       {
         DataSourceType.local: Get.find<CacheFCMDatasourceImpl>(),
-        DataSourceType.network: Get.find<FCMDatasource>(),
       },
       Get.find<ThreadDataSource>(),
       {

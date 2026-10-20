@@ -14,13 +14,6 @@ import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 
 /// Carries the FCM token lifecycle to the NumberInbox platform
 /// (`POST`/`DELETE /v1/fcm-registrations`).
-///
-/// The former JMAP registration path (`FCMRepository`, `FcmApi`,
-/// `GetFirebaseRegistrationByDeviceIdInteractor`,
-/// `RegisterNewFirebaseRegistrationTokenInteractor`,
-/// `UpdateFirebaseRegistrationTokenInteractor`,
-/// `DestroyFirebaseRegistrationInteractor`) is kept in the tree, unused, so a
-/// JMAP-native backend revisit has an intact starting point.
 class FcmTokenController extends PushBaseController {
 
   FcmTokenController._internal();
