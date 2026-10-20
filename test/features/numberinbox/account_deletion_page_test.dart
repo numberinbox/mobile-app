@@ -96,6 +96,16 @@ class _PendingDeletionClient extends _DeletionClient {
   }
 }
 
+/// Keeps the deletion in progress, so the stored request keys can be observed
+/// after the request is accepted.
+class _PendingStatusClient extends _DeletionClient {
+  @override
+  Future<String> status(String requestId, String statusToken) async {
+    statusCalls++;
+    return 'pending';
+  }
+}
+
 /// The [BoxDecoration] the branded button paints its gradient and radius with.
 BoxDecoration buttonDecoration(WidgetTester tester) => tester
     .widget<DecoratedBox>(
@@ -112,6 +122,7 @@ Future<void> pumpDeletionPage(
   WidgetTester tester, {
   AccountDeletionClient? client,
   Future<void> Function()? onDeleted,
+  bool settle = true,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -123,7 +134,14 @@ Future<void> pumpDeletionPage(
       ),
     ),
   );
-  await tester.pumpAndSettle();
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    // A pending deletion shows an indeterminate progress bar, so the page
+    // never settles; pump enough frames for the restore to complete.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+  }
 }
 
 void main() {
@@ -190,14 +208,67 @@ void main() {
       expect(BrandedActionButton.radius, 14);
     });
 
-    testWidgets('paints the brand gradient', (tester) async {
+    testWidgets('paints the shared primary action gradient', (tester) async {
       await pumpDeletionPage(tester);
 
       final gradient = buttonDecoration(tester).gradient! as LinearGradient;
+      expect(
+        gradient,
+        NumberInboxPalette.primaryActionGradient,
+        reason: 'Delete account must paint the same shared palette token as '
+            'Send code and Verify, not a local copy',
+      );
       expect(gradient.colors, [
         NumberInboxPalette.actionGreen,
         NumberInboxPalette.actionBlue,
       ]);
+    });
+
+    testWidgets('keeps the shared gradient while the spinner runs',
+        (tester) async {
+      final client = _PendingDeletionClient();
+      await pumpDeletionPage(tester, client: client);
+
+      await tester.enterText(find.byKey(const Key('deletion_phone_field')), '812345678');
+      await tester.tap(find.byKey(_key));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Delete permanently'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        buttonDecoration(tester).gradient! as LinearGradient,
+        NumberInboxPalette.primaryActionGradient,
+        reason: 'the loading state keeps the brand gradient so the white '
+            'spinner stays legible',
+      );
+    });
+
+    testWidgets('falls back to a neutral fill while disabled', (tester) async {
+      final credentials = _PendingCredentials();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeUtils.buildAppTheme(),
+          home: AccountDeletionPage(
+            client: _DeletionClient(),
+            credentialRepository: credentials,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final gradient = buttonDecoration(tester).gradient! as LinearGradient;
+      expect(
+        gradient,
+        isNot(NumberInboxPalette.primaryActionGradient),
+        reason: 'a disabled control must not advertise the brand gradient',
+      );
+      expect(
+        gradient.colors.toSet(),
+        {const Color(0xFFE5E7EB)},
+        reason: 'the disabled fill stays the neutral gray shared with the '
+            'other branded buttons',
+      );
     });
 
     testWidgets('fills the available width', (tester) async {
@@ -425,5 +496,92 @@ void main() {
       expect(client.statusCalls, 1);
       expect(signedOut, isTrue);
     });
+  });
+
+  group('account-scoped pending deletion', () {
+    const scope = 'numberinbox.accountDeletion.+66812345678@numberinbox.test';
+    const scopedRequestId = '$scope.requestId';
+    const scopedStatusToken = '$scope.statusToken';
+    const scopedIdempotencyKey = '$scope.idempotencyKey';
+    const legacyRequestId = 'numberinbox.accountDeletion.requestId';
+    const legacyStatusToken = 'numberinbox.accountDeletion.statusToken';
+    const legacyIdempotencyKey = 'numberinbox.accountDeletion.idempotencyKey';
+
+    testWidgets(
+      'WHEN legacy unscoped request keys exist\n'
+      'THEN they are discarded instead of resuming another account deletion',
+      (tester) async {
+        FlutterSecureStorage.setMockInitialValues({
+          legacyRequestId: 'foreign-request',
+          legacyStatusToken: 'foreign-token',
+          legacyIdempotencyKey: 'foreign-key',
+        });
+        final client = _DeletionClient();
+        await pumpDeletionPage(tester, client: client);
+
+        expect(client.statusCalls, 0,
+            reason: 'a pending request from another account must not be polled');
+        const storage = FlutterSecureStorage();
+        expect(await storage.read(key: legacyRequestId), isNull);
+        expect(await storage.read(key: legacyStatusToken), isNull);
+        expect(await storage.read(key: legacyIdempotencyKey), isNull);
+        expect(find.text('Delete permanently'), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'WHEN the signed-in account has a pending request\n'
+      'THEN only its scoped token is used to poll and finish',
+      (tester) async {
+        FlutterSecureStorage.setMockInitialValues({
+          scopedRequestId: 'mine-request',
+          scopedStatusToken: 'mine-token',
+          legacyRequestId: 'foreign-request',
+          legacyStatusToken: 'foreign-token',
+          legacyIdempotencyKey: 'foreign-key',
+        });
+        final client = _DeletionClient();
+        await pumpDeletionPage(
+          tester,
+          client: client,
+          onDeleted: () async {},
+          settle: false,
+        );
+
+        expect(client.statusCalls, 1);
+        const storage = FlutterSecureStorage();
+        expect(await storage.read(key: legacyRequestId), isNull);
+        expect(await storage.read(key: legacyStatusToken), isNull);
+        expect(await storage.read(key: legacyIdempotencyKey), isNull);
+      },
+    );
+
+    testWidgets(
+      'WHEN a deletion request is started\n'
+      'THEN its request, status, and idempotency keys are stored under the signed-in account',
+      (tester) async {
+        final client = _PendingStatusClient();
+        await pumpDeletionPage(tester, client: client);
+
+        await tester.enterText(
+            find.byKey(const Key('deletion_phone_field')), '812345678');
+        await tester.tap(find.byKey(_key));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Delete permanently'));
+        await tester.pump(const Duration(milliseconds: 100));
+        await tester.pump(const Duration(milliseconds: 100));
+
+        const storage = FlutterSecureStorage();
+        expect(await storage.read(key: scopedRequestId), 'request-id');
+        expect(await storage.read(key: scopedStatusToken), 'status-token');
+        expect(await storage.read(key: scopedIdempotencyKey), isNotNull);
+        expect(await storage.read(key: legacyRequestId), isNull);
+        expect(await storage.read(key: legacyStatusToken), isNull);
+        expect(await storage.read(key: legacyIdempotencyKey), isNull);
+
+        await tester.pumpWidget(const SizedBox());
+        await tester.pumpAndSettle();
+      },
+    );
   });
 }

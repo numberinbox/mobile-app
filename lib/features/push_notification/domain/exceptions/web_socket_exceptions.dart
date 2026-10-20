@@ -14,6 +14,13 @@ class WebSocketUriUnavailableException extends AppBaseException {
   String get exceptionName => 'WebSocketUriUnavailableException';
 }
 
+class WebSocketInsecureSchemeException extends AppBaseException {
+  WebSocketInsecureSchemeException([super.message]);
+
+  @override
+  String get exceptionName => 'WebSocketInsecureSchemeException';
+}
+
 class WebSocketTicketUnavailableException extends AppBaseException {
   WebSocketTicketUnavailableException([super.message]);
 

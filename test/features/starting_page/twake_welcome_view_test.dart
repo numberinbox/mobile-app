@@ -481,6 +481,12 @@ void main() {
       return decoration.gradient!.colors.toList(growable: false);
     }
 
+    LinearGradient brandedGradientOf(WidgetTester tester, String key) {
+      final decoration =
+          brandedDecorationOf(tester, key).decoration as BoxDecoration;
+      return decoration.gradient! as LinearGradient;
+    }
+
     double cornerRadiusOf(WidgetTester tester, String key) {
       final decoration =
           brandedDecorationOf(tester, key).decoration as BoxDecoration;
@@ -512,17 +518,27 @@ void main() {
 
     testWidgets('send code and verify share the branded gradient', (tester) async {
       await pumpScreen(tester);
+      final sendGradient = brandedGradientOf(tester, 'otp_send_cta');
       final sendStops = gradientStopsOf(tester, 'otp_send_cta');
 
       await pumpCodePhase(tester);
-      final verifyStops = gradientStopsOf(tester, 'otp_verify_cta');
+      final verifyGradient = brandedGradientOf(tester, 'otp_verify_cta');
 
       expect(
-        verifyStops,
-        sendStops,
+        verifyGradient,
+        sendGradient,
         reason: 'the Verify button must use the same gradient as Send code',
       );
-      expect(sendStops, [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue]);
+      expect(
+        verifyGradient,
+        NumberInboxPalette.primaryActionGradient,
+        reason: 'both OTP phases must paint the shared palette token, not a '
+            'local copy that could drift from the other primary actions',
+      );
+      expect(
+        sendStops,
+        [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
+      );
     });
 
     testWidgets('send code and verify share the same geometry', (tester) async {
@@ -591,10 +607,14 @@ void main() {
         reason: 'the spinner must be visibly white on the branded background',
       );
       expect(
+        brandedGradientOf(tester, 'otp_send_cta'),
+        NumberInboxPalette.primaryActionGradient,
+        reason: 'loading must keep the shared gradient token, not fall back to '
+            'a neutral fill that would swallow the white spinner',
+      );
+      expect(
         gradientStopsOf(tester, 'otp_send_cta'),
         [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
-        reason: 'loading must keep the branded gradient, not fall back to a '
-            'neutral fill that would swallow the white spinner',
       );
       expect(
         tester.widget<FilledButton>(find.byKey(const Key('otp_send_cta'))).onPressed,

@@ -3,6 +3,7 @@ import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:core/utils/direction_utils.dart';
 import 'package:flutter/material.dart';
+import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/email/presentation/styles/email_view_back_button_styles.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
@@ -27,6 +28,7 @@ class EmailViewBackButton extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!isSearchActivated) {
       return TMailButtonWidget(
+        key: const Key(UiKeys.emailReaderBackButton),
         text: backButtonLabel,
         icon: DirectionUtils.isDirectionRTLByLanguage(context)
           ? imagePaths.icArrowRight
@@ -46,6 +48,7 @@ class EmailViewBackButton extends StatelessWidget {
       );
     } else {
       return TMailButtonWidget.fromIcon(
+        key: const Key(UiKeys.emailReaderBackButton),
         icon: DirectionUtils.isDirectionRTLByLanguage(context)
           ? imagePaths.icArrowRight
           : imagePaths.icBack,

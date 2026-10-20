@@ -11,5 +11,14 @@ class NumberInboxPalette {
   static const ice = Color(0xFFF5F7EB);
   static const actionGreen = Color(0xFF047857);
   static const actionBlue = Color(0xFF0369A1);
+
+  /// The shared light-mode gradient every primary Compose/OTP action paints,
+  /// so a single token keeps the brand surfaces from drifting apart.
+  static const primaryActionGradient = LinearGradient(
+    begin: AlignmentDirectional.centerStart,
+    end: AlignmentDirectional.centerEnd,
+    colors: [actionGreen, actionBlue],
+  );
+
   static const selection = Color(0xFFDDF7EC);
 }

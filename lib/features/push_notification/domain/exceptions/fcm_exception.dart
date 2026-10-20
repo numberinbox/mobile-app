@@ -28,13 +28,6 @@ class NotFoundEmailDeliveryStateException extends AppBaseException {
   String get exceptionName => 'NotFoundEmailDeliveryStateException';
 }
 
-class NotFoundFirebaseRegistrationForDeviceException extends AppBaseException {
-  const NotFoundFirebaseRegistrationForDeviceException([super.message]);
-
-  @override
-  String get exceptionName => 'NotFoundFirebaseRegistrationForDeviceException';
-}
-
 class NotFoundFirebaseRegistrationCacheException extends AppBaseException {
   const NotFoundFirebaseRegistrationCacheException([super.message]);
 
@@ -61,25 +54,4 @@ class EmailStateNoChangeException extends AppBaseException {
 
   @override
   String get exceptionName => 'EmailStateNoChangeException';
-}
-
-class NotFoundFirebaseRegistrationCreatedException extends AppBaseException {
-  const NotFoundFirebaseRegistrationCreatedException([super.message]);
-
-  @override
-  String get exceptionName => 'NotFoundFirebaseRegistrationCreatedException';
-}
-
-class NotFoundFirebaseRegistrationUpdatedException extends AppBaseException {
-  const NotFoundFirebaseRegistrationUpdatedException([super.message]);
-
-  @override
-  String get exceptionName => 'NotFoundFirebaseRegistrationUpdatedException';
-}
-
-class NotFoundFirebaseRegistrationDestroyedException extends AppBaseException {
-  const NotFoundFirebaseRegistrationDestroyedException([super.message]);
-
-  @override
-  String get exceptionName => 'NotFoundFirebaseRegistrationDestroyedException';
 }

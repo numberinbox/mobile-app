@@ -7,6 +7,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 class FcmService {
 
   StreamController<Map<String, dynamic>>?  backgroundMessageStreamController;
+  StreamController<Map<String, dynamic>>? foregroundMessageStreamController;
   StreamController<String?>? fcmTokenStreamController;
 
   FcmService._internal();
@@ -22,14 +23,22 @@ class FcmService {
     }
   }
 
+  void handleFirebaseForegroundMessage(RemoteMessage newRemoteMessage) {
+    log('FcmService::handleFirebaseForegroundMessage():data: ${newRemoteMessage.data}');
+    if (newRemoteMessage.data.isNotEmpty) {
+      foregroundMessageStreamController?.add(newRemoteMessage.data);
+    }
+  }
+
   void handleToken(String? token) {
-    log('FcmService::handleToken():token: $token');
+    log('FcmService::handleToken():token: ${token != null ? '<fresh-token>' : null}');
     fcmTokenStreamController?.add(token);
   }
 
   void initialStreamController() {
     log('FcmService::initialStreamController:');
     backgroundMessageStreamController = StreamController<Map<String, dynamic>>.broadcast();
+    foregroundMessageStreamController = StreamController<Map<String, dynamic>>.broadcast();
     fcmTokenStreamController = StreamController<String?>.broadcast();
   }
 
@@ -42,6 +51,15 @@ class FcmService {
       );
     } finally {
       backgroundMessageStreamController = null;
+    }
+    try {
+      await foregroundMessageStreamController?.close();
+    } catch (e) {
+      logWarning(
+        'FcmService::closeStream: foregroundMessageStreamController throw exception: $e',
+      );
+    } finally {
+      foregroundMessageStreamController = null;
     }
     try {
       await fcmTokenStreamController?.close();

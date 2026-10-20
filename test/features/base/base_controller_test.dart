@@ -5,14 +5,21 @@ import 'package:contact/contact/model/capability_contact.dart';
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/state/failure.dart';
+import 'package:dartz/dartz.dart' as dartz;
+import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride;
+import 'package:fcm/model/device_client_id.dart';
+import 'package:fcm/model/firebase_registration.dart';
+import 'package:fcm/model/firebase_registration_id.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:flutter/material.dart' hide State;
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
+import 'package:jmap_dart_client/jmap/core/id.dart';
 import 'package:jmap_dart_client/jmap/core/account/account.dart';
 import 'package:jmap_dart_client/jmap/core/capability/empty_capability.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
@@ -42,6 +49,12 @@ import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
 import 'package:uuid/uuid.dart';
 import 'package:tmail_ui_user/features/base/extensions/discard_web_composers_on_logout_extension.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/destroy_firebase_registration_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_firebase_registration_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_firebase_registration_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/register_platform_fcm_token_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/revoke_platform_fcm_registration_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_service.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_view_web.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/repository/composer_cache_repository.dart';
@@ -60,11 +73,16 @@ class MockBaseController extends BaseController {
   /// Shared with the before-reconnect stub so a test can assert the ordering.
   final List<String> events = [];
 
+  /// When enabled, [clearAllData] only records the event so ordering tests
+  /// can observe it without running real storage cleanup.
+  bool clearAllDataRecording = false;
+
   void resetState() {
      isUrgentExceptionEnable = false;
      isErrorViewStateEnable = false;
      logoutCalls = 0;
      events.clear();
+     clearAllDataRecording = false;
   }
 
   // Records the forced logout instead of clearing storage and routing.
@@ -72,6 +90,15 @@ class MockBaseController extends BaseController {
   Future<void> clearDataAndGoToLoginPage() async {
     logoutCalls++;
     events.add('logout');
+  }
+
+  @override
+  Future<void> clearAllData() async {
+    if (clearAllDataRecording) {
+      events.add('clearAllData');
+      return;
+    }
+    await super.clearAllData();
   }
 
   @override
@@ -101,6 +128,8 @@ class FakeComposerCacheRepository extends Fake implements ComposerCacheRepositor
     if (error != null) throw error!;
   }
 }
+
+class _FakeBuildContext extends Fake implements BuildContext {}
 
 class SomeOtherException extends RemoteException {
   const SomeOtherException();
@@ -138,6 +167,8 @@ class _TestSentrySessionCleanup implements SentrySessionCleanup {
   MockSpec<ToastManager>(),
   MockSpec<TwakeAppManager>(),
   MockSpec<BeforeReconnectManager>(),
+  MockSpec<GetStoredFirebaseRegistrationInteractor>(),
+  MockSpec<RevokePlatformFcmRegistrationInteractor>(),
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -645,6 +676,11 @@ void main() {
       PlatformInfo.isTestingForWeb = true;
       when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
       registerCacheRemoval();
+      dotenv.testLoad(mergeWith: {
+        'PLATFORM': 'other',
+        'FCM_AVAILABLE': 'unsupported',
+      });
+      addTearDown(dotenv.clean);
       await tester.pumpWidget(const SizedBox());
 
       mockBaseController.logout(
@@ -680,5 +716,267 @@ void main() {
 
       verify(mockAppToast.showToastErrorMessage(any, "This link can't be opened")).called(1);
     });
+  });
+
+  // NumberInbox runs on a Stalwart server that never advertises the Twake
+  // JMAP Firebase capability, so the FCM setup must not depend on it.
+  group('BaseController::FCM with a Stalwart session (no JMAP Firebase capability)', () {
+    setUp(() {
+      dotenv.testLoad(mergeWith: {
+        'PLATFORM': 'other',
+        'FCM_AVAILABLE': 'supported',
+      });
+      addTearDown(dotenv.clean);
+    });
+
+    test(
+      'WHEN FCM bindings are injected for a session without FirebaseCapability\n'
+      'THEN the FCM interactor bindings are registered and the token stream starts',
+      () async {
+        final session = SessionFixtures.aliceSession;
+        await mockBaseController.injectFCMBindings(session, AccountFixtures.aliceAccountId);
+
+        expect(Get.isRegistered<GetStoredFirebaseRegistrationInteractor>(), isTrue);
+        expect(Get.isRegistered<RevokePlatformFcmRegistrationInteractor>(), isTrue);
+        expect(Get.isRegistered<RegisterPlatformFcmTokenInteractor>(), isTrue);
+        expect(FcmService.instance.backgroundMessageStreamController, isNotNull);
+        expect(FcmService.instance.fcmTokenStreamController, isNotNull);
+
+        addTearDown(() async {
+          await FcmService.instance.closeStream();
+          Get.reset();
+        });
+      },
+    );
+
+    test(
+      'WHEN a user signs out of a basic-auth Stalwart session\n'
+      'THEN the stored registration is revoked instead of skipping FCM teardown',
+      () async {
+        final storedRegistration = FirebaseRegistration(
+          id: FirebaseRegistrationId(Id('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb')),
+          token: null,
+          deviceClientId: DeviceClientId('43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5'),
+          types: null,
+        );
+        final mockGetStoredFirebaseRegistrationInteractor = MockGetStoredFirebaseRegistrationInteractor();
+        final mockRevokePlatformFcmRegistrationInteractor = MockRevokePlatformFcmRegistrationInteractor();
+        when(mockGetStoredFirebaseRegistrationInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right(GetStoredFirebaseRegistrationSuccess(storedRegistration));
+        });
+        when(mockRevokePlatformFcmRegistrationInteractor.execute(any)).thenAnswer((_) async* {
+          yield dartz.Right(DestroyFirebaseRegistrationSuccess());
+        });
+        Get.put<GetStoredFirebaseRegistrationInteractor>(mockGetStoredFirebaseRegistrationInteractor);
+        Get.put<RevokePlatformFcmRegistrationInteractor>(mockRevokePlatformFcmRegistrationInteractor);
+        addTearDown(Get.reset);
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        when(mockCachingManager.clearMailDataCached()).thenAnswer((_) async {
+          mockBaseController.events.add('clearMailCache');
+        });
+
+        mockBaseController.resetState();
+        mockBaseController.logout(
+          _FakeBuildContext(),
+          SessionFixtures.aliceSession,
+          AccountFixtures.aliceAccountId,
+          'alice@domain.tld',
+        );
+        await pumpEventQueue();
+
+        verify(mockGetStoredFirebaseRegistrationInteractor.execute()).called(1);
+        verify(mockRevokePlatformFcmRegistrationInteractor.execute(any)).called(1);
+        expect(mockBaseController.events, ['clearMailCache', 'logout']);
+      },
+    );
+
+    test(
+      'WHEN signing out of a basic-auth account with a stored registration\n'
+      'THEN the FCM registration is revoked BEFORE the credentials are cleared',
+      () async {
+        final storedRegistration = FirebaseRegistration(
+          id: FirebaseRegistrationId(Id('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb')),
+          token: null,
+          deviceClientId: DeviceClientId('43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5'),
+          types: null,
+        );
+        final mockGetStoredFirebaseRegistrationInteractor = MockGetStoredFirebaseRegistrationInteractor();
+        final mockRevokePlatformFcmRegistrationInteractor = MockRevokePlatformFcmRegistrationInteractor();
+        when(mockGetStoredFirebaseRegistrationInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right(GetStoredFirebaseRegistrationSuccess(storedRegistration));
+        });
+        when(mockRevokePlatformFcmRegistrationInteractor.execute(any)).thenAnswer((_) async* {
+          await Future.delayed(const Duration(milliseconds: 20));
+          mockBaseController.events.add('revoke');
+          yield dartz.Right(DestroyFirebaseRegistrationSuccess());
+        });
+        Get.put<GetStoredFirebaseRegistrationInteractor>(mockGetStoredFirebaseRegistrationInteractor);
+        Get.put<RevokePlatformFcmRegistrationInteractor>(mockRevokePlatformFcmRegistrationInteractor);
+        addTearDown(Get.reset);
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        mockBaseController.resetState();
+        mockBaseController.clearAllDataRecording = true;
+        await mockBaseController.logoutToSignInNewAccount(
+          session: SessionFixtures.aliceSession,
+          accountId: AccountFixtures.aliceAccountId,
+          onSuccessCallback: () {},
+          onFailureCallback: ({exception}) {},
+        );
+
+        expect(mockBaseController.events, ['revoke', 'clearAllData']);
+      },
+    );
+
+    test(
+      'WHEN the revocation request fails (offline or rejected)\n'
+      'THEN the credentials are not cleared and the sign-out aborts with a failure',
+      () async {
+        final storedRegistration = FirebaseRegistration(
+          id: FirebaseRegistrationId(Id('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb')),
+          token: null,
+          deviceClientId: DeviceClientId('43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5'),
+          types: null,
+        );
+        final mockGetStoredFirebaseRegistrationInteractor = MockGetStoredFirebaseRegistrationInteractor();
+        final mockRevokePlatformFcmRegistrationInteractor = MockRevokePlatformFcmRegistrationInteractor();
+        when(mockGetStoredFirebaseRegistrationInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right(GetStoredFirebaseRegistrationSuccess(storedRegistration));
+        });
+        when(mockRevokePlatformFcmRegistrationInteractor.execute(any)).thenAnswer((_) async* {
+          await Future.delayed(const Duration(milliseconds: 20));
+          mockBaseController.events.add('revoke');
+          yield dartz.Left(DestroyFirebaseRegistrationFailure(Exception('offline')));
+        });
+        Get.put<GetStoredFirebaseRegistrationInteractor>(mockGetStoredFirebaseRegistrationInteractor);
+        Get.put<RevokePlatformFcmRegistrationInteractor>(mockRevokePlatformFcmRegistrationInteractor);
+        addTearDown(Get.reset);
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        mockBaseController.resetState();
+        mockBaseController.clearAllDataRecording = true;
+        final callbacks = <String>[];
+        await mockBaseController.logoutToSignInNewAccount(
+          session: SessionFixtures.aliceSession,
+          accountId: AccountFixtures.aliceAccountId,
+          onSuccessCallback: () => callbacks.add('onSuccess'),
+          onFailureCallback: ({exception}) => callbacks.add('onFailure'),
+        );
+
+        expect(mockBaseController.events, ['revoke']);
+        expect(callbacks, ['onFailure']);
+      },
+    );
+
+    testWidgets(
+      'WHEN the revocation request fails during the ordinary sign-out from Settings\n'
+      'THEN the mail cache is kept, the credentials are kept and the failure is shown',
+      (tester) async {
+        final storedRegistration = FirebaseRegistration(
+          id: FirebaseRegistrationId(Id('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb')),
+          token: null,
+          deviceClientId: DeviceClientId('43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5'),
+          types: null,
+        );
+        final mockGetStoredFirebaseRegistrationInteractor = MockGetStoredFirebaseRegistrationInteractor();
+        final mockRevokePlatformFcmRegistrationInteractor = MockRevokePlatformFcmRegistrationInteractor();
+        when(mockGetStoredFirebaseRegistrationInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right(GetStoredFirebaseRegistrationSuccess(storedRegistration));
+        });
+        when(mockRevokePlatformFcmRegistrationInteractor.execute(any)).thenAnswer((_) async* {
+          await Future.delayed(const Duration(milliseconds: 20));
+          mockBaseController.events.add('revoke');
+          yield dartz.Left(DestroyFirebaseRegistrationFailure(Exception('offline')));
+        });
+        Get.put<GetStoredFirebaseRegistrationInteractor>(mockGetStoredFirebaseRegistrationInteractor);
+        Get.put<RevokePlatformFcmRegistrationInteractor>(mockRevokePlatformFcmRegistrationInteractor);
+        addTearDown(Get.reset);
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        await tester.pumpWidget(const GetMaterialApp(
+          localizationsDelegates: [
+            AppLocalizationsDelegate(),
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: LocalizationService.supportedLocales,
+          locale: Locale('en'),
+          home: Scaffold(),
+        ));
+        await tester.pump();
+        clearInteractions(mockCachingManager);
+        clearInteractions(mockAppToast);
+
+        mockBaseController.resetState();
+        mockBaseController.clearAllDataRecording = true;
+        mockBaseController.logout(
+          _FakeBuildContext(),
+          SessionFixtures.aliceSession,
+          AccountFixtures.aliceAccountId,
+          'alice@domain.tld',
+        );
+        await tester.pump(const Duration(milliseconds: 50));
+        await tester.pump(const Duration(milliseconds: 50));
+        // testWidgets verifies foundation debug vars are restored before it
+        // returns, so the override cannot be reset from a tearDown here.
+        debugDefaultTargetPlatformOverride = null;
+
+        expect(mockBaseController.events, ['revoke']);
+        expect(mockBaseController.logoutCalls, 0);
+        verifyNever(mockCachingManager.clearMailDataCached());
+        verify(mockAppToast.showToastErrorMessage(any, any)).called(1);
+      },
+    );
+
+    test(
+      'WHEN the revocation request fails during the ordinary sign-out from Settings\n'
+      'THEN the credentials are kept and the app stays signed in',
+      () async {
+        final storedRegistration = FirebaseRegistration(
+          id: FirebaseRegistrationId(Id('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb')),
+          token: null,
+          deviceClientId: DeviceClientId('43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5'),
+          types: null,
+        );
+        final mockGetStoredFirebaseRegistrationInteractor = MockGetStoredFirebaseRegistrationInteractor();
+        final mockRevokePlatformFcmRegistrationInteractor = MockRevokePlatformFcmRegistrationInteractor();
+        when(mockGetStoredFirebaseRegistrationInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right(GetStoredFirebaseRegistrationSuccess(storedRegistration));
+        });
+        when(mockRevokePlatformFcmRegistrationInteractor.execute(any)).thenAnswer((_) async* {
+          await Future.delayed(const Duration(milliseconds: 20));
+          mockBaseController.events.add('revoke');
+          yield dartz.Left(DestroyFirebaseRegistrationFailure(Exception('offline')));
+        });
+        Get.put<GetStoredFirebaseRegistrationInteractor>(mockGetStoredFirebaseRegistrationInteractor);
+        Get.put<RevokePlatformFcmRegistrationInteractor>(mockRevokePlatformFcmRegistrationInteractor);
+        addTearDown(Get.reset);
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+        addTearDown(() => debugDefaultTargetPlatformOverride = null);
+
+        mockBaseController.resetState();
+        mockBaseController.clearAllDataRecording = true;
+        mockBaseController.logout(
+          _FakeBuildContext(),
+          SessionFixtures.aliceSession,
+          AccountFixtures.aliceAccountId,
+          'alice@domain.tld',
+        );
+        await Future.delayed(const Duration(milliseconds: 100));
+        await pumpEventQueue();
+
+        expect(mockBaseController.events, ['revoke']);
+        expect(mockBaseController.logoutCalls, 0);
+      },
+    );
   });
 }

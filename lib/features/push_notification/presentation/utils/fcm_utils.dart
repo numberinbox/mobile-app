@@ -6,6 +6,7 @@ import 'package:dartz/dartz.dart';
 import 'package:fcm/model/type_name.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:jmap_dart_client/jmap/core/state.dart' as jmap;
 import 'package:jmap_dart_client/jmap/push/state_change.dart';
 import 'package:jmap_dart_client/jmap/push/type_state.dart';
 
@@ -34,6 +35,27 @@ class FcmUtils {
   static const int durationMessageComing = 2000;
   static const int durationRefreshToken = 2000;
   static const int durationBackgroundMessageComing = 30000;
+
+  /// Prefix of the non-server state carried by NumberInbox platform pushes.
+  static const String platformPushStatePrefix = 'numberinbox-platform-push-state-';
+
+  static int _platformPushStateSequence = 0;
+
+  /// Platform pushes carry no JMAP state token. A unique non-server state is
+  /// used so:
+  /// - the change pipeline never skips its work on a state comparison (a
+  ///   cached or displayed state would otherwise match and abort the refresh),
+  /// - [isPlatformPushState] lets the pipeline refuse to persist it or send it
+  ///   to the server as a since-state.
+  static jmap.State createPlatformPushState() {
+    return jmap.State(
+      '$platformPushStatePrefix${DateTime.now().microsecondsSinceEpoch}-${_platformPushStateSequence++}',
+    );
+  }
+
+  static bool isPlatformPushState(jmap.State state) {
+    return state.value.startsWith(platformPushStatePrefix);
+  }
 
   StateChange? convertFirebaseDataMessageToStateChange(Map<String, dynamic> dataMessage) {
     log('FcmUtils::convertFirebaseDataMessageToStateChange():dataMessage: $dataMessage');

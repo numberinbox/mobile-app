@@ -194,9 +194,10 @@ class _ControllableDeletionClient extends AccountDeletionClient {
   }
 }
 
-const _requestIdKey = 'numberinbox.accountDeletion.requestId';
-const _statusTokenKey = 'numberinbox.accountDeletion.statusToken';
-const _idempotencyKey = 'numberinbox.accountDeletion.idempotencyKey';
+const _accountScope = '+66812345678@numberinbox.test';
+const _requestIdKey = 'numberinbox.accountDeletion.$_accountScope.requestId';
+const _statusTokenKey = 'numberinbox.accountDeletion.$_accountScope.statusToken';
+const _idempotencyKey = 'numberinbox.accountDeletion.$_accountScope.idempotencyKey';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

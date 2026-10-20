@@ -1,5 +1,6 @@
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:flutter/material.dart';
@@ -13,8 +14,8 @@ import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart
 import 'package:tmail_ui_user/main/localizations/localization_service.dart';
 
 void main() {
-  testWidgets('keeps the TMail Compose brand colors with the sidebar button',
-      _testTmailComposeBrandColors);
+  testWidgets('paints the shared gradient behind the light-mode sidebar button',
+      _testLightModeGradientBehindButton);
 
   testWidgets('uses the resolved horizontal padding for the default width',
       _testDefaultWidthUsesResolvedPadding);
@@ -26,7 +27,23 @@ void main() {
       _testClampsDefaultWidthWithOversizedPadding);
 }
 
-Future<void> _testTmailComposeBrandColors(WidgetTester tester) async {
+/// The gradient [DecoratedBox] the light-mode sidebar Compose pill is painted on.
+BoxDecoration lightGradientDecoration(WidgetTester tester) {
+  final decorationFinder = find.ancestor(
+    of: find.byKey(const Key(UiKeys.composeEmailPrimaryAction)),
+    matching: find.byWidgetPredicate(
+      (widget) =>
+          widget is DecoratedBox && widget.decoration is BoxDecoration,
+    ),
+  );
+  for (final box in tester.widgetList<DecoratedBox>(decorationFinder)) {
+    final decoration = box.decoration as BoxDecoration;
+    if (decoration.gradient != null) return decoration;
+  }
+  throw StateError('no gradient DecoratedBox found above the Compose button');
+}
+
+Future<void> _testLightModeGradientBehindButton(WidgetTester tester) async {
   var composeCalls = 0;
 
   await _pumpComposeButton(
@@ -34,25 +51,83 @@ Future<void> _testTmailComposeBrandColors(WidgetTester tester) async {
     onTapAction: () => composeCalls++,
   );
 
-  final button = tester.widget<FilledButton>(
-    find.byKey(const Key(UiKeys.composeEmailPrimaryAction)),
+  final decoration = lightGradientDecoration(tester);
+  expect(
+    decoration.gradient,
+    NumberInboxPalette.primaryActionGradient,
+    reason: 'the sidebar Compose action must paint the shared palette token '
+        'behind the pill',
   );
-  expect(button.style?.backgroundColor?.resolve({}), AppColor.colorComposeButton);
+  expect(
+    (decoration.borderRadius! as BorderRadius).topLeft.x,
+    greaterThanOrEqualTo(20),
+    reason: 'the gradient pill is stadium-shaped (fully rounded ends)',
+  );
+
+  final buttonFinder = find.byKey(const Key(UiKeys.composeEmailPrimaryAction));
+  final button = tester.widget<FilledButton>(buttonFinder);
+  expect(
+    button.style?.backgroundColor?.resolve({}),
+    Colors.transparent,
+    reason: 'the button surface must let the gradient show through',
+  );
+  expect(
+    button.style?.backgroundColor?.resolve({WidgetState.hovered}),
+    Colors.transparent,
+    reason: 'hover must not cover the gradient with an opaque container',
+  );
+  expect(
+    button.style?.backgroundColor?.resolve({WidgetState.focused}),
+    Colors.transparent,
+    reason: 'focus must not cover the gradient with an opaque container',
+  );
+  expect(
+    button.style?.backgroundColor?.resolve({WidgetState.pressed}),
+    Colors.transparent,
+    reason: 'press must not cover the gradient with an opaque container',
+  );
+  expect(
+    button.style?.backgroundColor?.resolve({WidgetState.disabled}),
+    Colors.transparent,
+    reason: 'the disabled state also stays transparent on the gradient',
+  );
+
+  final hoverOverlay =
+      button.style?.overlayColor?.resolve({WidgetState.hovered});
+  expect(hoverOverlay, isNotNull);
+  expect(
+    hoverOverlay!.a,
+    greaterThan(0),
+    reason: 'a translucent state layer keeps hover and focus visible',
+  );
+
   expect(button.style?.foregroundColor?.resolve({}), Colors.white);
+  expect(button.style?.minimumSize?.resolve({}), const Size(0, 40));
+  expect(
+    tester.getSize(find.byType(FilledButton)),
+    const Size(ResponsiveUtils.sidebarMenuWidth - 32, 40),
+  );
+
+  // The gradient covers only the interactive pill, not the outer padding.
+  expect(
+    tester.getSize(
+      find.ancestor(
+        of: buttonFinder,
+        matching: find.byType(DecoratedBox),
+      ).first,
+    ),
+    tester.getSize(buttonFinder),
+    reason: 'the gradient pill hugs the button and excludes the padding',
+  );
 
   final icon = tester.widget<SvgPicture>(find.byType(SvgPicture));
   expect(
     icon.colorFilter,
     button.style?.foregroundColor?.resolve({})?.asFilter(),
   );
-  expect(button.style?.minimumSize?.resolve({}), const Size(0, 40));
-  expect(
-    tester.getSize(find.byType(FilledButton)),
-    const Size(ResponsiveUtils.sidebarMenuWidth - 32, 40),
-  );
   expect(tester.getSize(find.byType(SvgPicture)), const Size(12, 12));
 
-  await tester.tap(find.byKey(const Key(UiKeys.composeEmailPrimaryAction)));
+  await tester.tap(buttonFinder);
   expect(composeCalls, 1);
 }
 

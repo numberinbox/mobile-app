@@ -27,6 +27,9 @@ class UiKeys {
 
   // Email rules / rules filter creator
   static const String createRuleButton = 'createRuleButton';
+  /// Back control of the mail-reader routes (thread detail and email view).
+  /// Distinct from [closeComposerButton], which must stay composer-only.
+  static const String emailReaderBackButton = 'email_reader_back_button';
   static const String emailRulesSettingMenuItem = 'setting_email_rules';
   static const String editEmailRuleButton = 'editEmailRuleButton';
   static const String moreEmailRuleButton = 'moreEmailRuleButton';

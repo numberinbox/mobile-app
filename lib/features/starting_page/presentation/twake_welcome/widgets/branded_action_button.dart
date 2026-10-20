@@ -47,14 +47,9 @@ class BrandedActionButton extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isDisabledFill
-              ? const [_disabledFill, _disabledFill]
-              : const [
-                  NumberInboxPalette.actionGreen,
-                  NumberInboxPalette.actionBlue,
-                ],
-        ),
+        gradient: isDisabledFill
+            ? const LinearGradient(colors: [_disabledFill, _disabledFill])
+            : NumberInboxPalette.primaryActionGradient,
         borderRadius: BorderRadius.circular(radius),
       ),
       child: SizedBox(

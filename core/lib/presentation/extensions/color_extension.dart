@@ -1,3 +1,4 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:flutter/material.dart';
 
 extension AppColor on Color {
@@ -226,7 +227,7 @@ extension AppColor on Color {
   static const steelGray200 = Color(0xFFAEB7C2);
   static const steelGray80 = Color(0xFFE7E8EC);
   static const blue700 = Color(0xFF0369A1);
-  static const colorComposeButton = Color(0xFF047857);
+  static const colorComposeButton = NumberInboxPalette.actionGreen;
   static const steelGray400 = Color(0xFF818C99);
   static const steelGray600 = Color(0xFF4E5966);
   static const blue100 = Color(0xFFDDF7EC);

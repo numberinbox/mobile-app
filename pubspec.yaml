@@ -394,6 +394,7 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/animations/
+    - assets/splash/
     - env.file
     - configurations/
     - configurations/icons/

@@ -7,6 +7,7 @@ import 'package:tmail_ui_user/features/push_notification/domain/model/email_chan
 import 'package:tmail_ui_user/features/push_notification/domain/repository/fcm_repository.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_email_changes_to_push_notification_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_email_changes_to_push_notification_interactor.dart';
+import 'package:tmail_ui_user/features/thread/data/model/email_change_response.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/email_response.dart';
 
 import '../../../../fixtures/account_fixtures.dart';
@@ -60,6 +61,65 @@ void main() {
 
       expect(success.emailList, isEmpty);
       expect(() => success.emailList.clear(), returnsNormally);
+    },
+  );
+
+  test(
+    'WHEN the Email/changes and Email/get responses carry different new states\n'
+    'THEN the success exposes the Email/changes state so the cursor cannot skip a change',
+    () async {
+      final interactor = GetEmailChangesToPushNotificationInteractor(
+        _FakeFCMRepository(EmailsResponse(
+          emailList: null,
+          emailChangeResponse: EmailChangeResponse(
+            newStateEmail: jmap.State('server-new-state-email'),
+            newStateChanges: jmap.State('server-new-state-changes'),
+          ),
+        )),
+      );
+
+      final states = await interactor
+          .execute(
+            SessionFixtures.aliceSession,
+            AccountFixtures.aliceAccountId,
+            userName,
+            StateFixtures.currentEmailState,
+          )
+          .toList();
+
+      final success = states
+              .lastWhere((either) => either.isRight())
+              .fold((_) => null, (success) => success)
+          as GetEmailChangesToPushNotificationSuccess;
+
+      expect(success.newState, jmap.State('server-new-state-changes'));
+      expect(success.newState, isNot(equals(jmap.State('server-new-state-email'))));
+    },
+  );
+
+  test(
+    'WHEN the JMAP Email/changes response carries no new state\n'
+    'THEN the success leaves the delivery cursor untouched',
+    () async {
+      final interactor = GetEmailChangesToPushNotificationInteractor(
+        _FakeFCMRepository(const EmailsResponse(emailList: null)),
+      );
+
+      final states = await interactor
+          .execute(
+            SessionFixtures.aliceSession,
+            AccountFixtures.aliceAccountId,
+            userName,
+            StateFixtures.currentEmailState,
+          )
+          .toList();
+
+      final success = states
+              .lastWhere((either) => either.isRight())
+              .fold((_) => null, (success) => success)
+          as GetEmailChangesToPushNotificationSuccess;
+
+      expect(success.newState, isNull);
     },
   );
 }

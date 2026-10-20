@@ -38,6 +38,7 @@ import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/notifier/s
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/utils/fcm_utils.dart';
 import 'package:tmail_ui_user/features/thread/domain/constants/thread_constants.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/filter_message_option.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/search_query.dart';
@@ -427,6 +428,154 @@ void main() {
             SessionFixtures.aliceSession,
             AccountFixtures.aliceAccountId,
             jmap.State('old-state'),
+            sort: anyNamed('sort'),
+            limit: anyNamed('limit'),
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+            emailFilter: anyNamed('emailFilter'),
+            collapseThreads: anyNamed('collapseThreads'),
+          )).called(1);
+        },
+      );
+
+      testWidgets(
+        'WHEN the cached and displayed Email state equals the pushed state\n'
+        'THEN the mailbox refresh is skipped',
+        (tester) async {
+          PlatformInfo.isTestingForWeb = true;
+          await tester.pumpWidget(const GetMaterialApp(home: SizedBox.shrink()));
+
+          final emailAction = Rxn<EmailUIAction>();
+          final cacheController = ThreadController(
+            mockGetEmailsInMailboxInteractor,
+            mockRefreshChangesEmailsInMailboxInteractor,
+            mockLoadMoreEmailsInMailboxInteractor,
+            mockGetEmailByIdInteractor,
+            mockCleanAndGetEmailsInMailboxInteractor,
+          );
+          addTearDown(() {
+            cacheController.onClose();
+            PlatformInfo.isTestingForWeb = false;
+          });
+
+          when(mockMailboxDashBoardController.sessionCurrent)
+              .thenReturn(SessionFixtures.aliceSession);
+          when(mockMailboxDashBoardController.accountId)
+              .thenReturn(Rxn(AccountFixtures.aliceAccountId));
+          when(mockMailboxDashBoardController.currentEmailState)
+              .thenReturn(jmap.State('cached-and-displayed-state'));
+          when(mockMailboxDashBoardController.emailsInCurrentMailbox)
+              .thenReturn(RxList(<PresentationEmail>[]));
+          when(mockMailboxDashBoardController.selectedMailbox)
+              .thenReturn(Rxn(null));
+          when(mockMailboxDashBoardController.searchController)
+              .thenReturn(mockSearchController);
+          when(mockMailboxDashBoardController.emailUIAction)
+              .thenReturn(emailAction);
+          when(mockMailboxDashBoardController.dashBoardAction)
+              .thenReturn(Rxn(null));
+          when(mockMailboxDashBoardController.viewState)
+              .thenReturn(Rx(Right(UIState.idle)));
+          when(mockMailboxDashBoardController.filterMessageOption)
+              .thenReturn(Rx(FilterMessageOption.all));
+          when(mockMailboxDashBoardController.mapMailboxById)
+              .thenReturn({});
+          when(mockMailboxDashBoardController.trashSpamMailboxIds)
+              .thenReturn(null);
+          when(mockSearchController.isSearchEmailRunning).thenReturn(true);
+
+          cacheController.onInit();
+          emailAction.value = RefreshChangeEmailAction(
+            newState: jmap.State('cached-and-displayed-state'),
+          );
+          await tester.pump(const Duration(seconds: 3));
+
+          verifyNever(mockRefreshChangesEmailsInMailboxInteractor.execute(
+            any,
+            any,
+            any,
+            sort: anyNamed('sort'),
+            limit: anyNamed('limit'),
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+            emailFilter: anyNamed('emailFilter'),
+            collapseThreads: anyNamed('collapseThreads'),
+          ));
+        },
+      );
+
+      testWidgets(
+        'WHEN a new-mail platform push arrives while the cached and displayed Email state is unchanged\n'
+        'THEN the mailbox still refreshes its changes from that real state',
+        (tester) async {
+          PlatformInfo.isTestingForWeb = true;
+          await tester.pumpWidget(const GetMaterialApp(home: SizedBox.shrink()));
+
+          final emailAction = Rxn<EmailUIAction>();
+          final cacheController = ThreadController(
+            mockGetEmailsInMailboxInteractor,
+            mockRefreshChangesEmailsInMailboxInteractor,
+            mockLoadMoreEmailsInMailboxInteractor,
+            mockGetEmailByIdInteractor,
+            mockCleanAndGetEmailsInMailboxInteractor,
+          );
+          addTearDown(() {
+            cacheController.onClose();
+            PlatformInfo.isTestingForWeb = false;
+          });
+
+          when(mockMailboxDashBoardController.sessionCurrent)
+              .thenReturn(SessionFixtures.aliceSession);
+          when(mockMailboxDashBoardController.accountId)
+              .thenReturn(Rxn(AccountFixtures.aliceAccountId));
+          when(mockMailboxDashBoardController.currentEmailState)
+              .thenReturn(jmap.State('cached-and-displayed-state'));
+          when(mockMailboxDashBoardController.emailsInCurrentMailbox)
+              .thenReturn(RxList(<PresentationEmail>[]));
+          when(mockMailboxDashBoardController.selectedMailbox)
+              .thenReturn(Rxn(null));
+          when(mockMailboxDashBoardController.searchController)
+              .thenReturn(mockSearchController);
+          when(mockMailboxDashBoardController.emailUIAction)
+              .thenReturn(emailAction);
+          when(mockMailboxDashBoardController.dashBoardAction)
+              .thenReturn(Rxn(null));
+          when(mockMailboxDashBoardController.viewState)
+              .thenReturn(Rx(Right(UIState.idle)));
+          when(mockMailboxDashBoardController.filterMessageOption)
+              .thenReturn(Rx(FilterMessageOption.all));
+          when(mockMailboxDashBoardController.mapMailboxById)
+              .thenReturn({});
+          when(mockMailboxDashBoardController.trashSpamMailboxIds)
+              .thenReturn(null);
+          when(mockSearchController.isSearchEmailRunning).thenReturn(true);
+          when(mockRefreshChangesEmailsInMailboxInteractor.execute(
+            any,
+            any,
+            any,
+            sort: anyNamed('sort'),
+            limit: anyNamed('limit'),
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+            emailFilter: anyNamed('emailFilter'),
+            collapseThreads: anyNamed('collapseThreads'),
+          )).thenAnswer((_) => Stream.value(
+                Right(RefreshChangesAllEmailSuccess(emailList: const [])),
+              ));
+
+          cacheController.onInit();
+          emailAction.value = RefreshChangeEmailAction(
+            newState: FcmUtils.createPlatformPushState(),
+          );
+
+          for (var pumpCount = 0; pumpCount < 5; pumpCount++) {
+            await tester.pump(const Duration(seconds: 1));
+          }
+
+          verify(mockRefreshChangesEmailsInMailboxInteractor.execute(
+            SessionFixtures.aliceSession,
+            AccountFixtures.aliceAccountId,
+            jmap.State('cached-and-displayed-state'),
             sort: anyNamed('sort'),
             limit: anyNamed('limit'),
             propertiesCreated: anyNamed('propertiesCreated'),

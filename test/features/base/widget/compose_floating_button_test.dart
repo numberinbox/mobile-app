@@ -1,5 +1,6 @@
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/floating_button/scrolling_floating_button_animated.dart';
 import 'package:flutter/material.dart';
@@ -12,30 +13,45 @@ import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart
 import 'package:tmail_ui_user/main/localizations/localization_service.dart';
 
 void main() {
-  testWidgets('uses the NumberInbox primary action green in light mode',
-      _testLightModeUsesBrandGreen);
+  testWidgets('light mode paints the shared primary action gradient',
+      _testLightModeUsesSharedGradient);
 
   testWidgets('keeps the expanded geometry and a single tap callback',
       _testKeepsGeometryAndTap);
 
-  testWidgets('keeps the brand green when collapsed after scrolling',
-      _testKeepsBrandGreenWhenCollapsed);
+  testWidgets('keeps the shared gradient when collapsed after scrolling',
+      _testKeepsSharedGradientWhenCollapsed);
 
   testWidgets('keeps the prior blue in dark mode', _testDarkModeKeepsBlue);
+
+  testWidgets('a color-only caller still paints its solid color',
+      _testColorOnlyCallerPaintsSolidColor);
 }
 
-Future<void> _testLightModeUsesBrandGreen(WidgetTester tester) async {
+Future<void> _testLightModeUsesSharedGradient(WidgetTester tester) async {
   await _pumpComposeFloatingButton(tester);
 
   final button = tester.widget<ScrollingFloatingButtonAnimated>(
     find.byType(ScrollingFloatingButtonAnimated),
   );
   expect(
-    button.color,
-    AppColor.colorComposeButton,
-    reason: 'the mobile Compose action must use the light brand green',
+    button.gradient,
+    NumberInboxPalette.primaryActionGradient,
+    reason: 'the mobile Compose action must paint the shared palette token '
+        'instead of a solid green copy',
   );
-  expect(button.color, isNot(AppColor.blue700));
+  expect(button.color, isNull, reason: 'a gradient button must not also set '
+      'a solid fill, which BoxDecoration rejects');
+
+  final ink = tester.widget<Ink>(
+    find.descendant(
+      of: find.byType(ScrollingFloatingButtonAnimated),
+      matching: find.byType(Ink),
+    ),
+  );
+  final decoration = ink.decoration! as BoxDecoration;
+  expect(decoration.gradient, NumberInboxPalette.primaryActionGradient);
+  expect(decoration.color, isNull);
 }
 
 Future<void> _testKeepsGeometryAndTap(WidgetTester tester) async {
@@ -51,6 +67,19 @@ Future<void> _testKeepsGeometryAndTap(WidgetTester tester) async {
   expect(button.width, 154);
   expect(button.height, 60);
 
+  final ink = tester.widget<Ink>(
+    find.descendant(
+      of: find.byType(ScrollingFloatingButtonAnimated),
+      matching: find.byType(Ink),
+    ),
+  );
+  final radius = (ink.decoration! as BoxDecoration).borderRadius! as BorderRadius;
+  expect(
+    radius.topLeft.x,
+    button.height! / 2,
+    reason: 'the expanded button stays a pill',
+  );
+
   final label = tester.widget<Text>(find.text('Compose'));
   expect(label.style?.color, Colors.white);
 
@@ -59,7 +88,7 @@ Future<void> _testKeepsGeometryAndTap(WidgetTester tester) async {
   expect(taps, 1);
 }
 
-Future<void> _testKeepsBrandGreenWhenCollapsed(WidgetTester tester) async {
+Future<void> _testKeepsSharedGradientWhenCollapsed(WidgetTester tester) async {
   final scrollController = ScrollController();
   addTearDown(scrollController.dispose);
 
@@ -74,8 +103,8 @@ Future<void> _testKeepsBrandGreenWhenCollapsed(WidgetTester tester) async {
         .widget<ScrollingFloatingButtonAnimated>(
           find.byType(ScrollingFloatingButtonAnimated),
         )
-        .color,
-    AppColor.colorComposeButton,
+        .gradient,
+    NumberInboxPalette.primaryActionGradient,
   );
 
   scrollController.jumpTo(300);
@@ -85,9 +114,10 @@ Future<void> _testKeepsBrandGreenWhenCollapsed(WidgetTester tester) async {
     find.byType(ScrollingFloatingButtonAnimated),
   );
   expect(
-    collapsed.color,
-    AppColor.colorComposeButton,
-    reason: 'the color must not change when the button collapses while scrolling',
+    collapsed.gradient,
+    NumberInboxPalette.primaryActionGradient,
+    reason: 'the gradient must not change when the button collapses while '
+        'scrolling',
   );
 }
 
@@ -137,9 +167,50 @@ Future<void> _testDarkModeKeepsBlue(WidgetTester tester) async {
     button.color,
     AppColor.blue700,
     reason: 'the dark-theme floating button keeps its existing blue; the brand '
-        'green is a light-mode change only',
+        'gradient is a light-mode change only',
   );
   expect(button.color, isNot(AppColor.colorComposeButton));
+  expect(button.gradient, isNull);
+}
+
+Future<void> _testColorOnlyCallerPaintsSolidColor(WidgetTester tester) async {
+  const solidRed = Color(0xFFE11D48);
+
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: ScrollingFloatingButtonAnimated(
+            icon: const Icon(Icons.edit, color: Colors.white),
+            text: const Text('Label', style: TextStyle(color: Colors.white)),
+            onPress: () {},
+            scrollController: ScrollController(),
+            color: solidRed,
+            width: 154,
+            height: 60,
+            animateIcon: false,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pump();
+
+  final button = tester.widget<ScrollingFloatingButtonAnimated>(
+    find.byType(ScrollingFloatingButtonAnimated),
+  );
+  expect(button.gradient, isNull, reason: 'old color-only callers keep their '
+      'API: no gradient parameter is required');
+
+  final ink = tester.widget<Ink>(
+    find.descendant(
+      of: find.byType(ScrollingFloatingButtonAnimated),
+      matching: find.byType(Ink),
+    ),
+  );
+  final decoration = ink.decoration! as BoxDecoration;
+  expect(decoration.color, solidRed);
+  expect(decoration.gradient, isNull);
 }
 
 Future<void> _pumpComposeFloatingButton(
