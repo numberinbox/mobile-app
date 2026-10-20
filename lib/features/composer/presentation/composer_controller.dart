@@ -800,6 +800,10 @@ class ComposerController extends BaseController
   Future<void> onLoadCompletedMobileEditorAction(HtmlEditorApi editorApi, WebUri? url) async {
     _isEmailBodyLoaded = true;
     await setupSelectedIdentity();
+    // setupSelectedIdentity awaits network work (identities, signatures). The
+    // user can close the composer while it is in flight, which disposes the
+    // editor and this controller; touching either afterwards throws.
+    if (isClosed) return;
     _autoFocusFieldWhenLauncher();
     if (PlatformInfo.isAndroid) unawaited(restoreIfEditorBlank());
   }
@@ -2149,11 +2153,14 @@ class ComposerController extends BaseController
     Identity? formerIdentity,
     Identity newIdentity
   ) async {
+    if (isClosed) return;
+
     if (formerIdentity != null) {
       if (formerIdentity.bcc?.isNotEmpty == true) {
         _removeBccEmailAddressFromFormerIdentity(formerIdentity.bcc!);
       }
       await _removeSignature();
+      if (isClosed) return;
     }
 
     if (newIdentity.bcc?.isNotEmpty == true) {
@@ -2162,8 +2169,12 @@ class ComposerController extends BaseController
 
     if (newIdentity.signatureAsString.isNotEmpty == true) {
       await applySignature(newIdentity.signatureAsString.asSignatureHtml());
+      if (isClosed) return;
     }
 
+    // Closing the composer disposes the HTML editor while identity setup may
+    // still be running; notifying a disposed editor throws setState-after-
+    // dispose and leaks a disposed webview controller into teardown.
     if (PlatformInfo.isMobile) {
       await htmlEditorApi?.onDocumentChanged();
     }
