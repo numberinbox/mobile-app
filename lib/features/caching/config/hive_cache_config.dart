@@ -109,6 +109,15 @@ class HiveCacheConfig {
       log('HiveCacheConfig::_initializeEncryptionKey(): encryptionKeyCacheManager not found');
       return;
     }
+
+    // The first-install probe has to run before the key cache itself is read:
+    // opening an empty key-cache box creates its .hive file on disk, and the
+    // probe reads any .hive file as "existing install". Reading the cache
+    // first would therefore make every fresh device look like an existing
+    // install without a key, the key would never be generated, and every
+    // encrypted box — including the sign-in store — would fail closed.
+    final firstInstall = await isFirstInstall();
+
     final encryptionKeyCache = await encryptionKeyCacheManager.getEncryptionKeyStored();
     if (encryptionKeyCache != null) {
       return;
@@ -120,7 +129,7 @@ class HiveCacheConfig {
     // user's session would be unreadable and the boxes that could be read would
     // be the ones written in the clear from then on. So refuse, visibly, and
     // let the encrypted clients fail closed.
-    if (!await isFirstInstall()) {
+    if (!firstInstall) {
       logError(
         'HiveCacheConfig::initializeEncryptionKey(): '
         'encryption_key_absent=true | reason=existing_store_without_key',
@@ -152,8 +161,14 @@ class HiveCacheConfig {
     if (databasePath != null) {
       final directory = Directory(databasePath);
       if (!directory.existsSync()) return true;
+      // The key cache's own artifacts are excluded on purpose: reading the
+      // empty key cache opens its box, which writes these files before any
+      // box holds a record. Counting them as a store would make every fresh
+      // device look like an existing install without a key and fail closed.
       return !directory.listSync().whereType<File>().any(
-            (file) => file.path.endsWith('.hive') || file.path.endsWith('.lock'),
+            (file) =>
+                !_isKeyCacheArtifact(file) &&
+                (file.path.endsWith('.hive') || file.path.endsWith('.lock')),
           );
     }
 
@@ -173,6 +188,18 @@ class HiveCacheConfig {
   /// Test seam for [isFirstInstall].
   @visibleForTesting
   static Future<bool> Function()? isFirstInstallOverride;
+
+  /// Files the key cache itself creates when it is merely opened.
+  ///
+  /// Hive writes a zero-length `<table>.hive` (plus `.lock`) for an empty box,
+  /// so these artifacts exist on every fresh install after the key cache has
+  /// been probed, and cannot say anything about prior stored state. Case
+  /// folded: Hive lowercases box file names on some platforms.
+  static bool _isKeyCacheArtifact(File file) {
+    final name = file.path.split('/').last.toLowerCase();
+    return name == 'encryptionkeycache.hive' ||
+        name == 'encryptionkeycache.lock';
+  }
 
   Future<Uint8List?> getEncryptionKey() async {
     final encryptionKeyCacheManager = getBinding<EncryptionKeyCacheManager>() ?? getBinding<EncryptionKeyCacheManager>(tag: BindingTag.isolateTag);

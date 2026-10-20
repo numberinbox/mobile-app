@@ -133,6 +133,28 @@ void main() {
     });
   });
 
+  group('[first install, key-box file race]', () {
+    test('generates a key when only the empty key-box file exists', () async {
+      // The on-device symptom: reading an empty key cache opens its box, which
+      // writes a zero-length .hive file before the first-install probe runs.
+      // The probe must not read that self-created file as an existing store,
+      // otherwise no key is ever generated and sign-in fails closed forever.
+      final raceBoxFile =
+          File('${databaseDirectory.path}/encryptionkeycache.hive');
+      raceBoxFile.writeAsBytesSync(const <int>[]);
+
+      await HiveCacheConfig.instance.initializeEncryptionKey();
+
+      expect(keyCacheManager.stored, isNotNull,
+          reason: 'a device with only the empty key-box file is a first install');
+      expect(keyCacheManager.stored!.value, isNotEmpty);
+      expect(
+        logs.records.where((r) => r.level == Level.error),
+        isEmpty,
+      );
+    });
+  });
+
   group('[existing install]', () {
     test('does not generate a key when an encrypted store already exists',
         () async {
