@@ -21,6 +21,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tmail_ui_user/features/caching/entries/sentry_configuration_cache.dart';
 import 'package:tmail_ui_user/features/caching/entries/sentry_user_cache.dart';
 import 'package:tmail_ui_user/features/caching/manager/sentry_configuration_cache_manager.dart';
+import 'package:tmail_ui_user/features/push_notification/data/local/fcm_cache_manager.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
@@ -157,6 +158,7 @@ SentryUserCache _user(String id) => SentryUserCache(
   MockSpec<DynamicUrlInterceptors>(),
   MockSpec<AuthorizationInterceptors>(),
   MockSpec<GetSessionInteractor>(),
+  MockSpec<FCMCacheManager>(),
 ])
 
 /// Version-1 mail.delivered fixture shared with the platform's P9 contract
@@ -939,6 +941,186 @@ void main() {
         await pumpEventQueue();
 
         verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(1);
+      },
+    );
+
+    test(
+      'WHEN an FCM redelivery arrives whose deliveryId was already fully processed\n'
+      'THEN the push is skipped before any account resolution or dispatch happens',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        final mockFcmCacheManager = MockFCMCacheManager();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<FCMCacheManager>(mockFcmCacheManager);
+        when(mockFcmCacheManager.hasProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+        )).thenAnswer((_) async => true);
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verifyNever(mockGetAuthenticatedAccountInteractor.execute());
+        verifyNever(mockFcmCacheManager.recordProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+          maxEntries: anyNamed('maxEntries'),
+        ));
+      },
+    );
+
+    test(
+      'WHEN a platform push dispatches to completion\n'
+      'THEN the native account id and deliveryId are recorded as processed so at-least-once FCM redeliveries do not repeat the effects',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+        final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+        final mockGetSessionInteractor = MockGetSessionInteractor();
+        final mockFcmCacheManager = MockFCMCacheManager();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+        Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+        Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+        Get.put<FCMCacheManager>(mockFcmCacheManager);
+        when(mockFcmCacheManager.hasProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+        )).thenAnswer((_) async => false);
+        when(mockFcmCacheManager.recordProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+          maxEntries: anyNamed('maxEntries'),
+        )).thenAnswer((_) async {});
+        when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetCredentialViewState(
+            Uri.parse('https://jmap.numberinbox.com'),
+            UserName('+66841234567@numberinbox.com'),
+            Password('stalwart-password'),
+            PersonalAccount(
+              'personal-account-id',
+              AuthenticationType.basic,
+              isSelected: true,
+              accountId: AccountFixtures.aliceAccountId,
+              apiUrl: _platformApiUrl,
+            ),
+            stateChange: null,
+          ));
+        });
+        when(mockGetSessionInteractor.execute(
+            stateChange: null)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetSessionSuccess(
+            SessionFixtures.aliceSession,
+            stateChange: null,
+          ));
+        });
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verify(mockFcmCacheManager.recordProcessedDelivery(
+          stalwartAccountId: _backendMailDeliveredPayload['stalwartAccountId'] as String,
+          deliveryId: _backendMailDeliveredPayload['deliveryId'] as String,
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+          maxEntries: anyNamed('maxEntries'),
+        )).called(1);
+      },
+    );
+
+    test(
+      'WHEN the JMAP session fetch fails\n'
+      'THEN the delivery is not recorded as processed so FCM can redeliver it for a retry',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+        final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+        final mockGetSessionInteractor = MockGetSessionInteractor();
+        final mockFcmCacheManager = MockFCMCacheManager();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+        Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+        Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+        Get.put<FCMCacheManager>(mockFcmCacheManager);
+        when(mockFcmCacheManager.hasProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+        )).thenAnswer((_) async => false);
+        when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetCredentialViewState(
+            Uri.parse('https://jmap.numberinbox.com'),
+            UserName('+66841234567@numberinbox.com'),
+            Password('stalwart-password'),
+            PersonalAccount(
+              'personal-account-id',
+              AuthenticationType.basic,
+              isSelected: true,
+              accountId: AccountFixtures.aliceAccountId,
+              apiUrl: _platformApiUrl,
+            ),
+            stateChange: null,
+          ));
+        });
+        when(mockGetSessionInteractor.execute(
+            stateChange: null)).thenAnswer((_) async* {
+          yield dartz.Left<Failure, Success>(
+              GetSessionFailure(Exception('backend unreachable')));
+        });
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verifyNever(mockFcmCacheManager.recordProcessedDelivery(
+          stalwartAccountId: anyNamed('stalwartAccountId'),
+          deliveryId: anyNamed('deliveryId'),
+          now: anyNamed('now'),
+          ttl: anyNamed('ttl'),
+          maxEntries: anyNamed('maxEntries'),
+        ));
+      },
+    );
+
+    test(
+      'WHEN the persisted delivery marker store is unavailable\n'
+      'THEN the push still goes through its full dispatch (dedup never silently discards unseen mail)',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        when(mockGetAuthenticatedAccountInteractor.execute())
+            .thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetCredentialViewState(
+            Uri.parse('https://jmap.numberinbox.com'),
+            UserName('+66841234567@numberinbox.com'),
+            Password('stalwart-password'),
+            PersonalAccount(
+              'personal-account-id',
+              AuthenticationType.basic,
+              isSelected: true,
+              accountId: AccountFixtures.aliceAccountId,
+              apiUrl: _platformApiUrl,
+            ),
+            stateChange: null,
+          ));
+        });
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(1);
       },
     );
 

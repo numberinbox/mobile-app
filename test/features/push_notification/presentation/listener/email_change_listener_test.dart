@@ -4,10 +4,15 @@ import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:fcm/model/type_name.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:jmap_dart_client/jmap/core/id.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:model/model.dart';
@@ -47,6 +52,10 @@ const _bobStoredDeliveryState = '5a2c8b90-1d4e-4f6a-9c8b-3e7f6a5d4c2b';
 
 /// The real Email state returned by the JMAP Email/changes response.
 const _serverNewState = 'd3a4f1c2-9e8b-4a17-8f01-2b6f7c1d5e93';
+
+/// A real server state pushed by the legacy websocket flow, distinct from the
+/// cached one so the legacy changes pipeline still runs.
+const _incomingLegacyServerState = 'f1e2d3c4-b5a6-9781-2f3e-4d5c6b7a9e81';
 
 final _userName = UserName('alice@domain.tld');
 
@@ -326,6 +335,143 @@ void main() {
           any,
           platformPushState,
         ));
+      },
+    );
+  });
+
+  group('EmailChangeListener::platform push stays silent (Android already displayed the system notification)', () {
+    const localNotificationChannel =
+        MethodChannel('dexterous.com/flutter/local_notifications');
+
+    final PresentationEmail discoveredEmail = PresentationEmail(
+      id: EmailId(Id('e6948d51214629057f63c03d50e19d31')),
+      subject: 'Your one-time password',
+      preview: 'Your code is 551144',
+      from: {EmailAddress('IT department', 'attacker@evil.example')},
+    );
+
+    Future<List<MethodCall>> mockLocalNotificationChannel() async {
+      final showCalls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(localNotificationChannel, (call) async {
+        showCalls.add(call);
+        return null;
+      });
+      return showCalls;
+    }
+
+    void unmockLocalNotificationChannel() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(localNotificationChannel, null);
+    }
+
+    setUpAll(TestWidgetsFlutterBinding.ensureInitialized);
+
+    test(
+      'WHEN a background platform push discovers new emails\n'
+      'THEN the listener processes the changes and advances the cursor\n'
+      'AND it posts no app-generated local notification of its own\n'
+      'AND no subject, preview or sender data reach the notification channel',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final showCalls = await mockLocalNotificationChannel();
+        try {
+          when(mockGetEmailChangesToPushNotificationInteractor.execute(
+            any,
+            any,
+            any,
+            any,
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+          )).thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(
+                GetEmailChangesToPushNotificationSuccess(
+              AccountFixtures.aliceAccountId,
+              _userName,
+              <PresentationEmail>[discoveredEmail],
+              newState: State(_serverNewState),
+            ));
+          });
+
+          await EmailChangeListener.instance.processPlatformPushNotification(
+            newState: FcmUtils.createPlatformPushState(),
+            accountId: AccountFixtures.aliceAccountId,
+            userName: _userName,
+            session: SessionFixtures.aliceSession);
+          await pumpEventQueue();
+
+          expect(
+            showCalls.where((call) => call.method == 'show'),
+            isEmpty,
+            reason: 'Android already displayed the system notification for '
+                'the push; a duplicate rich app notification would show the '
+                'email subject, preview and sender on the lock screen.',
+          );
+          verify(mockGetEmailChangesToPushNotificationInteractor.execute(
+            SessionFixtures.aliceSession,
+            AccountFixtures.aliceAccountId,
+            _userName,
+            State(_cachedAndDisplayedState),
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+          )).called(1);
+          verify(mockStoreEmailDeliveryStateInteractor.execute(
+            AccountFixtures.aliceAccountId,
+            _userName,
+            State(_serverNewState),
+          )).called(1);
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+          unmockLocalNotificationChannel();
+        }
+      },
+    );
+
+    test(
+      'WHEN a legacy websocket-delivered push (real JMAP state, no system notification) discovers new emails\n'
+      'THEN the listener still posts its local notification of its own',
+      () async {
+        debugDefaultTargetPlatformOverride = TargetPlatform.android;
+        final showCalls = await mockLocalNotificationChannel();
+        try {
+          when(mockGetEmailChangesToPushNotificationInteractor.execute(
+            any,
+            any,
+            any,
+            any,
+            propertiesCreated: anyNamed('propertiesCreated'),
+            propertiesUpdated: anyNamed('propertiesUpdated'),
+          )).thenAnswer((_) async* {
+            yield dartz.Right<Failure, Success>(
+                GetEmailChangesToPushNotificationSuccess(
+              AccountFixtures.aliceAccountId,
+              _userName,
+              <PresentationEmail>[discoveredEmail],
+              newState: State(_serverNewState),
+            ));
+          });
+
+          EmailChangeListener.instance.dispatchActions([
+            PushNotificationAction(
+              TypeName.emailDelivery,
+              State(_incomingLegacyServerState),
+              SessionFixtures.aliceSession,
+              AccountFixtures.aliceAccountId,
+              _userName,
+            ),
+          ]);
+          await pumpEventQueue();
+
+          expect(
+            showCalls.where((call) => call.method == 'show'),
+            isNotEmpty,
+            reason: 'Legacy pushes arrive without a system notification, the '
+                'app-generated local notification is their only display.',
+          );
+        } finally {
+          debugDefaultTargetPlatformOverride = null;
+          unmockLocalNotificationChannel();
+        }
       },
     );
   });

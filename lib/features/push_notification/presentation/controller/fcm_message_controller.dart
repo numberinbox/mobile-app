@@ -9,6 +9,7 @@ import 'package:core/utils/sentry/sentry_config.dart';
 import 'package:core/utils/sentry/sentry_manager.dart';
 import 'package:fcm/model/type_name.dart';
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
@@ -30,6 +31,7 @@ import 'package:tmail_ui_user/features/login/domain/state/get_authenticated_acco
 import 'package:tmail_ui_user/features/login/domain/state/get_stored_token_oidc_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/bindings/mailbox_dashboard_bindings.dart';
+import 'package:tmail_ui_user/features/push_notification/data/local/fcm_cache_manager.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/bindings/fcm_interactor_bindings.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_token_controller.dart';
@@ -491,11 +493,20 @@ class FcmMessageController extends PushBaseController {
         return;
       }
 
+      if (await _shouldSkipPlatformPush(pushMessage)) {
+        return;
+      }
+
       _pendingPlatformPushMessage = pushMessage;
       _isForegroundPlatformPush = isForeground;
-      await _resolvePlatformPushAccountAndDispatch(
+      final dispatched = await _resolvePlatformPushAccountAndDispatch(
         pushMessage: pushMessage,
         isForeground: isForeground);
+      if (dispatched) {
+        // Only completed effects are recorded: a failed fetch can retry
+        // when FCM redelivers the same event later.
+        await _recordPlatformPushProcessed(pushMessage);
+      }
     } catch (e, st) {
       _dropPendingPlatformPush();
       logError(
@@ -506,27 +517,95 @@ class FcmMessageController extends PushBaseController {
     }
   }
 
-  Future<void> _resolvePlatformPushAccountAndDispatch({
+  /// Guards the receive path so an at-least-once FCM redelivery of the same
+  /// `(native account id, deliveryId)` event does not repeat the mail
+  /// fetch, notification or navigation effects. When the marker store is
+  /// unavailable the push is processed anyway: dedup must never silently
+  /// discard unseen mail.
+  Future<bool> _shouldSkipPlatformPush(NumberInboxPushMessage pushMessage) async {
+    final fcmCacheManager = _getDeliveryDedupCacheManager();
+    if (fcmCacheManager == null) {
+      return false;
+    }
+    try {
+      final alreadyProcessed = await fcmCacheManager.hasProcessedDelivery(
+        stalwartAccountId: pushMessage.stalwartAccountId,
+        deliveryId: pushMessage.deliveryId,
+      );
+      if (alreadyProcessed) {
+        logTrace('FcmMessageController::_shouldSkipPlatformPush: the platform push event was already processed (deliveryId: ${pushMessage.deliveryId}), drop it');
+      }
+      return alreadyProcessed;
+    } catch (e, st) {
+      logError(
+        'FcmMessageController::_shouldSkipPlatformPush: the delivery dedup lookup failed, process the push anyway',
+        exception: e,
+        stackTrace: st,
+      );
+      return false;
+    }
+  }
+
+  Future<void> _recordPlatformPushProcessed(NumberInboxPushMessage pushMessage) async {
+    final fcmCacheManager = _getDeliveryDedupCacheManager();
+    if (fcmCacheManager == null) {
+      return;
+    }
+    try {
+      await fcmCacheManager.recordProcessedDelivery(
+        stalwartAccountId: pushMessage.stalwartAccountId,
+        deliveryId: pushMessage.deliveryId,
+      );
+    } catch (e, st) {
+      // A dedup write failure must not fail the push callback: the event
+      // stays unrecorded so the next redelivery can retry the effects.
+      logError(
+        'FcmMessageController::_recordPlatformPushProcessed: the delivery dedup write failed',
+        exception: e,
+        stackTrace: st,
+      );
+    }
+  }
+
+  FCMCacheManager? _getDeliveryDedupCacheManager() {
+    try {
+      return Get.isRegistered<FCMCacheManager>()
+          ? Get.find<FCMCacheManager>()
+          : null;
+    } catch (e) {
+      logTrace('FcmMessageController::_getDeliveryDedupCacheManager: FCMCacheManager is unavailable, dedup is disabled');
+      return null;
+    }
+  }
+
+  /// Returns true when the push was dispatched (or dropped before its
+  /// effects) and its effects completed; false lets the caller skip
+  /// recording the event as processed.
+  Future<bool> _resolvePlatformPushAccountAndDispatch({
     required NumberInboxPushMessage pushMessage,
     required bool isForeground
   }) async {
     final accountViewState = await _getAuthenticatedAccountInteractor!.execute().last;
-    await accountViewState.fold(
-      (failure) async => handleFailureViewState(failure),
+    return await accountViewState.fold(
+      (failure) async {
+        handleFailureViewState(failure);
+        return false;
+      },
       (success) async {
         if (success is GetCredentialViewState) {
-          await _handleGetAccountByBasicAuthSuccess(
+          return _handleGetAccountByBasicAuthSuccess(
             success,
             pushMessage: pushMessage,
             isForeground: isForeground);
         } else if (success is GetStoredTokenOidcSuccess) {
-          await _handleGetAccountByOidcSuccess(
+          return _handleGetAccountByOidcSuccess(
             success,
             pushMessage: pushMessage,
             isForeground: isForeground);
         } else {
           logTrace('FcmMessageController::_resolvePlatformPushAccountAndDispatch: no authenticated account found');
           _dropPendingPlatformPush();
+          return false;
         }
       },
     );
@@ -605,7 +684,9 @@ class FcmMessageController extends PushBaseController {
     }
   }
 
-  Future<void> _dispatchPlatformPushAction({
+  /// Returns true when the dispatch completed; false on a drop or failure
+  /// so the caller does not record the event as processed.
+  Future<bool> _dispatchPlatformPushAction({
     required NumberInboxPushMessage pushMessage,
     required String apiUrl,
     required AccountId accountId,
@@ -613,40 +694,52 @@ class FcmMessageController extends PushBaseController {
     required bool isForeground,
     required Session session,
   }) async {
-    _dropPendingPlatformPush();
-    _dynamicUrlInterceptors?.changeBaseUrl(apiUrl);
-    final pushState = FcmUtils.createPlatformPushState();
+    try {
+      _dropPendingPlatformPush();
+      _dynamicUrlInterceptors?.changeBaseUrl(apiUrl);
+      final pushState = FcmUtils.createPlatformPushState();
 
-    if (!isForeground) {
-      // Background pushes are awaited end to end: the Android background
-      // isolate may be torn down as soon as the FCM callback returns, so the
-      // JMAP fetch and the notification work must have completed by then.
-      await EmailChangeListener.instance.processPlatformPushNotification(
-        newState: pushState,
-        accountId: accountId,
-        userName: userName,
+      if (!isForeground) {
+        // Background pushes are awaited end to end: the Android background
+        // isolate may be torn down as soon as the FCM callback returns, so
+        // the JMAP fetch and the notification work must have completed by
+        // then.
+        await EmailChangeListener.instance.processPlatformPushNotification(
+          newState: pushState,
+          accountId: accountId,
+          userName: userName,
+          session: session);
+        return true;
+      }
+
+      final mapTypeState = mapTypeStateForPlatformPush(
+        pushMessage,
+        stateToken: pushState.value,
+        isForeground: isForeground,
+      );
+      logTrace('FcmMessageController::_dispatchPlatformPushAction: Mapping platform push to action ${mapTypeState.toString()}');
+      mappingTypeStateToAction(
+        mapTypeState,
+        accountId,
+        userName,
+        emailChangeListener: EmailChangeListener.instance,
+        mailboxChangeListener: MailboxChangeListener.instance,
+        labelChangeListener: LabelChangeListener.instance,
+        isForeground: isForeground,
         session: session);
-      return;
+      return true;
+    } catch (e, st) {
+      logError(
+        'FcmMessageController::_dispatchPlatformPushAction: the platform push dispatch failed',
+        exception: e,
+        stackTrace: st,
+      );
+      _dropPendingPlatformPush();
+      return false;
     }
-
-    final mapTypeState = mapTypeStateForPlatformPush(
-      pushMessage,
-      stateToken: pushState.value,
-      isForeground: isForeground,
-    );
-    logTrace('FcmMessageController::_dispatchPlatformPushAction: Mapping platform push to action ${mapTypeState.toString()}');
-    mappingTypeStateToAction(
-      mapTypeState,
-      accountId,
-      userName,
-      emailChangeListener: EmailChangeListener.instance,
-      mailboxChangeListener: MailboxChangeListener.instance,
-      labelChangeListener: LabelChangeListener.instance,
-      isForeground: isForeground,
-      session: session);
   }
 
-  Future<void> _handleGetAccountByOidcSuccess(
+  Future<bool> _handleGetAccountByOidcSuccess(
     GetStoredTokenOidcSuccess storedTokenOidcSuccess,
     {
       NumberInboxPushMessage? pushMessage,
@@ -661,15 +754,16 @@ class FcmMessageController extends PushBaseController {
     if (PlatformInfo.isAndroid) {
       _dynamicUrlInterceptors?.changeBaseUrl(storedTokenOidcSuccess.baseUrl.toString());
       if (pushMessage != null) {
-        await _getSessionActionAndWait(
+        return await _getSessionActionAndWait(
           stateChange: null,
           pushMessage: pushMessage,
           isForeground: isForeground);
       } else {
         _getSessionAction(stateChange: storedTokenOidcSuccess.stateChange);
+        return true;
       }
     } else {
-      await _dispatchPushOnNonAndroid(
+      return await _dispatchPushOnNonAndroid(
         apiUrl: storedTokenOidcSuccess.personalAccount.apiUrl,
         accountId: storedTokenOidcSuccess.personalAccount.accountId,
         username: storedTokenOidcSuccess.personalAccount.userName,
@@ -680,7 +774,7 @@ class FcmMessageController extends PushBaseController {
     }
   }
 
-  Future<void> _handleGetAccountByBasicAuthSuccess(
+  Future<bool> _handleGetAccountByBasicAuthSuccess(
     GetCredentialViewState credentialViewState,
     {
       NumberInboxPushMessage? pushMessage,
@@ -695,15 +789,16 @@ class FcmMessageController extends PushBaseController {
     if (PlatformInfo.isAndroid) {
       _dynamicUrlInterceptors?.changeBaseUrl(credentialViewState.baseUrl.toString());
       if (pushMessage != null) {
-        await _getSessionActionAndWait(
+        return await _getSessionActionAndWait(
           stateChange: null,
           pushMessage: pushMessage,
           isForeground: isForeground);
       } else {
         _getSessionAction(stateChange: credentialViewState.stateChange);
+        return true;
       }
     } else {
-      await _dispatchPushOnNonAndroid(
+      return await _dispatchPushOnNonAndroid(
         apiUrl: credentialViewState.personalAccount.apiUrl,
         accountId: credentialViewState.personalAccount.accountId,
         username: credentialViewState.personalAccount.userName,
@@ -714,7 +809,7 @@ class FcmMessageController extends PushBaseController {
     }
   }
 
-  Future<void> _dispatchPushOnNonAndroid({
+  Future<bool> _dispatchPushOnNonAndroid({
     required String? apiUrl,
     required AccountId? accountId,
     required UserName? username,
@@ -726,38 +821,39 @@ class FcmMessageController extends PushBaseController {
     if (platformPushMessage != null) {
       if (accountId == null || username == null) {
         logTrace('FcmMessageController::_dispatchPushOnNonAndroid: account id or username is null, drop the platform push');
-        return;
+        return false;
       }
       if (!_isPlatformPushForAccount(platformPushMessage, accountId)) {
-        return;
+        return false;
       }
       // Route the platform push through the session funnel (Android and
       // desktop) so the dispatch always has the resolved JMAP session.
       if (apiUrl != null) {
         _dynamicUrlInterceptors?.changeBaseUrl(apiUrl);
       }
-      await _getSessionActionAndWait(
+      return await _getSessionActionAndWait(
         stateChange: null,
         pushMessage: platformPushMessage,
         isForeground: isForeground);
-      return;
     }
     _dynamicUrlInterceptors?.changeBaseUrl(apiUrl);
     final canPush = accountId != null && username != null && stateChange != null;
     if (!canPush) {
       logTrace('FcmMessageController::_dispatchPushOnNonAndroid: accountId or username or stateChange is null');
-      return;
+      return false;
     }
     _pushActionFromRemoteMessageBackground(
       accountId: accountId,
       userName: username,
       stateChange: stateChange,
     );
+    return true;
   }
 
   /// Resolves the JMAP session and dispatches the platform push, completing
-  /// only after the dispatch has run.
-  Future<void> _getSessionActionAndWait({
+  /// only after the dispatch has run. Returns true when the dispatch
+  /// completed so the caller can record the event as processed.
+  Future<bool> _getSessionActionAndWait({
     StateChange? stateChange,
     required NumberInboxPushMessage pushMessage,
     bool isForeground = false,
@@ -766,19 +862,23 @@ class FcmMessageController extends PushBaseController {
     if (getSessionInteractor == null) {
       logTrace('FcmMessageController::_getSessionActionAndWait: GetSessionInteractor is null');
       _dropPendingPlatformPush();
-      return;
+      return false;
     }
     final sessionViewState = await getSessionInteractor.execute(stateChange: stateChange).last;
-    await sessionViewState.fold(
-      (failure) async => handleFailureViewState(failure),
+    return await sessionViewState.fold(
+      (failure) async {
+        handleFailureViewState(failure);
+        return false;
+      },
       (success) async {
         if (success is GetSessionSuccess) {
-          await _handleGetSessionSuccess(
+          return _handleGetSessionSuccess(
             success,
             pushMessage: pushMessage,
             isForeground: isForeground);
         } else {
           _dropPendingPlatformPush();
+          return false;
         }
       },
     );
@@ -792,7 +892,9 @@ class FcmMessageController extends PushBaseController {
     }
   }
 
-  Future<void> _handleGetSessionSuccess(
+  /// Returns true when the session was dispatched through to completion;
+  /// false on a drop or failure so the event is not recorded as processed.
+  Future<bool> _handleGetSessionSuccess(
     GetSessionSuccess success,
     {
       NumberInboxPushMessage? pushMessage,
@@ -806,7 +908,7 @@ class FcmMessageController extends PushBaseController {
         logTrace(
           'FcmMessageController::_handleGetSessionSuccess: Api url is empty',
         );
-        return;
+        return false;
       }
 
       // A platform push carries its own context end to end so overlapping
@@ -820,7 +922,7 @@ class FcmMessageController extends PushBaseController {
         final accountId = success.session.accountId;
         if (!_isPlatformPushForAccount(platformPushMessage, accountId)) {
           _dropPendingPlatformPush();
-          return;
+          return false;
         }
         // The session fetch is asynchronous: a sign-out or an account switch
         // can complete while it is in flight. Re-verify that the active
@@ -830,16 +932,15 @@ class FcmMessageController extends PushBaseController {
             await _isPushAccountStillActive(platformPushMessage);
         if (!isActiveAccountUnchanged) {
           _dropPendingPlatformPush();
-          return;
+          return false;
         }
-        await _dispatchPlatformPushAction(
+        return await _dispatchPlatformPushAction(
           pushMessage: platformPushMessage,
           apiUrl: apiUrl,
           accountId: accountId,
           userName: success.session.username,
           isForeground: isForegroundPlatformPush,
           session: success.session);
-        return;
       }
 
       final stateChange = success.stateChange;
@@ -852,10 +953,12 @@ class FcmMessageController extends PushBaseController {
           userName: success.session.username,
           stateChange: stateChange,
           session: success.session);
+        return true;
       } else {
         logTrace(
           'FcmMessageController::_handleGetSessionSuccess: state change is null',
         );
+        return false;
       }
     } catch (e, st) {
       _dropPendingPlatformPush();
@@ -864,6 +967,7 @@ class FcmMessageController extends PushBaseController {
         exception: e,
         stackTrace: st,
       );
+      return false;
     }
   }
 

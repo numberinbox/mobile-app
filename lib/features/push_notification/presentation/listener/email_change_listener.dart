@@ -153,6 +153,12 @@ class EmailChangeListener extends ChangeListener {
   /// starts.
   Future<void> _platformPushChain = Future<void>(() {});
 
+  /// True while a NumberInbox platform push is being processed on
+  /// [_platformPushChain]. Android has already displayed the system
+  /// notification for a platform push, so the listener must not post any
+  /// app-generated local notification of its own.
+  bool _isProcessingPlatformPush = false;
+
   Future<void> processPlatformPushNotification({
     required jmap.State newState,
     required AccountId accountId,
@@ -185,16 +191,21 @@ class EmailChangeListener extends ChangeListener {
     // Await the previous push so its per-call handlers finish before this
     // push overwrites the shared listener fields.
     await _platformPushChain;
-    _newStateEmailDelivery = newState;
-    _accountId = accountId;
-    _session = session;
-    _userName = userName;
-    log('EmailChangeListener::processPlatformPushNotification():newState: $newState');
+    _isProcessingPlatformPush = true;
+    try {
+      _newStateEmailDelivery = newState;
+      _accountId = accountId;
+      _session = session;
+      _userName = userName;
+      log('EmailChangeListener::processPlatformPushNotification():newState: $newState');
 
-    if (PlatformInfo.isWeb || PlatformInfo.isIOS) {
-      _storeEmailDeliveryStateAction(accountId, userName, newState);
-    } else if (PlatformInfo.isAndroid) {
-      await _getStoredEmailDeliveryState(accountId, userName);
+      if (PlatformInfo.isWeb || PlatformInfo.isIOS) {
+        _storeEmailDeliveryStateAction(accountId, userName, newState);
+      } else if (PlatformInfo.isAndroid) {
+        await _getStoredEmailDeliveryState(accountId, userName);
+      }
+    } finally {
+      _isProcessingPlatformPush = false;
     }
   }
 
@@ -364,6 +375,14 @@ class EmailChangeListener extends ChangeListener {
     }
 
     if (PlatformInfo.isAndroid) {
+      if (_isProcessingPlatformPush) {
+        // Android already displayed the system notification for the
+        // platform push; posting the rich app notification would duplicate
+        // it and leak subject, preview and sender on the lock screen.
+        logTrace('EmailChangeListener::_handleGetEmailChangesToPushNotificationSuccess: skip the local notification display for a platform push, Android already displayed the system notification');
+        _emailsAvailablePushNotification = [];
+        return;
+      }
       await _handleListEmailToPushNotification(
         userName: success.userName,
         emailList: success.emailList,

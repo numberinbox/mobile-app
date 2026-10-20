@@ -13,10 +13,108 @@ import 'package:tmail_ui_user/features/push_notification/data/model/firebase_reg
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/fcm_exception.dart';
 
 class FCMCacheManager extends CacheManagerInteraction {
+  /// Key prefix for the `(native account id, deliveryId)` dedup markers a
+  /// NumberInbox platform push records once its effects completed. The
+  /// markers live in the FCM cache box, existing state keys keep their own
+  /// prefix space.
+  static const platformPushDeliveryProcessedKeyPrefix = 'platform-delivery-processed';
+
+  /// At-least-once FCM redeliveries are only seconds to minutes apart, and
+  /// a push historically retried one day is still worth processing again:
+  /// keep markers for one day.
+  static const platformPushDeliveryProcessedTtl = Duration(hours: 24);
+
+  /// The marker store is by nature unbounded (one entry per delivered
+  /// mail), so cap it: pruning drops expired markers first, then the oldest
+  /// ones.
+  static const platformPushDeliveryProcessedMaxEntries = 256;
+
+  static String processedDeliveryCacheKey({
+    required String stalwartAccountId,
+    required String deliveryId,
+  }) =>
+      '$platformPushDeliveryProcessedKeyPrefix/$stalwartAccountId/$deliveryId';
+
   final FcmCacheClient _fcmCacheClient;
   final FirebaseRegistrationCacheClient _firebaseRegistrationCacheClient;
 
   FCMCacheManager(this._fcmCacheClient,this._firebaseRegistrationCacheClient);
+
+  /// Returns true when the `(native account id, deliveryId)` event was
+  /// recorded as processed within the freshness window, so at-least-once
+  /// FCM redeliveries do not repeat the mail fetch, display or navigation
+  /// effects.
+  Future<bool> hasProcessedDelivery({
+    required String stalwartAccountId,
+    required String deliveryId,
+    DateTime? now,
+    Duration ttl = platformPushDeliveryProcessedTtl,
+  }) async {
+    final currentTimestamp = now ?? DateTime.now();
+    final storedValue = await _fcmCacheClient.getItem(
+      processedDeliveryCacheKey(stalwartAccountId: stalwartAccountId, deliveryId: deliveryId),
+    );
+    final storedTimestamp = int.tryParse(storedValue ?? '');
+    if (storedTimestamp == null) {
+      return false;
+    }
+    final completedAt = DateTime.fromMillisecondsSinceEpoch(storedTimestamp);
+    return currentTimestamp.isBefore(completedAt.add(ttl));
+  }
+
+  /// Records a `(native account id, deliveryId)` event as fully processed
+  /// and keeps the marker store bounded: expired markers are dropped first,
+  /// then the oldest ones.
+  Future<void> recordProcessedDelivery({
+    required String stalwartAccountId,
+    required String deliveryId,
+    DateTime? now,
+    Duration ttl = platformPushDeliveryProcessedTtl,
+    int maxEntries = platformPushDeliveryProcessedMaxEntries,
+  }) async {
+    final currentTimestamp = now ?? DateTime.now();
+    await _fcmCacheClient.insertItem(
+      processedDeliveryCacheKey(stalwartAccountId: stalwartAccountId, deliveryId: deliveryId),
+      '${currentTimestamp.millisecondsSinceEpoch}',
+    );
+    await _pruneProcessedDeliveries(
+      currentTimestamp: currentTimestamp,
+      ttl: ttl,
+      maxEntries: maxEntries,
+    );
+  }
+
+  Future<void> _pruneProcessedDeliveries({
+    required DateTime currentTimestamp,
+    required Duration ttl,
+    required int maxEntries,
+  }) async {
+    final allItems = await _fcmCacheClient.getMapItems();
+    final deliveryMarkers = <String, int>{
+      for (final entry in allItems.entries)
+        if (entry.key.startsWith(platformPushDeliveryProcessedKeyPrefix))
+          entry.key: int.tryParse(entry.value) ?? currentTimestamp.millisecondsSinceEpoch,
+    };
+
+    final expiredMarkerKeys = <String>[
+      for (final entry in deliveryMarkers.entries)
+        if (!currentTimestamp.isBefore(
+            DateTime.fromMillisecondsSinceEpoch(entry.value).add(ttl)))
+          entry.key,
+    ];
+    for (final expiredMarkerKey in expiredMarkerKeys) {
+      await _fcmCacheClient.deleteItem(expiredMarkerKey);
+      deliveryMarkers.remove(expiredMarkerKey);
+    }
+
+    while (deliveryMarkers.length > maxEntries) {
+      final oldestMarkerKey = deliveryMarkers.entries
+          .reduce((oldest, next) => next.value < oldest.value ? next : oldest)
+          .key;
+      await _fcmCacheClient.deleteItem(oldestMarkerKey);
+      deliveryMarkers.remove(oldestMarkerKey);
+    }
+  }
 
   Future<void> storeStateToRefresh(AccountId accountId, UserName userName, TypeName typeName, jmap.State newState) {
     final stateKeyCache = TupleKey(typeName.value, accountId.asString, userName.value).encodeKey;
