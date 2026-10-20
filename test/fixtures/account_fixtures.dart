@@ -6,6 +6,7 @@ import 'package:model/account/personal_account.dart';
 
 class AccountFixtures {
   static final aliceAccountId = AccountId(Id('29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6'));
+  static final bobAccountId = AccountId(Id('6b7d1f2a3c4d5e6f70819263748596a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d'));
   static final aliceAccount = PersonalAccount(
     'dab',
     AuthenticationType.oidc,

@@ -1,19 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
 
+import '../../../../fixtures/numberinbox_push_fixture.dart';
+
 void main() {
-  // Mirrors the FCM data map built by the platform's FcmPushGateway:
-  // data.put("schemaVersion", ...), data.put("eventType", "mail.delivered"),
-  // data.put("deliveryId", ...), data.put("stalwartAccountId", ...),
-  // data.put("emailId", ...). The visible notification text is fixed and the
-  // data payload holds opaque identifiers only.
-  final backendPayload = <String, dynamic>{
-    'schemaVersion': '1',
-    'eventType': 'mail.delivered',
-    'deliveryId': 'e7d3e016-2f4e-4f68-9aa8-f01c96995fe1',
-    'stalwartAccountId': '5ff82d96f268b8699111fae83a34e562921a62865ec94d8a86a19f9c6a54ec7e',
-    'emailId': 'e6948d51214629057f63c03d50e19d31',
-  };
+  final backendPayload =
+      Map<String, dynamic>.from(platformMailDeliveredPushPayload);
 
   group('NumberInboxPushMessage.tryParseFromFcmData', () {
     test(
@@ -26,12 +18,9 @@ void main() {
         expect(pushMessage, isNotNull);
         expect(pushMessage!.schemaVersion, '1');
         expect(pushMessage.eventType, 'mail.delivered');
-        expect(pushMessage.deliveryId, 'e7d3e016-2f4e-4f68-9aa8-f01c96995fe1');
-        expect(
-          pushMessage.stalwartAccountId,
-          '5ff82d96f268b8699111fae83a34e562921a62865ec94d8a86a19f9c6a54ec7e',
-        );
-        expect(pushMessage.emailId, 'e6948d51214629057f63c03d50e19d31');
+        expect(pushMessage.deliveryId, platformMailDeliveredPushPayload['deliveryId']);
+        expect(pushMessage.stalwartAccountId, platformMailDeliveredPushPayload['stalwartAccountId']);
+        expect(pushMessage.emailId, platformMailDeliveredPushPayload['emailId']);
       },
     );
 

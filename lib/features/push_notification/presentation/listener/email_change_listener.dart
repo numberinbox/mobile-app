@@ -145,12 +145,46 @@ class EmailChangeListener extends ChangeListener {
   /// Background platform push: runs the delivery notification pipeline and
   /// completes only once the JMAP fetch, the delivery-cursor update and the
   /// local notification work have finished.
+  /// Serializes background platform pushes: the per-call shared session
+  /// fields would otherwise be overwritten while a previous push is still
+  /// running its stored-state lookup and Email/changes fetch, so a second
+  /// push would fetch mail for the wrong account. Each push is awaited to
+  /// completion (including its delivery-cursor write) before the next one
+  /// starts.
+  Future<void> _platformPushChain = Future<void>(() {});
+
   Future<void> processPlatformPushNotification({
     required jmap.State newState,
     required AccountId accountId,
     required UserName userName,
     required Session? session,
+  }) {
+    final processFuture = _processPlatformPushOnChain(
+      newState: newState,
+      accountId: accountId,
+      userName: userName,
+      session: session);
+    // A failed push must not poison the queue, otherwise the next pushes
+    // would never run.
+    _platformPushChain = processFuture.catchError((e, st) {
+      logError(
+        'EmailChangeListener::processPlatformPushNotification: platform push processing failed, continue with the next queued push',
+        exception: e,
+        stackTrace: st,
+      );
+    });
+    return processFuture;
+  }
+
+  Future<void> _processPlatformPushOnChain({
+    required jmap.State newState,
+    required AccountId accountId,
+    required UserName userName,
+    required Session? session,
   }) async {
+    // Await the previous push so its per-call handlers finish before this
+    // push overwrites the shared listener fields.
+    await _platformPushChain;
     _newStateEmailDelivery = newState;
     _accountId = accountId;
     _session = session;

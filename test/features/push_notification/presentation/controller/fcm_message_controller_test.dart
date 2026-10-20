@@ -8,6 +8,9 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
+import 'package:jmap_dart_client/jmap/account_id.dart';
+import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -30,6 +33,7 @@ import 'package:tmail_ui_user/features/push_notification/presentation/services/f
 import 'fcm_message_controller_test.mocks.dart';
 
 import '../../../../fixtures/account_fixtures.dart';
+import '../../../../fixtures/numberinbox_push_fixture.dart';
 import '../../../../fixtures/session_fixtures.dart';
 
 class _FakeCacheManager implements SentryConfigurationCacheManager {
@@ -155,14 +159,10 @@ SentryUserCache _user(String id) => SentryUserCache(
   MockSpec<GetSessionInteractor>(),
 ])
 
-// Mirrors the FCM data map built by the platform's FcmPushGateway.
-const _backendMailDeliveredPayload = <String, dynamic>{
-  'schemaVersion': '1',
-  'eventType': 'mail.delivered',
-  'deliveryId': 'e7d3e016-2f4e-4f68-9aa8-f01c96995fe1',
-  'stalwartAccountId': '29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6',
-  'emailId': 'e6948d51214629057f63c03d50e19d31',
-};
+/// Version-1 mail.delivered fixture shared with the platform's P9 contract
+/// test; contents come from test/fixtures/numberinbox_push_fixture.dart.
+final _backendMailDeliveredPayload =
+    Map<String, dynamic>.from(platformMailDeliveredPushPayload);
 const _platformApiUrl = 'https://api.numberinbox.com';
 
 void main() {
@@ -623,6 +623,225 @@ void main() {
           Password('stalwart-password'),
         )).called(1);
         verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(2);
+      },
+    );
+
+    test(
+      'WHEN the user signs out while the JMAP session fetch is still in flight\n'
+      'THEN the stale push is dropped and it is never dispatched',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+        final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+        final mockGetSessionInteractor = MockGetSessionInteractor();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+        Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+        Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+        addTearDown(Get.reset);
+
+        var accountLookupCount = 0;
+        when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) {
+          final lookupCount = accountLookupCount++;
+          if (lookupCount == 1) {
+            // The recheck happens after the session fetch; the user signed
+            // out while it was in flight.
+            return Stream.value(dartz.Left<Failure, Success>(GetCredentialFailure(
+                'Signed out during the session fetch')));
+          }
+          return Stream.value(dartz.Right<Failure, Success>(GetCredentialViewState(
+            Uri.parse('https://jmap.numberinbox.com'),
+            UserName('+66841234567@numberinbox.com'),
+            Password('stalwart-password'),
+            PersonalAccount(
+              'personal-account-id',
+              AuthenticationType.basic,
+              isSelected: true,
+              accountId: AccountFixtures.aliceAccountId,
+              apiUrl: _platformApiUrl,
+            ),
+            stateChange: null,
+          )));
+        });
+        when(mockGetSessionInteractor.execute(stateChange: null)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetSessionSuccess(
+            SessionFixtures.aliceSession,
+            stateChange: null,
+          ));
+        });
+        when(mockAuthorizationInterceptors.authenticationType)
+            .thenReturn(AuthenticationType.basic);
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(2);
+        verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(1);
+      },
+    );
+
+    test(
+      'WHEN the active account changes while the JMAP session fetch is still in flight\n'
+      'THEN the push for the previous account is dropped and never dispatched',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();        final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+        final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+        final mockGetSessionInteractor = MockGetSessionInteractor();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+        Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+        Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+        addTearDown(Get.reset);
+
+        final bobAccountId = AccountId(Id('6b7d1f2a3c4d5e6f70819263748596a7b8c9d0e1f2a3b4c5d6e7f8091a2b3c4d'));
+        var accountLookupCount = 0;
+        when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) {
+          final lookupCount = accountLookupCount++;
+          if (lookupCount == 1) {
+            // The recheck happens after the session fetch; the active account
+            // switched while it was in flight.
+            return Stream.value(dartz.Right<Failure, Success>(GetCredentialViewState(
+              Uri.parse('https://jmap.numberinbox.com'),
+              UserName('bob@numberinbox.com'),
+              Password('stalwart-password'),
+              PersonalAccount(
+                'personal-account-id-bob',
+                AuthenticationType.basic,
+                isSelected: true,
+                accountId: bobAccountId,
+                apiUrl: _platformApiUrl,
+              ),
+              stateChange: null,
+            )));
+          }
+          return Stream.value(dartz.Right<Failure, Success>(GetCredentialViewState(
+            Uri.parse('https://jmap.numberinbox.com'),
+            UserName('+66841234567@numberinbox.com'),
+            Password('stalwart-password'),
+            PersonalAccount(
+              'personal-account-id',
+              AuthenticationType.basic,
+              isSelected: true,
+              accountId: AccountFixtures.aliceAccountId,
+              apiUrl: _platformApiUrl,
+            ),
+            stateChange: null,
+          )));
+        });
+        when(mockGetSessionInteractor.execute(stateChange: null)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetSessionSuccess(
+            SessionFixtures.aliceSession,
+            stateChange: null,
+          ));
+        });
+        when(mockAuthorizationInterceptors.authenticationType)
+            .thenReturn(AuthenticationType.basic);
+
+        FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        await pumpEventQueue();
+
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(2);
+        verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(1);
+      },
+    );
+
+    test(
+      'WHEN two platform pushes for different accounts overlap and resolve in reversed order\n'
+      'THEN each push resolves and dispatches its own account\n'
+      'AND neither push is dropped and neither uses the other account work',
+      () async {
+        final mockGetAuthenticatedAccountInteractor = MockGetAuthenticatedAccountInteractor();
+        final mockDynamicUrlInterceptors = MockDynamicUrlInterceptors();
+        final mockAuthorizationInterceptors = MockAuthorizationInterceptors();
+        final mockGetSessionInteractor = MockGetSessionInteractor();
+        Get.put<GetAuthenticatedAccountInteractor>(mockGetAuthenticatedAccountInteractor);
+        Get.put<DynamicUrlInterceptors>(mockDynamicUrlInterceptors);
+        Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+        Get.put<GetSessionInteractor>(mockGetSessionInteractor);
+        addTearDown(Get.reset);
+
+        final bobPayload = <String, dynamic>{
+          ..._backendMailDeliveredPayload,
+          'stalwartAccountId': AccountFixtures.bobAccountId.id.value,
+        };
+
+        GetCredentialViewState aliceCredentialState() => GetCredentialViewState(
+          Uri.parse('https://jmap.numberinbox.com'),
+          UserName('+66841234567@numberinbox.com'),
+          Password('stalwart-password'),
+          PersonalAccount(
+            'personal-account-id',
+            AuthenticationType.basic,
+            isSelected: true,
+            accountId: AccountFixtures.aliceAccountId,
+            apiUrl: _platformApiUrl,
+          ),
+          stateChange: null,
+        );
+        GetCredentialViewState bobCredentialState() => GetCredentialViewState(
+          Uri.parse('https://jmap.numberinbox.com'),
+          UserName('bob@numberinbox.com'),
+          Password('stalwart-password'),
+          PersonalAccount(
+            'personal-account-id-bob',
+            AuthenticationType.basic,
+            isSelected: true,
+            accountId: AccountFixtures.bobAccountId,
+            apiUrl: _platformApiUrl,
+          ),
+          stateChange: null,
+        );
+
+        final aliceAccountGate = Completer<void>();
+        final accountResults = <Stream<dartz.Either<Failure, Success>>>[
+          // 0: Alice ingest is slow - it only completes after Bob's push was
+          // fully dispatched, so Bob pins the controller's shared push fields.
+          Stream.fromFuture(aliceAccountGate.future)
+              .asyncExpand((_) => Stream.value(
+                  dartz.Right<Failure, Success>(aliceCredentialState()))),
+          // 1: Bob ingest completes immediately.
+          Stream.value(dartz.Right<Failure, Success>(bobCredentialState())),
+          // 2: Bob authentication recheck after Bob's session resolves.
+          Stream.value(dartz.Right<Failure, Success>(bobCredentialState())),
+          // 3: Alice authentication recheck after her gate opens and her
+          // session resolves.
+          Stream.value(dartz.Right<Failure, Success>(aliceCredentialState())),
+        ];
+        var accountLookupCount = 0;
+        when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) {
+          return accountResults[accountLookupCount++];
+        });
+
+        var sessionLookupCount = 0;
+        final sessionResults = <Session>[
+          // 0: Bob's session resolves first because his account lookup is fast.
+          SessionFixtures.bobSession,
+          // 1: Alice's session resolves last.
+          SessionFixtures.aliceSession,
+        ];
+        when(mockGetSessionInteractor.execute(stateChange: null)).thenAnswer((_) async* {
+          final lookupIndex = sessionLookupCount++;
+          yield dartz.Right<Failure, Success>(GetSessionSuccess(
+            sessionResults[lookupIndex],
+            stateChange: null,
+          ));
+        });
+        when(mockAuthorizationInterceptors.authenticationType)
+            .thenReturn(AuthenticationType.basic);
+
+        final aliceHandling = FcmMessageController.instance
+            .handlePushPayload(_backendMailDeliveredPayload);
+        final bobHandling = FcmMessageController.instance
+            .handlePushPayload(bobPayload);
+        await bobHandling;
+        aliceAccountGate.complete();
+        await aliceHandling;
+
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(4);
+        verify(mockGetSessionInteractor.execute(stateChange: null)).called(2);
+        verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(4);
       },
     );
 

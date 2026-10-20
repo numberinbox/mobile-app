@@ -32,6 +32,7 @@ import 'package:tmail_ui_user/features/push_notification/presentation/controller
 import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_receiver.dart';
 
 import '../../../../fixtures/account_fixtures.dart';
+import '../../../../fixtures/numberinbox_push_fixture.dart';
 import '../../../../fixtures/session_fixtures.dart';
 import 'fcm_receiver_test.mocks.dart';
 
@@ -45,13 +46,7 @@ import 'fcm_receiver_test.mocks.dart';
 
 const _platformPushMessage = RemoteMessage(
   messageId: 'message-id',
-  data: <String, String>{
-    'schemaVersion': '1',
-    'eventType': 'mail.delivered',
-    'deliveryId': 'e7d3e016-2f4e-4f68-9aa8-f01c96995fe1',
-    'stalwartAccountId': '29883977c13473ae7cb7678ef767cbfbaffc8a44a6e463d971d23a65c1dc4af6',
-    'emailId': 'e6948d51214629057f63c03d50e19d31',
-  },
+  data: platformMailDeliveredPushPayload,
 );
 
 final _userName = UserName('alice@domain.tld');
