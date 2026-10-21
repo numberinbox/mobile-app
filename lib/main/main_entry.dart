@@ -22,6 +22,7 @@ Future<void> runTmailPreload() async {
   await Future.wait([
     MainBindings().dependencies(),
     HiveCacheConfig.instance.setUp(),
+    if (PlatformInfo.isMobile) AssetPreloader.preloadSplashMark(),
     if (PlatformInfo.isWeb) AssetPreloader.preloadHtmlEditorAssets(),
   ], eagerError: false);
 
