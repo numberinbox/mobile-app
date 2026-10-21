@@ -129,8 +129,9 @@ class EcosystemProviderListenerDelegate
     _subscription?.close();
     _subscription = null;
     // The registry outlives this delegate, so the ecosystem it was fed must not
-    // outlive the session that produced it.
-    _registry?.dispatchCleared();
+    // outlive the session that produced it. Deferred: dispose runs inside the
+    // tree's finalization phase, and handlers mutate providers.
+    _registry?.scheduleDispatchCleared();
     _registry = null;
   }
 }
