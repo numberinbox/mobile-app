@@ -18,11 +18,21 @@ class WorkplaceFqdnEcosystemHandler implements LinagoraEcosystemHandler {
   final Ref _ref;
   final ResolveOwnerEmail _resolveOwnerEmail;
 
-  const WorkplaceFqdnEcosystemHandler({
+  /// Set when the provider container that owns [_ref] is torn down.
+  ///
+  /// The ecosystem clear is deferred out of the widget dispose phase (a
+  /// provider must not be mutated while the widget tree is finalizing), so
+  /// it can land after the container went away. Reading through an unmounted
+  /// ref throws, and there is nothing left to clear in that case.
+  bool _disposed = false;
+
+  WorkplaceFqdnEcosystemHandler({
     required Ref ref,
     required ResolveOwnerEmail resolveOwnerEmail,
   })  : _ref = ref,
-        _resolveOwnerEmail = resolveOwnerEmail;
+        _resolveOwnerEmail = resolveOwnerEmail {
+    _ref.onDispose(() => _disposed = true);
+  }
 
   @override
   void onEcosystemLoaded(LinagoraEcosystem ecosystem) {
@@ -43,6 +53,7 @@ class WorkplaceFqdnEcosystemHandler implements LinagoraEcosystemHandler {
   }
 
   void _setEcosystemFqdn(String? fqdn) {
+    if (_disposed) return;
     _ref.read(workplaceFqdnEcosystemProvider.notifier).setFqdn(fqdn);
   }
 }

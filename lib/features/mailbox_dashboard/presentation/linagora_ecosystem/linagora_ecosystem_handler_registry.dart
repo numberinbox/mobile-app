@@ -46,6 +46,7 @@ class LinagoraEcosystemHandlerRegistry {
   /// finishes, and is skipped entirely if any other dispatch (e.g. a freshly
   /// mounted dashboard loading its ecosystem in the same frame) happened
   /// first.
+  ///
   void scheduleDispatchCleared() {
     final epoch = _dispatchEpoch;
     scheduleMicrotask(() {

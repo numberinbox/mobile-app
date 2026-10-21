@@ -148,6 +148,11 @@ void main() {
       // Disposal clears the shared registry so the ecosystem of this session
       // cannot leak into the next one...
       await tester.pumpWidget(const SizedBox());
+      // The clear is deferred by a microtask: the handlers mutate Riverpod
+      // providers, and doing that while the tree is finalizing asserts, so
+      // the dispatch lands right after the frame that disposed the
+      // dashboard. A zero-duration pump is what flushes that microtask.
+      await tester.pump(Duration.zero);
 
       expect(recordingHandler.clearedCount, 3);
 
