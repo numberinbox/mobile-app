@@ -1,30 +1,48 @@
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/search/email_receive_time_type.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/search/email_sort_order_type.dart';
 import 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_builder.dart'
-  if (dart.library.html) 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_web_builder.dart';
+    if (dart.library.html) 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_web_builder.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
 import '../base/base_test_scenario.dart';
 import '../models/provisioning_email.dart';
 
-class SearchEmailByDatetimeAndSortOrderRelevanceScenario extends BaseTestScenario {
-
-  const SearchEmailByDatetimeAndSortOrderRelevanceScenario(super.$, super.robots);
+class SearchEmailByDatetimeAndSortOrderRelevanceScenario
+    extends BaseTestScenario {
+  const SearchEmailByDatetimeAndSortOrderRelevanceScenario(
+    super.$,
+    super.robots,
+  );
 
   static const queryString = 'relevance';
   static const listUsername = ['Alice', 'Brian', 'Charlotte', 'David', 'Emma'];
+  static const _additionalRecipient = String.fromEnvironment(
+    'ADDITIONAL_MAIL_RECIPIENT',
+  );
+
+  static List<String> resolveRecipients({String? configuredRecipient}) {
+    final recipient = configuredRecipient ?? _additionalRecipient;
+    if (recipient.isNotEmpty) {
+      return List.filled(listUsername.length, recipient);
+    }
+    return listUsername
+        .map((username) => '${username.toLowerCase()}@example.com')
+        .toList(growable: false);
+  }
 
   @override
   Future<void> runTestLogic() async {
-    final listProvisioningEmail = listUsername
-      .map((username) => ProvisioningEmail(
-        toEmail: '${username.toLowerCase()}@example.com',
+    final recipients = resolveRecipients();
+    final listProvisioningEmail = List.generate(
+      listUsername.length,
+      (index) => ProvisioningEmail(
+        toEmail: recipients[index],
         subject: queryString,
-        content: '$queryString to user $username',
-      ))
-      .toList();
+        content: '$queryString to user ${listUsername[index]}',
+      ),
+      growable: false,
+    );
 
     await robots.commonRobot().provisionEmail(listProvisioningEmail);
     await $.pumpAndSettle();
@@ -43,7 +61,9 @@ class SearchEmailByDatetimeAndSortOrderRelevanceScenario extends BaseTestScenari
 
     final appLocalizations = AppLocalizations();
     await searchRobot.selectDateTime(
-      EmailReceiveTimeType.last7Days.getTitleByAppLocalizations(appLocalizations),
+      EmailReceiveTimeType.last7Days.getTitleByAppLocalizations(
+        appLocalizations,
+      ),
     );
     await searchRobot.expectSearchResultEmailListVisible();
 
@@ -60,7 +80,12 @@ class SearchEmailByDatetimeAndSortOrderRelevanceScenario extends BaseTestScenari
     await _expectEmailListDisplayedCorrectly(listProvisioningEmail);
   }
 
-  Future<void> _expectEmailListDisplayedCorrectly(List<ProvisioningEmail> listProvisioningEmail) async {
-    expect(find.byType(EmailTileBuilder), findsNWidgets(listProvisioningEmail.length));
+  Future<void> _expectEmailListDisplayedCorrectly(
+    List<ProvisioningEmail> listProvisioningEmail,
+  ) async {
+    expect(
+      find.byType(EmailTileBuilder),
+      findsNWidgets(listProvisioningEmail.length),
+    );
   }
 }

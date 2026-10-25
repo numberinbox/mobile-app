@@ -1,4 +1,3 @@
-import 'package:core/utils/app_logger.dart';
 import 'package:dio/dio.dart';
 
 /// Calls the backend reset server running on the CI host.
@@ -31,14 +30,46 @@ class BackendResetClient {
     );
 
     try {
-      final response = await dio.post('$_resetUrl/reset');
-      if (response.statusCode != 200) {
-        throw Exception('Backend reset failed with status ${response.statusCode}');
-      }
-    } catch (e) {
-      logWarning('Backend reset failed: $e');
+      await BackendResetRequest(dio).reset(_resetUrl, timeout: timeout);
     } finally {
       dio.close();
     }
   }
+}
+
+/// The small HTTP boundary used by [BackendResetClient] and its tests.
+class BackendResetRequest {
+  const BackendResetRequest(this._dio);
+
+  final Dio _dio;
+
+  Future<void> reset(
+    String resetUrl, {
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    if (resetUrl.isEmpty) return;
+
+    try {
+      final response = await _dio.post(
+        '$resetUrl/reset',
+        options: Options(receiveTimeout: timeout, sendTimeout: timeout),
+      );
+      if (response.statusCode != 200) {
+        throw const BackendResetException();
+      }
+    } on BackendResetException {
+      rethrow;
+    } catch (_) {
+      // Dio errors can contain URLs, response bodies, or request headers.
+      // Keep teardown failures actionable without retaining any of that data.
+      throw const BackendResetException();
+    }
+  }
+}
+
+class BackendResetException implements Exception {
+  const BackendResetException();
+
+  @override
+  String toString() => 'Backend reset failed';
 }
