@@ -13,7 +13,7 @@ class AppConfig {
 
   static const String appDashboardConfigurationPath = "configurations/app_dashboard.json";
   static const String attachmentKeywordsConfigurationPath = "configurations/attachment_keywords.json";
-  static const String iOSKeychainSharingGroupId = 'KUT463DS29.com.numberinbox.ios.shared';
+  static const String iOSKeychainSharingGroupId = '893Z7TDVDA.com.numberinbox.ios.shared';
   static const String iOSKeychainSharingService = 'com.numberinbox.ios.sessions';
   static const String saasPlatform = 'saas';
   static const String linagoraPrivacyUrl = 'https://numberinbox.com/privacy';

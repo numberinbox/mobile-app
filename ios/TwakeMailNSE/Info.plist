@@ -3,10 +3,14 @@
 <plist version="1.0">
 <dict>
     <key>keychainAccessGroupIdentifier</key>
-    <string>KUT463DS29.com.numberinbox.ios.shared</string>
+    <string>893Z7TDVDA.com.numberinbox.ios.shared</string>
     <key>baseBundleIdentifier</key>
     <string>com.numberinbox.app</string>
-	<key>NSExtension</key>
+    <key>CFBundleShortVersionString</key>
+    <string>$(MARKETING_VERSION)</string>
+    <key>CFBundleVersion</key>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>NSExtension</key>
 	<dict>
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.usernotifications.service</string>
