@@ -146,3 +146,117 @@ There is no new reset UI, plaintext fallback or server-side deletion.
 Transient logs remain in local temporary storage, not the public repository. The final
 analysis, full root/package results, browser results and build results are summarized
 above so reviewers do not need access to private operational artifacts.
+
+## Focused audit follow-ups (2026-10-27)
+
+Starting revision: `f2aba326970d55fa943be8578c7ab590fe568da7`.
+The pinned upstream comparison remains
+`e1a7587c1ebf6a9cfa90f4fba1017cfec324594e`, with merge base
+`a63fee331bfec266d577d1545088457579a7042b`. These follow-ups implement the
+user-approved three-slice plan, not an upstream merge. The local Claude review
+and its verification were reconciled with the dispositions below; neither local
+input document is published by this change.
+
+### Changes and upstream boundary
+
+- **JMAP cleanup:** searches for `buildBasicAuthHeader`, `isCredentialError`, and
+  `sessionEndpoint` across application/shared code, scripts, integration tests and
+  unit tests found definitions and test consumers only. Removed those fork-owned
+  helpers, `_jmapPath`, and the unused conversion import. Retained
+  `decodeBasicAuth`, strict trusted-origin checks, local-origin injection and the
+  OTP response contract. Only helper-specific assertions were removed; origin,
+  credential-versus-access-token, persistence and rollback tests remain.
+- **Deep-link correction:** incoming names were lowercased but the refusal set
+  contained mixed-case `registrationUrl` and `jmapUrl`. Changed only those two
+  constants to lowercase. The 64-case behavioral matrix exercises each individual
+  name, distinct original/lower/mixed spellings, empty/sentinel values, and both
+  signed-in states. It checks rejected/empty parsed credentials, no sign-in or
+  credential mutation, no account-switch callback, and secret-safe diagnostics.
+  Existing bare-link, harmless metadata and constructed-record guards remain.
+- **Push cleanup:** removed the fork-only mapper and its logging call, the
+  map-shape-only test, and the private dispatch argument used only by that log.
+  Corrected the obsolete dispatch comment. Real listener calls, generated state,
+  awaited completion, dedup, shared pending fields and legacy paths are unchanged.
+  Strengthened the existing incomplete-processing test with a controllable future:
+  the callback stays pending and delivery remains unrecorded until processing
+  finishes; failure still permits retry. Ran this against the original push
+  implementation before restoring and checking the cleanup.
+
+Comparison with the pinned upstream confirms the removed helpers/mapper and
+credential-refusal set are fork additions. This change does not alter inherited
+models, handlers, interactors, public callback signatures or legacy dispatch.
+The upstream deep-link infrastructure remains, even where OTP guards make its
+credential sign-in branch unreachable. No networking, API, dependency, artwork,
+notification-content, cache or native configuration change is included.
+
+### TDD and characterization evidence
+
+Commands use the already prepared dependency/generated-source checkout; no package
+update or substitute `flutter pub get` was needed. Temporary logs contain synthetic
+fixture data and remain outside the repository.
+
+| Phase and command | Result |
+| --- | --- |
+| Before production edits: `flutter test --no-pub --reporter expanded test/features/numberinbox/jmap_session_manager_test.dart test/features/login/jmap_session_test.dart test/features/starting_page/twake_welcome_controller_test.dart test/main/deep_links test/features/push_notification/presentation/controller/fcm_message_controller_test.dart` | 152 passed. Existing JMAP/OTP, persistence/rollback, deep-link and push behavior characterized GREEN. |
+| Before push cleanup: `flutter test --no-pub --reporter expanded test/features/push_notification/presentation/listener/email_change_listener_test.dart test/features/push_notification/presentation/controller/push_base_controller_test.dart` | 21 passed. Includes foreground state/refresh, background processing, failure/retry, overlapping account context and inherited legacy dispatch. |
+| RED: `flutter test --no-pub --reporter expanded test/main/deep_links/credential_parameter_matching_test.dart` with production code unchanged | 40 passed, 24 failed: expected `credentialParametersRejected == true`, got false for the URL parameter names. An earlier test-binding setup failure was corrected first and is not counted as defect evidence. |
+| GREEN: `flutter test --no-pub --reporter expanded test/main/deep_links` after the two-constant correction | 105 passed, including all 64 new cases and existing guards. |
+| Characterization of added pending-callback assertion against original push production code: `flutter test --no-pub --reporter expanded test/features/push_notification/presentation/controller/fcm_message_controller_test.dart` | 28 passed, excluding the removed map-shape-only test. |
+| Post-cleanup focused regressions: `flutter test --no-pub --reporter expanded test/features/numberinbox/jmap_session_manager_test.dart test/features/login/jmap_session_test.dart test/features/starting_page/twake_welcome_controller_test.dart test/main/deep_links test/features/push_notification` | 334 passed. Includes native WebSocket establishment/timeout tests. The full suite below additionally reruns the strengthened callback test after cleanup. |
+
+The unused-code slices intentionally use characterize → GREEN → remove → GREEN;
+there is no artificial behavioral RED or source-text test for dead-code deletion.
+
+### Complete recommendation dispositions
+
+| Recommendation | Disposition |
+| --- | --- |
+| Phone normalization | Fixed in the starting revision; retain selected-country, OTP snapshot and deletion/recipient tests. No locale guessing added. |
+| Offline logout and timeouts | Fixed in the starting revision; retain deadline, cancellation, cleanup and account-isolation coverage. Do not treat every 404 as successful revocation. |
+| Browser HTTP and WebSockets | Fixed in the starting revision. Retain actual Chrome fixture checks; opt-in browser checks are not ordinary VM coverage. |
+| Debug certificate bypass | Already removed; retain real TLS rejection/trusted-certificate checks. |
+| Missing encryption key | Upstream initialization restored; retain secret-safe logging. A replacement key cannot recover data encrypted with a lost key, as documented above. No recovery feature added. |
+| Rich iOS previews | Excluded: generic private notifications are intentional. Physical-device delivery/tap validation is still a release gate. |
+| Reduce cache flushes | Deferred until measured, with credential, deletion-state and dedup durability tests. No proven performance regression justifies dropping durable writes here. |
+| Move test dependencies | No change: integration_test and yaml are already dev dependencies. |
+| Remove inherited deep-link infrastructure | Excluded to minimize upstream conflict. Preserve models/callbacks and OTP-only refusal guards; fix only inconsistent matching. |
+| Simplify shared push state | Separate concurrency-focused follow-up. Remove only the proved logging-only mapper here. |
+| One global API/auth client | Excluded: a broad auth interceptor could attach mailbox credentials to public OTP requests. Shared finite timeouts already exist. |
+| Consolidate parser entrypoints | Deferred: strict selected-country recipients and permissive legacy paths have different policies. The faulty country builder was already corrected. |
+| Remove OTP accessToken | Deferred API-contract change. It is not used as the JMAP password; retain contract/credential-mapping tests. |
+| Translate fork screens | Deferred under the approved English-first policy. Preserve inherited translations. |
+| Remove branding/asset tests | Excluded: these protect demonstrated launcher, clipping, splash and branding defects. |
+| Shorten comments | Only obsolete comments in touched code changed. No broad style rewrite. |
+| Merge upstream keyboard/security changes | Separate compatibility assessment and integration plan. Distinguish runtime fixes (including TF-4980) from sanitizer test infrastructure and known-XSS-gap tracking; tracking a gap does not fix it. No merge, cherry-pick or dependency upgrade here. |
+| Delete .git/ni-fork.bundle | Optional local metadata housekeeping; left untouched and not published in a normal push. |
+
+### Final verification and release limits
+
+Final verification results and focused source revisions are recorded below.
+Exact-revision private Android CI and physical-device notification
+checks remain release gates. This local cleanup does not authorize deployment or
+store submission, and no such action was initiated.
+
+- Full root unit/widget command:
+  `flutter test --no-pub --reporter expanded test tmail-mcp/test` — **4,434 passed,
+  one existing opt-in cold-start capture skip**, zero failures.
+- Final push-controller command:
+  `flutter test --no-pub --reporter expanded test/features/push_notification/presentation/controller/fcm_message_controller_test.dart`
+  — **28 passed**, including the strengthened pending-callback assertion after cleanup.
+- `git diff --check` passed. Caller searches after cleanup found no references to
+  the deleted helpers/mapper in application code, scripts or tests.
+- Browser runtime checks, native builds, CI and device tests were not rerun for
+  this isolated cleanup. Existing browser/TLS tests remain intact; previous
+  browser/build evidence above belongs to the earlier implementation, not this
+  revision. Exact-source private CI and real iOS delivery/tap checks are still
+  outstanding external gates.
+
+- `flutter analyze --no-pub` — **62 existing informational diagnostics, zero
+  warnings/errors**, matching the starting revision's recorded baseline. The first
+  cleanup run found one unused mapper-only import; it was removed and analysis
+  rerun. Its nonzero exit is due to the pre-existing infos, not a new diagnostic.
+- Behavioral fix commit: `78f489bb9cbc1108ac62593b9cb53a8e054444ca` (`fix: reject deep-link credential names consistently`).
+- Cleanup commit: `31f75a01313bb356384b4d8b9f58f4276bb680b3` (`refactor: remove unused fork session and push helpers`).
+  These source revisions contain the code exercised above; the report's own final
+  documentation revision is discoverable through Git history. No implementation
+  MR was opened or updated, so no MR review-request comment was needed.
