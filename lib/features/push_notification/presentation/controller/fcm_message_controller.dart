@@ -7,7 +7,6 @@ import 'package:core/utils/app_logger.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:core/utils/sentry/sentry_config.dart';
 import 'package:core/utils/sentry/sentry_manager.dart';
-import 'package:fcm/model/type_name.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
@@ -471,8 +470,8 @@ class FcmMessageController extends PushBaseController {
   /// stalwartAccountId, emailId).
   ///
   /// The payload has no JMAP state string, so after the authenticated account
-  /// is resolved the push is dispatched as a synthesized state change built by
-  /// [mapTypeStateForPlatformPush]; authoritative state is then fetched from
+  /// is resolved the listener receives a token from [FcmUtils.createPlatformPushState];
+  /// authoritative state is then fetched from
   /// the server through the existing change listeners.
   ///
   /// The returned future completes once the account, the session and the
@@ -611,24 +610,6 @@ class FcmMessageController extends PushBaseController {
     );
   }
 
-  /// Maps a parsed platform push onto the same `{TypeName: state}` shape the
-  /// JMAP websocket flow dispatches through, so a foreground push refreshes
-  /// the mailbox (Email) and a background push feeds the notification
-  /// pipeline (EmailDelivery).
-  ///
-  /// [stateToken] must be a non-server token created by
-  /// [FcmUtils.createPlatformPushState]: the pushed email id is not a state
-  /// token, and the cached/displayed state would make the pipeline skip its
-  /// work on a state comparison.
-  @visibleForTesting
-  static Map<String, dynamic> mapTypeStateForPlatformPush(
-    NumberInboxPushMessage pushMessage,
-    {required String stateToken, required bool isForeground}
-  ) {
-    final typeName = isForeground ? TypeName.emailType : TypeName.emailDelivery;
-    return <String, dynamic>{typeName.value: stateToken};
-  }
-
   @visibleForTesting
   void resetPendingPlatformPushForTesting() {
     _pendingPlatformPushMessage = null;
@@ -687,7 +668,6 @@ class FcmMessageController extends PushBaseController {
   /// Returns true when the dispatch completed; false on a drop or failure
   /// so the caller does not record the event as processed.
   Future<bool> _dispatchPlatformPushAction({
-    required NumberInboxPushMessage pushMessage,
     required String apiUrl,
     required AccountId accountId,
     required UserName userName,
@@ -711,12 +691,6 @@ class FcmMessageController extends PushBaseController {
           session: session);
       }
 
-      final mapTypeState = mapTypeStateForPlatformPush(
-        pushMessage,
-        stateToken: pushState.value,
-        isForeground: isForeground,
-      );
-      logTrace('FcmMessageController::_dispatchPlatformPushAction: Mapping platform push to action ${mapTypeState.toString()}');
       return await EmailChangeListener.instance.processForegroundPlatformPushNotification(
         newState: pushState,
         accountId: accountId,
@@ -929,7 +903,6 @@ class FcmMessageController extends PushBaseController {
           return false;
         }
         return await _dispatchPlatformPushAction(
-          pushMessage: platformPushMessage,
           apiUrl: apiUrl,
           accountId: accountId,
           userName: success.session.username,

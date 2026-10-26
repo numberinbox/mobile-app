@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
 import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
@@ -13,11 +11,11 @@ void main() {
   const sentinelHost = 'attacker-jmap.example';
 
   OtpSession sessionWithUrl(String sessionUrl) => OtpSession(
-        accessToken: 'jwt',
-        username: '+66812345678@numberinbox.com',
-        sessionUrl: sessionUrl,
-        credential: sentinelPassword,
-      );
+    accessToken: 'jwt',
+    username: '+66812345678@numberinbox.com',
+    sessionUrl: sessionUrl,
+    credential: sentinelPassword,
+  );
 
   /// Asserts that [sessionUrl] is refused, and that the refusal says nothing
   /// about the URL or the credentials that came with it.
@@ -29,8 +27,11 @@ void main() {
       thrown = error;
     }
 
-    expect(thrown, isA<UntrustedJmapSessionUrlException>(),
-        reason: '"$sessionUrl" must not yield a usable base URL');
+    expect(
+      thrown,
+      isA<UntrustedJmapSessionUrlException>(),
+      reason: '"$sessionUrl" must not yield a usable base URL',
+    );
     // An empty expected value would match every string.
     final echoed = sessionUrl.isEmpty ? null : sessionUrl;
     expect(
@@ -91,7 +92,10 @@ void main() {
     });
 
     test('rejects a subdomain of the configured host', () {
-      expectRefused(manager, 'https://evil.jmap.numberinbox.com/.well-known/jmap');
+      expectRefused(
+        manager,
+        'https://evil.jmap.numberinbox.com/.well-known/jmap',
+      );
     });
 
     test('rejects a host that merely ends with the configured host', () {
@@ -110,14 +114,14 @@ void main() {
     });
 
     test('rejects a non-web scheme', () {
-      expectRefused(
-        manager,
-        'ftp://jmap.numberinbox.com/.well-known/jmap',
-      );
+      expectRefused(manager, 'ftp://jmap.numberinbox.com/.well-known/jmap');
     });
 
     test('rejects an alternate port', () {
-      expectRefused(manager, 'https://jmap.numberinbox.com:8443/.well-known/jmap');
+      expectRefused(
+        manager,
+        'https://jmap.numberinbox.com:8443/.well-known/jmap',
+      );
     });
 
     test('rejects a host-less URL', () {
@@ -155,7 +159,9 @@ void main() {
 
       Object? thrown;
       try {
-        https.baseUrlFromSession(sessionWithUrl('http://jmap.staging.example/x'));
+        https.baseUrlFromSession(
+          sessionWithUrl('http://jmap.staging.example/x'),
+        );
       } catch (error) {
         thrown = error;
       }
@@ -171,12 +177,7 @@ void main() {
     });
   });
 
-  // The origin checks above decide WHERE the credential may be sent. These
-  // tests cover what is actually sent there on every subsequent call: the
-  // private Android smoke test signs in with an OTP and then reuses that same
-  // stored session for inbox reads and mail sends, so a regression in the
-  // header or the endpoint shape would only surface as a broken mail run.
-  group('credential reuse against the session endpoint', () {
+  group('OTP credential mapping and local origins', () {
     final manager = JmapSessionManager();
 
     test('decodes to the username and credential from the OTP response', () {
@@ -187,38 +188,16 @@ void main() {
       expect(decoded['password'], sentinelPassword);
     });
 
-    test('builds Basic auth as username:credential, not the access token', () {
-      final header = manager.buildBasicAuthHeader(
-        sessionWithUrl('https://jmap.numberinbox.com/.well-known/jmap'),
-      );
-      // "jwt" is the API access token and must never become the JMAP password.
-      final encoded = header.substring('Basic '.length);
-      final decoded = utf8.decode(base64.decode(encoded));
-
-      expect(header, startsWith('Basic '));
-      expect(decoded, '+66812345678@numberinbox.com:$sentinelPassword');
-      expect(decoded, isNot(contains('jwt')));
-    });
-
-    test('targets the JMAP session endpoint under the configured origin', () {
-      expect(manager.sessionEndpoint, 'https://jmap.numberinbox.com/jmap');
-    });
-
-    test('an injected local origin redirects the endpoint, not the default', () {
+    test('accepts the injected emulator origin', () {
       final local = JmapSessionManager(baseUrl: 'http://10.0.2.2:8080');
-      expect(local.sessionEndpoint, 'http://10.0.2.2:8080/jmap');
       expect(
-        local.baseUrlFromSession(
-          sessionWithUrl('http://10.0.2.2:8080/.well-known/jmap'),
-        ).toString(),
+        local
+            .baseUrlFromSession(
+              sessionWithUrl('http://10.0.2.2:8080/.well-known/jmap'),
+            )
+            .toString(),
         'http://10.0.2.2:8080',
       );
-    });
-
-    test('only a 401 counts as an unusable credential', () {
-      expect(manager.isCredentialError(401, null), isTrue);
-      expect(manager.isCredentialError(400, 'invalid_e164'), isFalse);
-      expect(manager.isCredentialError(500, null), isFalse);
     });
   });
 }

@@ -28,7 +28,6 @@ import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interact
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
 import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
-import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_email_delivery_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_message_controller.dart';
@@ -173,11 +172,16 @@ const _platformApiUrl = 'https://api.numberinbox.com';
 
 class _FailingStoredEmailDeliveryStateInteractor
     implements GetStoredEmailDeliveryStateInteractor {
+  _FailingStoredEmailDeliveryStateInteractor({this.gate});
+
+  final Future<void>? gate;
+
   @override
   Stream<dartz.Either<Failure, Success>> execute(
     AccountId accountId,
     UserName userName,
   ) async* {
+    await gate;
     yield dartz.Left<Failure, Success>(
       GetStoredEmailDeliveryStateFailure(Exception('delivery cache unavailable')),
     );
@@ -1144,33 +1148,6 @@ void main() {
       },
     );
 
-    test(
-      'WHEN a platform push is dispatched\n'
-      'THEN the foreground push maps to the Email key and the background push to the EmailDelivery key\n'
-      'AND the email id is never used as a state token',
-      () {
-        final pushMessage = NumberInboxPushMessage.tryParseFromFcmData(
-          _backendMailDeliveredPayload,
-        )!;
-
-        expect(
-          FcmMessageController.mapTypeStateForPlatformPush(
-            pushMessage,
-            stateToken: 'derived-real-state',
-            isForeground: true,
-          ),
-          <String, dynamic>{'Email': 'derived-real-state'},
-        );
-        expect(
-          FcmMessageController.mapTypeStateForPlatformPush(
-            pushMessage,
-            stateToken: 'derived-real-state',
-            isForeground: false,
-          ),
-          <String, dynamic>{'EmailDelivery': 'derived-real-state'},
-        );
-      },
-    );
   });
 
   group('FcmMessageController::platform push completion gating', () {
@@ -1221,14 +1198,28 @@ void main() {
           when(mockAuthorizationInterceptors.authenticationType)
               .thenReturn(AuthenticationType.basic);
 
+          final processingGate = Completer<void>();
           EmailChangeListener.instance
               .setStoredEmailDeliveryStateInteractorForTesting(
-            _FailingStoredEmailDeliveryStateInteractor(),
+            _FailingStoredEmailDeliveryStateInteractor(gate: processingGate.future),
           );
 
-          FcmMessageController.instance
-              .handlePushPayload(_backendMailDeliveredPayload);
+          var callbackCompleted = false;
+          final processing = FcmMessageController.instance
+              .handlePushPayload(_backendMailDeliveredPayload)
+              .then((_) => callbackCompleted = true);
           await pumpEventQueue();
+          expect(callbackCompleted, isFalse);
+          verifyNever(mockFcmCacheManager.recordProcessedDelivery(
+            stalwartAccountId: anyNamed('stalwartAccountId'),
+            deliveryId: anyNamed('deliveryId'),
+            now: anyNamed('now'),
+            ttl: anyNamed('ttl'),
+            maxEntries: anyNamed('maxEntries'),
+          ));
+          processingGate.complete();
+          await processing;
+          expect(callbackCompleted, isTrue);
 
           verifyNever(mockFcmCacheManager.recordProcessedDelivery(
             stalwartAccountId: anyNamed('stalwartAccountId'),

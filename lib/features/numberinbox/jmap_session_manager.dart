@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 
@@ -36,15 +34,10 @@ class UntrustedJmapSessionUrlException implements Exception {
 class JmapSessionManager {
   JmapSessionManager({String? baseUrl}) : _baseUrl = baseUrl;
 
-  static const _jmapPath = '/jmap';
-
   final String? _baseUrl;
 
   /// The JMAP server base URL (without trailing path).
   String get baseUrl => _baseUrl ?? AppConfig.jmapBaseUrl;
-
-  /// The full JMAP session endpoint (`{baseUrl}/jmap`).
-  String get sessionEndpoint => '$baseUrl$_jmapPath';
 
   /// The only origin an OTP-issued JMAP credential may be used against.
   ///
@@ -127,13 +120,6 @@ class JmapSessionManager {
     };
   }
 
-  /// Builds the `Authorization: Basic ...` header value from an [OtpSession].
-  /// Uses `credential` as the password (not `accessToken`).
-  String buildBasicAuthHeader(OtpSession session) {
-    final decoded = decodeBasicAuth(session);
-    return 'Basic ${base64Encode(utf8.encode('${decoded['username']}:${decoded['password']}'))}';
-  }
-
   /// Decodes an [OtpSession] into the username/password pair used for
   /// JMAP Basic Auth. Returns a map with keys `username` and `password`.
   Map<String, String> decodeBasicAuth(OtpSession session) {
@@ -141,11 +127,5 @@ class JmapSessionManager {
       'username': session.username,
       'password': session.credential,
     };
-  }
-
-  /// Returns `true` if the given HTTP status/error indicates the JMAP
-  /// credential is invalid (user should be redirected to login).
-  bool isCredentialError(int statusCode, String? error) {
-    return statusCode == 401;
   }
 }
