@@ -46,8 +46,8 @@ class OpenAppDeepLinkData extends DeepLinkData {
     'id_token',
     'expires_in',
     'username',
-    'registrationUrl',
-    'jmapUrl',
+    'registrationurl',
+    'jmapurl',
   };
 
   /// Whether any of [names] is a credential parameter name.
