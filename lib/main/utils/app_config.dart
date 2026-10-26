@@ -18,7 +18,7 @@ class AppConfig {
   static const String saasPlatform = 'saas';
   static const String linagoraPrivacyUrl = 'https://numberinbox.com/privacy';
   static const String privacyUrl = linagoraPrivacyUrl;
-  static const String openSourceUrl = 'https://numberinbox.com/open-source';
+  static const String websiteUrl = 'https://numberinbox.com';
   static const String saasRegistrationUrl = 'https://sign-up.numberinbox.com';
   static const String saasJmapServerUrl = 'https://jmap.numberinbox.com';
 

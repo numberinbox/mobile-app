@@ -5,7 +5,6 @@ import 'package:tmail_ui_user/features/numberinbox/about_numberinbox.dart';
 
 void main() {
   const urlLauncherChannel = MethodChannel('plugins.flutter.io/url_launcher');
-  const sourceUrl = 'https://numberinbox.com/open-source';
   late List<String> launchedUrls;
 
   setUp(() {
@@ -25,49 +24,107 @@ void main() {
         .setMockMethodCallHandler(urlLauncherChannel, null);
   });
 
-  testWidgets('shows Twake attribution and legal notices without a repo URL', (
+  testWidgets('shows NumberInbox branding and one homepage link', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: AboutNumberInbox()));
 
-    expect(find.textContaining('Twake Mail'), findsOneWidget);
-    expect(find.textContaining('licensed under GNU AGPL v3'), findsOneWidget);
+    expect(find.text('About NumberInbox'), findsOneWidget);
+    expect(find.text('NumberInbox'), findsOneWidget);
+    expect(find.text('Email, reimagined with your number.'), findsOneWidget);
+    final mark = tester.widget<Image>(find.byType(Image));
+    expect(mark.image, const AssetImage('assets/images/numberinbox_mark.png'));
+    expect(mark.width, 72);
+    expect(mark.height, 72);
     expect(
-      find.textContaining('permits recipients to use, modify, and'),
+      find.descendant(
+        of: find.bySubtype<TextButton>(),
+        matching: find.text('numberinbox.com'),
+      ),
       findsOneWidget,
     );
-    expect(find.textContaining('provided without warranty'), findsOneWidget);
-    expect(find.text('License notices and source code'), findsOneWidget);
-    expect(find.textContaining('github.com'), findsNothing);
-    expect(find.byType(SelectableText), findsOneWidget);
+    expect(find.bySubtype<TextButton>(), findsOneWidget);
+    expect(find.byType(SelectableText), findsNothing);
+
+    final renderedText = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((widget) => widget.data ?? widget.textSpan?.toPlainText() ?? '')
+        .join('\n');
+    expect(
+      renderedText,
+      isNot(
+        matches(
+          RegExp(
+            r'Twake|LINAGORA|AGPL|open.source|warranty|github\.com|/open-source',
+            caseSensitive: false,
+          ),
+        ),
+      ),
+    );
   });
 
-  testWidgets('opens the branded source page without adding user data', (
+  testWidgets('opens exactly the HTTPS homepage without adding user data', (
     tester,
   ) async {
     await tester.pumpWidget(const MaterialApp(home: AboutNumberInbox()));
-    await tester.tap(find.text('License notices and source code'));
+    await tester.tap(find.text('numberinbox.com'));
     await tester.pump();
 
-    expect(launchedUrls, [sourceUrl]);
+    expect(launchedUrls, ['https://numberinbox.com']);
   });
 
-  testWidgets('fits a narrow screen with large text', (tester) async {
-    tester.view.devicePixelRatio = 1;
-    tester.view.physicalSize = const Size(320, 480);
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  for (final direction in TextDirection.values) {
+    testWidgets(
+      'homepage link works at 200% text on narrow $direction screen',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(320, 480);
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
 
-    await tester.pumpWidget(
-      const MediaQuery(
-        data: MediaQueryData(textScaler: TextScaler.linear(2)),
-        child: MaterialApp(home: AboutNumberInbox()),
-      ),
+        await tester.pumpWidget(
+          MaterialApp(
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: const TextScaler.linear(2)),
+              child: Directionality(textDirection: direction, child: child!),
+            ),
+            home: const AboutNumberInbox(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        final link = find.bySubtype<TextButton>();
+        expect(MediaQuery.textScalerOf(tester.element(link)).scale(16), 32);
+        expect(Directionality.of(tester.element(link)), direction);
+        await tester.ensureVisible(link);
+        await tester.tap(link);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(launchedUrls, ['https://numberinbox.com']);
+      },
     );
-    await tester.pumpAndSettle();
+  }
 
-    expect(tester.takeException(), isNull);
-    expect(find.text('License notices and source code'), findsOneWidget);
-    expect(find.byType(SelectableText), findsOneWidget);
+  testWidgets('homepage link is accessible as a named actionable button', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    try {
+      await tester.pumpWidget(const MaterialApp(home: AboutNumberInbox()));
+
+      expect(
+        tester.getSemantics(find.bySubtype<TextButton>()),
+        containsSemantics(
+          label: 'numberinbox.com',
+          isButton: true,
+          hasTapAction: true,
+        ),
+      );
+    } finally {
+      semantics.dispose();
+    }
   });
 }
