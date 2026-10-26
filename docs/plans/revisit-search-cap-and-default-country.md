@@ -92,7 +92,7 @@ build, two different defaults.
 - `deviceRegionCode()` reads `ui.PlatformDispatcher.instance.locale.countryCode`
 - `countryForRegionCode()` resolves that code case-insensitively
 - **Fallback is Thailand**: when the code is null, empty, or unknown, it returns `countries.first`,
-  which is Thailand. This is inherited from the upstream Tmail implementation, not a recent choice.
+  which is Thailand. This is NumberInbox fork behavior introduced with its phone-number login; upstream does not contain this NumberInbox country helper.
 - `defaultCountry({String? regionOverride})` is the entry point; `regionOverride` exists for tests
   and callers that already know their region
 
@@ -118,7 +118,7 @@ the device locale for a first-time user. `defaultCountry` already accepts `regio
 caller-side change is small; persistence needs a local setting alongside the existing
 `CachingManager` / language-cache pattern.
 
-Decide separately whether the Thailand fallback should stay. It is upstream behaviour and changing
+Decide separately whether the Thailand fallback should stay. It is existing fork behaviour and changing
 it affects every locale-less device.
 
 ### Acceptance criteria

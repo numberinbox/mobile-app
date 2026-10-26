@@ -6,6 +6,7 @@ import 'package:core/utils/print_utils.dart';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:tmail_ui_user/features/numberinbox/platform_api_options.dart';
 import 'package:tmail_ui_user/features/base/interactors_bindings.dart';
 import 'package:tmail_ui_user/features/caching/utils/local_storage_manager.dart';
 import 'package:tmail_ui_user/features/caching/utils/session_storage_manager.dart';
@@ -86,7 +87,7 @@ class FcmInteractorBindings extends InteractorsBindings {
       Get.find<CacheExceptionThrower>(),
     ));
     Get.lazyPut<FcmRegistrationApi>(
-      () => FcmRegistrationApi(Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl))));
+      () => FcmRegistrationApi(Dio(platformApiOptions(AppConfig.apiBaseUrl))));
     Get.lazyPut(() => FcmInstallIdProvider(Get.find<SharedPreferences>()));
     Get.lazyPut(() => ThreadDataSourceImpl(
       Get.find<ThreadAPI>(),

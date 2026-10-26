@@ -47,11 +47,14 @@ class TwakeWelcomeController extends ReloadableController {
   bool get sending => _sending;
   bool get verifying => _verifying;
 
-  String get fullE164 => _selectedCountry.buildE164(phoneController.text.trim());
+  String? _otpNumber;
+
+  String get fullE164 => _selectedCountry.parseE164(phoneController.text.trim()) ?? '';
 
   @visibleForTesting
   set phase(OtpPhase value) {
     _phase = value;
+    _otpNumber = value == OtpPhase.code ? fullE164 : null;
     update();
   }
 
@@ -73,18 +76,19 @@ class TwakeWelcomeController extends ReloadableController {
       update();
       return;
     }
-    if (!_selectedCountry.isValidPhone(phone)) {
+    final e164 = _selectedCountry.parseE164(phone);
+    if (e164 == null) {
       _error = 'Enter a valid ${_selectedCountry.name} phone number';
       update();
       return;
     }
 
-    final e164 = fullE164;
     try {
       _sending = true;
       _error = null;
       update();
       await authClient.startOtp(e164);
+      _otpNumber = e164;
       _phase = OtpPhase.code;
       _sending = false;
     } on InvalidE164Exception {
@@ -127,7 +131,7 @@ class TwakeWelcomeController extends ReloadableController {
       try {
         deviceId = await Get.find<DeviceManager>().getDeviceId();
       } catch (_) {}
-      final otpSession = await authClient.verifyOtp(fullE164, code, deviceId: deviceId);
+      final otpSession = await authClient.verifyOtp(_otpNumber ?? fullE164, code, deviceId: deviceId);
       sessionStarted = await _onOtpVerified(otpSession);
     } on OtpInvalidException {
       _error = 'Invalid code. Try again.';

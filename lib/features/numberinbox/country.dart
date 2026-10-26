@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:dlibphonenumber/dlibphonenumber.dart';
+import 'package:tmail_ui_user/features/numberinbox/phone_number_parser.dart';
 
 /// ISO 3166 region code from the device locale (e.g. 'TH', 'US').
 /// Null when the locale carries no country.
@@ -45,25 +45,10 @@ class Country {
   final String dialCode;
   final String flag;
 
-  String buildE164(String phone) {
-    final digits = phone.replaceAll(RegExp(r'[\s\-().]'), '');
-    final stripped = digits.startsWith('0') ? digits.substring(1) : digits;
-    final dialDigits = dialCode.substring(1);
-    if (stripped.startsWith(dialDigits)) {
-      return '+$stripped';
-    }
-    return '$dialCode$stripped';
-  }
+  String? parseE164(String phone) =>
+      PhoneNumberParser().parseRecipientToE164(phone, selectedRegion: code);
 
-  bool isValidPhone(String phone) {
-    try {
-      final phoneUtil = PhoneNumberUtil.instance;
-      final phoneNumber = phoneUtil.parse(buildE164(phone), '');
-      return phoneUtil.isValidNumber(phoneNumber);
-    } catch (_) {
-      return false;
-    }
-  }
+  bool isValidPhone(String phone) => parseE164(phone) != null;
 
   static Country? findByDialCode(String dialCode) {
     for (final c in countries) {

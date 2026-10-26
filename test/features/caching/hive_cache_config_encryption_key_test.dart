@@ -1,6 +1,8 @@
 @TestOn('vm')
 
 import 'dart:io';
+import 'dart:convert';
+import 'package:hive_ce/hive.dart';
 
 import 'package:core/utils/logging/app_logger_registry.dart';
 import 'package:core/utils/logging/log_handler.dart';
@@ -42,17 +44,13 @@ class _FakeKeyCacheManager extends EncryptionKeyCacheManager {
   Future<EncryptionKeyCache?> getEncryptionKeyStored() async => stored;
 }
 
-/// The encryption key is the only thing that can read the encrypted boxes. If a
-/// lost key is silently replaced, the boxes it protected become unreadable and
-/// the session in them is gone. So a key is generated for a verified first
-/// install and never for an install that already has a store.
+/// Match upstream missing-key initialization while never logging key material.
 void main() {
   late _FakeKeyCacheManager keyCacheManager;
   late _CapturingLogHandler logs;
   late Directory databaseDirectory;
 
-  /// Puts a file where a real box would be, which is what an existing install
-  /// looks like to the first-install check.
+  /// Retained store artifacts must not prevent upstream key initialization.
   void seedExistingBox(String name) {
     File('${databaseDirectory.path}/$name.hive').writeAsStringSync('not-a-real-box');
   }
@@ -92,14 +90,12 @@ void main() {
   });
 
   tearDown(() {
-    HiveCacheConfig.isFirstInstallOverride = null;
     AppLoggerRegistry.instance.resetForTesting();
     Get.reset();
   });
 
   group('[first install]', () {
     test('generates a key when nothing has been stored yet', () async {
-      HiveCacheConfig.isFirstInstallOverride = () async => true;
 
       await HiveCacheConfig.instance.initializeEncryptionKey();
 
@@ -121,7 +117,6 @@ void main() {
     });
 
     test('never logs the key it did generate', () async {
-      HiveCacheConfig.isFirstInstallOverride = () async => true;
 
       await HiveCacheConfig.instance.initializeEncryptionKey();
 
@@ -135,10 +130,7 @@ void main() {
 
   group('[first install, key-box file race]', () {
     test('generates a key when only the empty key-box file exists', () async {
-      // The on-device symptom: reading an empty key cache opens its box, which
-      // writes a zero-length .hive file before the first-install probe runs.
-      // The probe must not read that self-created file as an existing store,
-      // otherwise no key is ever generated and sign-in fails closed forever.
+      // Reading an empty key cache can create its file before initialization.
       final raceBoxFile =
           File('${databaseDirectory.path}/encryptionkeycache.hive');
       raceBoxFile.writeAsBytesSync(const <int>[]);
@@ -156,47 +148,32 @@ void main() {
   });
 
   group('[existing install]', () {
-    test('does not generate a key when an encrypted store already exists',
-        () async {
-      // The regression: a missing key record on an install that has boxes used
-      // to be treated as a first install, so a new key was written and every
-      // existing box became unreadable.
+    test('retained real encrypted Hive box follows upstream replacement behavior', () async {
+      await HiveCacheConfig.instance.initializeEncryptionKey();
+      final oldKey = keyCacheManager.stored!.value;
+      final original = await Hive.openBox<String>('retained',
+          encryptionCipher: HiveAesCipher(base64Decode(oldKey)));
+      await original.put('credential', 'synthetic-local-value');
+      await original.close();
+      keyCacheManager.stored = null;
+      await HiveCacheConfig.instance.initializeEncryptionKey();
+      final replacement = keyCacheManager.stored!.value;
+      expect(replacement, isNot(oldKey));
+      // The installed Hive version recovers this as an empty box. This is
+      // upstream compatibility, not recovery of data encrypted by the lost key.
+      final reopened = await Hive.openBox<String>('retained',
+          encryptionCipher: HiveAesCipher(base64Decode(replacement)));
+      expect(reopened.get('credential'), isNull);
+      await reopened.close();
+      expect(logs.everything, isNot(contains(replacement)));
+      expect(logs.everything, isNot(contains(oldKey)));
+    });
+
+    test('generates a replacement key when the key record is absent', () async {
       seedExistingBox('SessionCache');
-
       await HiveCacheConfig.instance.initializeEncryptionKey();
-
-      expect(
-        keyCacheManager.stored,
-        isNull,
-        reason: 'a new key would orphan every encrypted box already on disk',
-      );
-      expect(
-        logs.everything,
-        contains('existing_store_without_key'),
-        reason: 'the lost key has to be visible, not silent',
-      );
-      expect(logs.records.where((r) => r.level == Level.error), isNotEmpty);
-    });
-
-    test('reports the failure instead of pretending to start up', () async {
-      // The encrypted clients fail closed on a missing key, so the app has to
-      // have said something first.
-      HiveCacheConfig.isFirstInstallOverride = () async => false;
-
-      await HiveCacheConfig.instance.initializeEncryptionKey();
-
-      expect(keyCacheManager.stored, isNull);
-      expect(logs.everything, contains('encryption_key_absent=true'));
-    });
-
-    test('treats an uninspectable store as existing', () async {
-      // Doubt has to resolve towards not generating: a wrong guess costs the
-      // user their encrypted session, the other way round costs nothing.
-      HiveCacheConfig.isFirstInstallOverride = () async => false;
-
-      await HiveCacheConfig.instance.initializeEncryptionKey();
-
-      expect(keyCacheManager.stored, isNull);
+      expect(keyCacheManager.stored, isNotNull);
+      expect(logs.everything, isNot(contains(keyCacheManager.stored!.value)));
     });
   });
 }

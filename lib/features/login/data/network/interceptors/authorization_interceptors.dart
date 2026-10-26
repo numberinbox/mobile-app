@@ -95,7 +95,10 @@ class AuthorizationInterceptors extends QueuedInterceptorsWrapper {
 
   AuthenticationType get authenticationType => _authenticationType;
 
-  String? get basicAuthorizationHeader => _authorization;
+  String? get basicAuthorizationHeader =>
+      _authenticationType == AuthenticationType.basic && _authorization != null
+          ? 'Basic $_authorization'
+          : null;
 
   String? get currentOidcIdToken => _token?.tokenId.uuid;
 

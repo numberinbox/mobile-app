@@ -3,6 +3,7 @@ import 'package:core/core.dart';
 import 'package:flutter/services.dart' as services;
 import 'package:contact/contact/model/capability_contact.dart';
 import 'package:dartz/dartz.dart';
+import 'package:dio/dio.dart' show CancelToken;
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:forward/forward/capability_forward.dart';
@@ -563,22 +564,14 @@ abstract class BaseController extends GetxController
           onFailureCallback();
           return;
         }
-        if (!await _handleDeleteFCMAndClearData()) {
-          logWarning('BaseController::logoutToSignInNewAccount: The FCM revocation failed, keep the credentials signed in');
-          onFailureCallback(exception: RevokeFcmRegistrationFailedException());
-          return;
-        }
+        await _handleDeleteFCMAndClearData();
         if (isUserCancelledLogoutOidcFlow) {
           onFailureCallback(exception: UserCancelledLogoutOIDCFlowException());
         } else {
           onSuccessCallback();
         }
       } else {
-        if (!await _handleDeleteFCMAndClearData()) {
-          logWarning('BaseController::logoutToSignInNewAccount: The FCM revocation failed, keep the credentials signed in');
-          onFailureCallback(exception: RevokeFcmRegistrationFailedException());
-          return;
-        }
+        await _handleDeleteFCMAndClearData();
         onSuccessCallback();
       }
     } catch (e) {
@@ -592,38 +585,41 @@ abstract class BaseController extends GetxController
       exception.code == OIDCConstant.endSessionFailedCode;
   }
 
-  /// Clears the FCM device registration (keep the credentials while the
-  /// revoke request runs) then wipes the local data.
-  ///
-  /// Returns false when the revocation cannot be confirmed (offline or
-  /// rejected): the device registration is still live, so the caller must NOT
-  /// clear the credentials and must report the failure.
-  Future<bool> _handleDeleteFCMAndClearData() async {
-    if (_isFcmEnabled) {
-      if (!await _handleDeleteFCMRegistration()) {
-        logWarning('BaseController::_handleDeleteFCMAndClearData: The FCM registration revocation failed, keep the credentials and abort the sign-out');
-        return false;
-      }
-    }
+  /// Revocation is bounded best effort; local logout must work offline.
+  Future<void> _handleDeleteFCMAndClearData() async {
+    if (_isFcmEnabled) await _revokeFcmBeforeLogout();
     await clearAllData();
-    return true;
   }
 
-  Future<bool> _handleDeleteFCMRegistration() async {
+  Future<void> _revokeFcmBeforeLogout() async {
+    final cancelToken = CancelToken();
+    try {
+      await _handleDeleteFCMRegistration(cancelToken)
+          .timeout(const Duration(seconds: 5));
+    } on TimeoutException {
+      logWarning('FCM revocation: logout deadline exceeded');
+    } finally {
+      cancelToken.cancel('Session ended');
+    }
+  }
+
+  Future<bool> _handleDeleteFCMRegistration(CancelToken cancelToken) async {
     _getStoredFirebaseRegistrationInteractor =
         getBinding<GetStoredFirebaseRegistrationInteractor>();
     if (_getStoredFirebaseRegistrationInteractor == null) {
-      logWarning('BaseController::_handleDeleteFCMRegistration: GetStoredFirebaseRegistrationInteractor is null, cannot revoke the device registration');
+      logWarning('BaseController::_handleDeleteFCMRegistration: registration lookup unavailable; continuing local logout');
       return false;
     }
 
     try {
       final fcmRegistration = await _getStoredFirebaseRegistrationInteractor?.execute().last;
 
+      if (cancelToken.isCancelled) return false;
+
       // foldSuccess would not await its onSuccess callback, letting
       // clearAllData() race the revocation (which still needs the credentials
-      // clearAllData deletes). The revocation must run - and be confirmed -
-      // before the credentials are cleared.
+      // clearAllData deletes). Await the attempt before clearing credentials,
+      // subject to the logout deadline.
       final storedRegistration = fcmRegistration
           ?.foldSuccessWithResult<GetStoredFirebaseRegistrationSuccess>();
       if (storedRegistration is! GetStoredFirebaseRegistrationSuccess) {
@@ -633,50 +629,33 @@ abstract class BaseController extends GetxController
           logTrace('BaseController::_handleDeleteFCMRegistration: no stored registration, nothing to revoke');
           return true;
         }
-        logWarning('BaseController::_handleDeleteFCMRegistration: the stored registration cannot be read, treat the device as still registered');
+        logWarning('BaseController::_handleDeleteFCMRegistration: registration lookup failed; continuing local logout');
         return false;
       }
 
       _destroyFirebaseRegistrationInteractor = getBinding<RevokePlatformFcmRegistrationInteractor>();
       if (_destroyFirebaseRegistrationInteractor == null) {
-        logWarning('BaseController::_handleDeleteFCMRegistration: RevokePlatformFcmRegistrationInteractor is null, cannot revoke the device registration');
+        logWarning('BaseController::_handleDeleteFCMRegistration: revocation unavailable; continuing local logout');
         return false;
       }
 
-      final destroyViewState = await _destroyFirebaseRegistrationInteractor!.execute(storedRegistration.firebaseRegistration.id!).last;
+      final destroyViewState = await _destroyFirebaseRegistrationInteractor!.execute(storedRegistration.firebaseRegistration.id!, cancelToken: cancelToken).last;
       final revoked = destroyViewState.foldSuccessWithResult<DestroyFirebaseRegistrationSuccess>();
       if (revoked is! DestroyFirebaseRegistrationSuccess) {
-        logWarning('BaseController::_handleDeleteFCMRegistration: the revocation failed (offline or rejected), the device registration is still live');
+        logWarning('BaseController::_handleDeleteFCMRegistration: revocation unconfirmed; continuing local logout');
         return false;
       }
       return true;
     } catch (e) {
-      logWarning('BaseController::_handleDeleteFCMRegistration:Exception = $e');
+      logWarning('FCM revocation failed: ${e.runtimeType}');
       return false;
     }
   }
 
-  /// Ordinary sign-out (Settings / forced logout): revoke the FCM device
-  /// registration first and only then clear the mail cache, the credentials
-  /// and route to the login page. When the revoke request cannot be confirmed
-  /// (offline or rejected), keep everything signed in and report the failure
-  /// instead of abandoning a still registered device.
   Future<void> _handleLogoutFcmTeardownAndClearData() async {
-    if (_isFcmEnabled && !await _handleDeleteFCMRegistration()) {
-      logWarning('BaseController::_handleLogoutFcmTeardownAndClearData: The FCM registration revocation failed, keep the credentials signed in');
-      _showLogoutFailedToast();
-      return;
-    }
+    if (_isFcmEnabled) await _revokeFcmBeforeLogout();
     await cachingManager.clearMailDataCached();
     await clearDataAndGoToLoginPage();
-  }
-
-  void _showLogoutFailedToast() {
-    if (currentOverlayContext == null || currentContext == null) return;
-    appToast.showToastErrorMessage(
-      currentOverlayContext!,
-      AppLocalizations.of(currentContext!).unknownError,
-    );
   }
 
   Future<void> executeBeforeReconnect() async {

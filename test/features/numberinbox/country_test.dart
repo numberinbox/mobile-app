@@ -4,6 +4,11 @@ import 'package:tmail_ui_user/features/numberinbox/country.dart';
 void main() {
   final thailand = countryForRegionCode('TH');
 
+  test('Indian national digits are not a country prefix', () {
+    expect(countryForRegionCode('IN').isValidPhone('9123456789'), isTrue);
+    expect(countryForRegionCode('IN').parseE164('9123456789'), '+919123456789');
+  });
+
   group('countryForRegionCode', () {
     test('resolves US region', () {
       final country = countryForRegionCode('US');
@@ -46,6 +51,7 @@ void main() {
     // and never an equivalent substitute for these cases.
     const localMobiles = {
       '0612345678': '+66612345678',
+      '066 123 4567': '+66661234567',
       '0812345678': '+66812345678',
       '0912345678': '+66912345678',
     };
@@ -59,7 +65,7 @@ void main() {
 
     test('local input round-trips to the canonical E.164', () {
       for (final entry in localMobiles.entries) {
-        expect(thailand.buildE164(entry.key), entry.value,
+        expect(thailand.parseE164(entry.key), entry.value,
             reason: '"${entry.key}" must canonicalize to ${entry.value}');
       }
     });

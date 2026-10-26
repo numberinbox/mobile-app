@@ -102,6 +102,7 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
   ScriptedAuthClient() : super(Dio());
 
   int verifyCalls = 0;
+  final List<String> verifyNumbers = [];
   Object? verifyError;
   Object? startOtpError;
   int startOtpCalls = 0;
@@ -124,6 +125,7 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
   @override
   Future<OtpSession> verifyOtp(String rawE164, String code, {String? deviceId}) async {
     verifyCalls++;
+    verifyNumbers.add(rawE164);
     final error = verifyError;
     if (error != null) throw error;
     final url = sessionUrl;
@@ -399,6 +401,24 @@ void main() {
   });
 
   group('sendCode', () {
+    test('verification keeps the number that received the OTP', () async {
+      final auth = ScriptedAuthClient()..verifyError = OtpInvalidException();
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      ctrl.onCountrySelected(countryForRegionCode('TH'));
+      ctrl.phoneController.text = '066 123 4567';
+      await ctrl.sendCode();
+      ctrl.phoneController.text = '9123456789';
+      ctrl.onCountrySelected(countryForRegionCode('IN'));
+      ctrl.codeController.text = '123456';
+      await ctrl.verifyCode();
+      expect(auth.startOtpNumbers, ['+66661234567']);
+      expect(auth.verifyNumbers, auth.startOtpNumbers);
+      ctrl.phase = OtpPhase.phone;
+      await ctrl.sendCode();
+      expect(auth.startOtpNumbers.last, '+919123456789');
+      ctrl.dispose();
+    });
+
     test('empty phone sets error', () async {
       await controller.sendCode();
       expect(controller.error, 'Enter your phone number');

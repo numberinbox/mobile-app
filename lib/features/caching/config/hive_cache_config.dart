@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:core/utils/app_logger.dart';
-import 'package:flutter/foundation.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:hive_ce/hive.dart';
 import 'package:path_provider/path_provider.dart' as path_provider;
@@ -42,10 +42,6 @@ class HiveCacheConfig {
 
   int _closeGeneration = 0;
 
-  /// Where the boxes live, kept so a missing encryption key can be told apart
-  /// from a first install.
-  String? _databasePath;
-
   /// Bumped by every deliberate [closeHive], so an operation that started
   /// before one can tell it happened underneath.
   int get closeGeneration => _closeGeneration;
@@ -65,8 +61,6 @@ class HiveCacheConfig {
     }
 
     if (databasePath == null) return;
-
-    _databasePath = databasePath;
 
     if (isolated) {
       await IsolatedHive.init(
@@ -110,31 +104,8 @@ class HiveCacheConfig {
       return;
     }
 
-    // The first-install probe has to run before the key cache itself is read:
-    // opening an empty key-cache box creates its .hive file on disk, and the
-    // probe reads any .hive file as "existing install". Reading the cache
-    // first would therefore make every fresh device look like an existing
-    // install without a key, the key would never be generated, and every
-    // encrypted box — including the sign-in store — would fail closed.
-    final firstInstall = await isFirstInstall();
-
     final encryptionKeyCache = await encryptionKeyCacheManager.getEncryptionKeyStored();
     if (encryptionKeyCache != null) {
-      return;
-    }
-
-    // A missing key record only means "first launch" on an install that has
-    // nothing stored. On an install whose boxes already exist it means the key
-    // is gone, and writing a new one would orphan every box it protected — the
-    // user's session would be unreadable and the boxes that could be read would
-    // be the ones written in the clear from then on. So refuse, visibly, and
-    // let the encrypted clients fail closed.
-    if (!firstInstall) {
-      logError(
-        'HiveCacheConfig::initializeEncryptionKey(): '
-        'encryption_key_absent=true | reason=existing_store_without_key',
-        stackTrace: StackTrace.current,
-      );
       return;
     }
 
@@ -144,61 +115,6 @@ class HiveCacheConfig {
     // lands in logcat/Sentry on every cold start of every install.
     log('HiveCacheConfig::_initializeEncryptionKey(): generated new encryption key');
     await encryptionKeyCacheManager.storeEncryptionKey(EncryptionKeyCache(secureKeyEncode));
-  }
-
-  /// Whether this install has never stored anything.
-  ///
-  /// Uses the on-disk box files where there is a database directory, and the
-  /// stored cache version on web, where IndexedDB cannot be listed. Anything
-  /// that cannot be inspected counts as an existing install: generating a key
-  /// on a doubt is the worse failure.
-  @visibleForTesting
-  Future<bool> isFirstInstall() async {
-    final override = isFirstInstallOverride;
-    if (override != null) return override();
-
-    final databasePath = _databasePath;
-    if (databasePath != null) {
-      final directory = Directory(databasePath);
-      if (!directory.existsSync()) return true;
-      // The key cache's own artifacts are excluded on purpose: reading the
-      // empty key cache opens its box, which writes these files before any
-      // box holds a record. Counting them as a store would make every fresh
-      // device look like an existing install without a key and fail closed.
-      return !directory.listSync().whereType<File>().any(
-            (file) =>
-                !_isKeyCacheArtifact(file) &&
-                (file.path.endsWith('.hive') || file.path.endsWith('.lock')),
-          );
-    }
-
-    try {
-      final cachingManager = getBinding<CachingManager>();
-      final version = await cachingManager?.getLatestVersion();
-      return version == null;
-    } catch (e) {
-      logWarning(
-        'HiveCacheConfig::isFirstInstall: cannot inspect the store, '
-        'treating it as existing (category=${e.runtimeType})',
-      );
-      return false;
-    }
-  }
-
-  /// Test seam for [isFirstInstall].
-  @visibleForTesting
-  static Future<bool> Function()? isFirstInstallOverride;
-
-  /// Files the key cache itself creates when it is merely opened.
-  ///
-  /// Hive writes a zero-length `<table>.hive` (plus `.lock`) for an empty box,
-  /// so these artifacts exist on every fresh install after the key cache has
-  /// been probed, and cannot say anything about prior stored state. Case
-  /// folded: Hive lowercases box file names on some platforms.
-  static bool _isKeyCacheArtifact(File file) {
-    final name = file.path.split('/').last.toLowerCase();
-    return name == 'encryptionkeycache.hive' ||
-        name == 'encryptionkeycache.lock';
   }
 
   Future<Uint8List?> getEncryptionKey() async {

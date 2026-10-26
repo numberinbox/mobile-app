@@ -1,10 +1,8 @@
 import 'dart:convert';
-import 'dart:io' as io;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:core/core.dart';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter_appauth/flutter_appauth.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/http/http_client.dart';
@@ -62,8 +60,8 @@ class NetworkBindings extends Bindings {
 
   void _bindingBaseOption() {
     final headers = <String, dynamic>{
-      io.HttpHeaders.acceptHeader: Constant.acceptHeaderDefault,
-      io.HttpHeaders.contentTypeHeader: Constant.contentTypeHeaderDefault
+      'accept': Constant.acceptHeaderDefault,
+      'content-type': Constant.contentTypeHeaderDefault
     };
     Get.put(BaseOptions(headers: headers));
   }
@@ -171,17 +169,8 @@ class NetworkBindings extends Bindings {
     Get.put(DnsLookupManager());
     Get.put(PromptService(Get.find<Dio>(tag: 'prompt')));
   }
-  static void configureDebugDio(Dio dio) {
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () {
-        final client = io.HttpClient();
-        client.badCertificateCallback = (cert, host, port) => true;
-        return client;
-      },
-    );
-  }
+  // Dio selects the native or browser adapter. Both use normal TLS validation.
+  static void configureDebugDio(Dio dio) {}
 
-  static void configureProductionDio(Dio dio) {
-    dio.httpClientAdapter = IOHttpClientAdapter();
-  }
+  static void configureProductionDio(Dio dio) {}
 }

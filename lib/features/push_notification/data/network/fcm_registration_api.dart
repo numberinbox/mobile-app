@@ -54,6 +54,7 @@ class FcmRegistrationApi {
   }
 
   Future<void> revoke({
+    CancelToken? cancelToken,
     required String registrationId,
     required String username,
     required String password,
@@ -61,6 +62,7 @@ class FcmRegistrationApi {
     try {
       await _dio.delete<void>(
         '/v1/fcm-registrations/$registrationId',
+        cancelToken: cancelToken,
         options: Options(headers: {
           'Authorization': _basicHeader(username, password),
         }),

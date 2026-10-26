@@ -22,7 +22,7 @@ import 'authorization_interceptors_test.mocks.dart';
 void main() {
   late AuthorizationInterceptors interceptor;
 
-  setUpAll(() {
+  setUp(() {
     interceptor = AuthorizationInterceptors(
       Dio(),
       MockAuthenticationClientBase(),
@@ -51,9 +51,9 @@ void main() {
       // Assert
       final result = interceptor.basicAuthorizationHeader;
       expect(result, isNotNull);
-      expect(result, base64Encode(utf8.encode(
+      expect(result, 'Basic ${base64Encode(utf8.encode(
         '+66951987335@numberinbox.test:test-password-123',
-      )));
+      ))}');
     });
 
     test('should return null after setting OIDC token clears basic auth', () {
@@ -64,14 +64,16 @@ void main() {
       );
       expect(interceptor.basicAuthorizationHeader, isNotNull);
 
-      // Act — set OIDC (this should clear basic auth path)
-      // Note: setTokenAndAuthorityOidc doesn't clear _authorization,
-      // but the auth type switch in onRequest will use OIDC instead.
-      // The getter still returns the Basic header if _authorization is set.
+      interceptor.setTokenAndAuthorityOidc();
+      expect(interceptor.basicAuthorizationHeader, isNull);
+    });
 
-      // Assert
+    test('clear removes the header and Unicode credentials encode once', () {
+      interceptor.setBasicAuthorization(UserName('álîce'), Password('秘密'));
       expect(interceptor.basicAuthorizationHeader,
-          base64Encode(utf8.encode('user@test.com:pass123')));
+          'Basic ${base64Encode(utf8.encode('álîce:秘密'))}');
+      interceptor.clear();
+      expect(interceptor.basicAuthorizationHeader, isNull);
     });
   });
 }

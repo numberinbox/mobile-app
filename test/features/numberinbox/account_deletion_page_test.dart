@@ -15,9 +15,11 @@ import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/
 const _key = Key('deletion_submit');
 
 class _Credentials implements CredentialRepository {
+  _Credentials([this.number = '+66812345678']);
+  final String number;
   @override
   Future<AuthenticationInfoCache> getAuthenticationInfoStored() async =>
-      AuthenticationInfoCache('+66812345678@numberinbox.test', 'secret');
+      AuthenticationInfoCache('$number@numberinbox.test', 'secret');
 
   @override
   Future<Uri> getBaseUrl() async => Uri.parse('https://jmap.numberinbox.test');
@@ -278,6 +280,19 @@ void main() {
       expect(tester.getSize(find.byKey(_key)).width, lessThan(page.width));
       expect(tester.getSize(find.byKey(_key)).width, greaterThan(page.width * 0.8));
     });
+  });
+
+  testWidgets('Thai national prefix matching the calling code can confirm deletion', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: AccountDeletionPage(
+      client: _DeletionClient(), credentialRepository: _Credentials('+66661234567'),
+    )));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const Key('deletion_phone_field')), '066 123 4567');
+    await tester.tap(find.byKey(_key));
+    await tester.pumpAndSettle();
+    expect(find.text('Delete permanently'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
   });
 
   group('confirmation flow', () {

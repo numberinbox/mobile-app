@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -92,6 +93,43 @@ void main() {
         _FakeWebSocketApi(ticket: ticket),
         _RethrowingExceptionThrower(),
       );
+
+  test('a server that never upgrades cannot leave socket establishment pending', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    final received = Completer<void>();
+    server.listen((request) { received.complete(); });
+    final elapsed = Stopwatch()..start();
+    final connection = datasourceWith().getWebSocketChannel(
+      _sessionForWebSocket(Uri.parse('ws://127.0.0.1:${server.port}/socket')),
+      AccountFixtures.aliceAccountId,
+    );
+    final assertion = expectLater(connection, throwsA(anyOf(
+      isA<TimeoutException>(), isA<WebSocketClosedException>(),
+    )));
+    await received.future.timeout(const Duration(seconds: 3));
+    await assertion;
+    expect(elapsed.elapsed, greaterThanOrEqualTo(const Duration(seconds: 9)));
+    expect(elapsed.elapsed, lessThan(const Duration(seconds: 15)));
+  }, timeout: const Timeout(Duration(seconds: 20)));
+
+  test('failed ticket handshakes expose no ticket in the propagated error', () async {
+    final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => server.close(force: true));
+    server.listen((request) {
+      request.response.statusCode = HttpStatus.unauthorized;
+      request.response.close();
+    });
+    Object? failure;
+    try {
+      await datasourceWith(ticket: 'sentinel-secret-ticket').getWebSocketChannel(
+        _sessionForWebSocket(Uri.parse('ws://127.0.0.1:${server.port}/socket')),
+        AccountFixtures.aliceAccountId,
+      );
+    } catch (error) { failure = error; }
+    expect(failure, isA<WebSocketClosedException>());
+    expect(failure.toString(), isNot(contains('sentinel-secret-ticket')));
+  });
 
   group('WebSocketDatasourceImpl::TLS verification', () {
     test(

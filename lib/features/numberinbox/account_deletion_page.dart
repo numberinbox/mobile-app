@@ -5,11 +5,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
+import 'package:tmail_ui_user/features/numberinbox/platform_api_options.dart';
 import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/login/domain/repository/credential_repository.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/manage_account_dashboard_controller.dart';
 import 'package:tmail_ui_user/features/numberinbox/account_deletion_client.dart';
-import 'package:tmail_ui_user/features/numberinbox/auth/e164.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/branded_action_button.dart';
 import 'package:tmail_ui_user/main/routes/app_routes.dart';
@@ -66,7 +66,7 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
   bool _completed = false;
 
   AccountDeletionClient get client => _client ??= widget.client ??
-      AccountDeletionClient(Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl)));
+      AccountDeletionClient(Dio(platformApiOptions(AppConfig.apiBaseUrl)));
   CredentialRepository get credentials => _credentials ??=
       widget.credentialRepository ?? Get.find<CredentialRepository>();
 
@@ -118,7 +118,9 @@ class _AccountDeletionPageState extends State<AccountDeletionPage> {
 
   String _enteredNumber() {
     final input = _phoneController.text.trim();
-    return normalizeE164(input.startsWith('+') ? input : _country.buildE164(input));
+    final number = _country.parseE164(input);
+    if (number == null) throw const FormatException('Invalid phone number');
+    return number;
   }
 
   Future<void> _submit() async {

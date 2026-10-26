@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart' show CancelToken;
 
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
@@ -24,11 +25,13 @@ class RevokePlatformFcmRegistrationInteractor {
     this._credentialRepository
   );
 
-  Stream<Either<Failure, Success>> execute(FirebaseRegistrationId registrationId) async* {
+  Stream<Either<Failure, Success>> execute(FirebaseRegistrationId registrationId, {CancelToken? cancelToken}) async* {
     try {
       yield Right<Failure, Success>(DestroyFirebaseRegistrationLoading());
       final authenticationInfoCache = await _credentialRepository.getAuthenticationInfoStored();
+      if (cancelToken?.isCancelled ?? false) return;
       await _fcmRegistrationApi.revoke(
+        cancelToken: cancelToken,
         registrationId: registrationId.id.value,
         username: authenticationInfoCache.username,
         password: authenticationInfoCache.password,

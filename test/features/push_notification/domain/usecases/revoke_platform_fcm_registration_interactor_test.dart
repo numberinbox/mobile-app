@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:dartz/dartz.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,23 @@ void main() {
       FcmRegistrationApi(dio),
       credentialRepository,
     );
+  });
+
+  test('cancelled credential lookup cannot send a late revocation', () async {
+    final credentials = Completer<AuthenticationInfoCache>();
+    when(credentialRepository.getAuthenticationInfoStored()).thenAnswer((_) => credentials.future);
+    final token = CancelToken();
+    var requests = 0;
+    dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      requests++;
+      handler.next(request);
+    }));
+    final states = interactor.execute(registrationId, cancelToken: token).toList();
+    await Future<void>.delayed(Duration.zero);
+    token.cancel('Session ended');
+    credentials.complete(AuthenticationInfoCache('synthetic@example.test', 'synthetic'));
+    await states;
+    expect(requests, 0);
   });
 
   group('RevokePlatformFcmRegistrationInteractor.execute', () {

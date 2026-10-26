@@ -1,6 +1,5 @@
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:core/presentation/extensions/uri_extension.dart';
 import 'package:core/utils/app_logger.dart';
@@ -16,7 +15,8 @@ import 'package:tmail_ui_user/features/push_notification/data/network/web_socket
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/web_socket_exceptions.dart';
 import 'package:tmail_ui_user/main/exceptions/thrower/exception_thrower.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
-import 'package:web_socket_channel/io.dart';
+import 'web_socket_connector.dart'
+    if (dart.library.io) 'web_socket_connector_io.dart' as connector;
 
 class WebSocketDatasourceImpl implements WebSocketDatasource {
   final WebSocketApi _webSocketApi;
@@ -31,23 +31,39 @@ class WebSocketDatasourceImpl implements WebSocketDatasource {
       final webSocketTicket = await _webSocketApi.getWebSocketTicket(session, accountId);
       final webSocketUri = _resolveSecureWebSocketUri(session, accountId);
 
-      WebSocketChannel webSocketChannel;
-      if (webSocketTicket != null) {
-        webSocketChannel = WebSocketChannel.connect(
-          Uri.parse('${webSocketUri.toString()}?ticket=$webSocketTicket'),
-          protocols: ["jmap"],
-        );
-      } else {
-        final authHeader = _getBasicAuthHeader();
-        final ws = await WebSocket.connect(
-          webSocketUri.toString(),
-          headers: authHeader != null ? {'Authorization': authHeader} : null,
-          protocols: ["jmap"],
-        );
-        webSocketChannel = IOWebSocketChannel(ws);
+      WebSocketChannel? channel;
+      var expired = false;
+      Future<WebSocketChannel> connect() async {
+        if (webSocketTicket != null) {
+          channel = WebSocketChannel.connect(
+            webSocketUri.replace(queryParameters: {
+              ...webSocketUri.queryParameters, 'ticket': webSocketTicket,
+            }),
+            protocols: ['jmap'],
+          );
+        } else {
+          channel = await connector.connectWithAuthorization(webSocketUri, _getBasicAuthHeader());
+        }
+        if (expired) {
+          unawaited(channel!.sink.close());
+          throw TimeoutException('WebSocket connection expired');
+        }
+        await channel!.ready;
+        return channel!;
       }
-
-      await webSocketChannel.ready;
+      final webSocketChannel = await connect().catchError((Object error) {
+        if (error is WebSocketTicketUnavailableException) throw error;
+        // Handshake errors may embed a ticket-bearing URL.
+        throw WebSocketClosedException('Connection failed');
+      }).timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          expired = true;
+          final pending = channel;
+          if (pending != null) unawaited(pending.sink.close());
+          throw TimeoutException('WebSocket connection expired');
+        },
+      );
 
       return webSocketChannel;
     }).catchError(_exceptionThrower.throwException);
@@ -58,25 +74,19 @@ class WebSocketDatasourceImpl implements WebSocketDatasource {
       final authInterceptor = Get.find<AuthorizationInterceptors>();
       return authInterceptor.basicAuthorizationHeader;
     } catch (e) {
-      logWarning('WebSocketDatasourceImpl::_getBasicAuthHeader: $e');
+      logWarning('WebSocket authorization unavailable: ${e.runtimeType}');
       return null;
     }
   }
 
   Uri _resolveSecureWebSocketUri(Session session, AccountId accountId) {
     final webSocketUri = _getWebSocketUri(session, accountId).ensureWebSocketUri();
-    if (webSocketUri.scheme == 'ws' && !_isLoopbackHost(webSocketUri.host)) {
+    if (webSocketUri.scheme == 'ws' && !connector.isLoopbackHost(webSocketUri.host)) {
       throw WebSocketInsecureSchemeException(
         'Refusing plaintext WebSocket connection to ${webSocketUri.host}',
       );
     }
     return webSocketUri;
-  }
-
-  bool _isLoopbackHost(String host) {
-    final normalizedHost = host.toLowerCase();
-    if (normalizedHost == 'localhost') return true;
-    return InternetAddress.tryParse(normalizedHost)?.isLoopback ?? false;
   }
 
   WebSocketCapability? _findWebSocketCapability(Session session, AccountId accountId) {
@@ -103,7 +113,6 @@ class WebSocketDatasourceImpl implements WebSocketDatasource {
     if (webSocketCapability?.supportsPush != true) {
       throw WebSocketPushNotSupportedException();
     }
-    log('WebSocketDatasourceImpl::_getWebSocketUri: webSocketCapability = ${webSocketCapability?.toJson()}');
     final webSocketUri = webSocketCapability?.url;
     if (webSocketUri == null) throw WebSocketUriUnavailableException();
 
