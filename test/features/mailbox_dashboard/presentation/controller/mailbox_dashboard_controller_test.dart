@@ -18,10 +18,12 @@ import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
+import 'package:labels/model/label.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
 import 'package:core/utils/platform_info.dart';
+import 'package:linagora_design_flutter/linagora_design_flutter.dart';
 import 'package:model/email/email_action_type.dart';
 import 'package:receive_sharing_intent/receive_sharing_intent.dart';
 import 'package:rxdart/subjects.dart';
@@ -31,12 +33,15 @@ import 'package:tmail_ui_user/features/email/presentation/model/composer_argumen
 import 'package:tmail_ui_user/features/base/extensions/handle_mailbox_action_type_extension.dart';
 import 'package:tmail_ui_user/features/base/model/filter_filter.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/forbidden_to_send_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/send_email_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
+import 'package:tmail_ui_user/features/composer/presentation/widgets/domain_activation_pending_dialog.dart';
 import 'package:tmail_ui_user/features/download/presentation/controllers/download_controller.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/delete_email_permanently_interactor.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/delete_multiple_emails_permanently_interactor.dart';
@@ -79,6 +84,7 @@ import 'package:tmail_ui_user/features/mailbox/presentation/mailbox_controller.d
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_node.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree_builder.dart';
+import 'package:tmail_ui_user/features/mailbox/presentation/model/presentation_label_mailbox.dart';
 import 'package:tmail_ui_user/features/mailbox_creator/domain/usecases/verify_name_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/get_all_recent_search_latest_interactor.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/data/model/composer_cache.dart';
@@ -370,6 +376,8 @@ void main() {
     Get.put<AppGridDashboardController>(appGridDashboardController);
     Get.put<SpamReportController>(spamReportController);
     Get.put<LabelController>(labelController);
+    // MailboxController listens to the label list once it is ready
+    when(labelController.labels).thenReturn(RxList());
     Get.put<NetworkConnectionController>(networkConnectionController);
     Get.put<CachingManager>(cachingManager);
     Get.put<LanguageCacheManager>(languageCacheManager);
@@ -570,6 +578,83 @@ void main() {
         EmailId(Id('email-1')),
         null,
       )).called(1);
+    });
+
+    testWidgets(
+        'shows the domain activation dialog, not a toast, and deletes the refused email '
+        'on a ForbiddenToSendException', (tester) async {
+      await pumpLocalizedApp(tester);
+      clearInteractions(appToast);
+      mailboxDashboardController.sessionCurrent = testSession;
+      mailboxDashboardController.accountId.value = testAccountId;
+      when(deleteEmailPermanentlyInteractor.execute(any, any, any, any))
+          .thenAnswer((_) => const Stream.empty());
+
+      mailboxDashboardController.handleFailureViewState(
+        SendEmailFailure(
+          exception: ForbiddenToSendException(
+            createdEmailId: EmailId(Id('email-1')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DomainActivationPendingDialog), findsOneWidget);
+      verifyNever(appToast.showToastErrorMessage(
+        any,
+        any,
+        leadingSVGIcon: anyNamed('leadingSVGIcon'),
+      ));
+      verify(deleteEmailPermanentlyInteractor.execute(
+        testSession,
+        testAccountId,
+        EmailId(Id('email-1')),
+        null,
+      )).called(1);
+
+      await tester.tap(find.byKey(LinagoraDialog.primaryActionKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(DomainActivationPendingDialog), findsNothing);
+    });
+
+    testWidgets(
+        'deletes nothing when the pre-send check refused before any email was created',
+        (tester) async {
+      await pumpLocalizedApp(tester);
+      mailboxDashboardController.sessionCurrent = testSession;
+      mailboxDashboardController.accountId.value = testAccountId;
+
+      mailboxDashboardController.handleFailureViewState(
+        SendEmailFailure(exception: ForbiddenToSendException()),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DomainActivationPendingDialog), findsOneWidget);
+      verifyNever(deleteEmailPermanentlyInteractor.execute(any, any, any, any));
+
+      await tester.tap(find.byKey(LinagoraDialog.closeButtonKey));
+      await tester.pumpAndSettle();
+      expect(find.byType(DomainActivationPendingDialog), findsNothing);
+    });
+
+    testWidgets(
+        'should not show the domain activation dialog on another send failure',
+        (tester) async {
+      await pumpLocalizedApp(tester);
+      clearInteractions(appToast);
+
+      mailboxDashboardController.handleFailureViewState(
+        SendEmailFailure(exception: SetMethodException({})),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DomainActivationPendingDialog), findsNothing);
+      verify(appToast.showToastErrorMessage(
+        any,
+        any,
+        leadingSVGIcon: anyNamed('leadingSVGIcon'),
+      )).called(1);
+      verifyNever(deleteEmailPermanentlyInteractor.execute(any, any, any, any));
     });
   });
 
@@ -1168,6 +1253,88 @@ void main() {
     });
   });
 
+  group('selected label removed from the label list:', () {
+    final work = Label(id: Id('work'), displayName: 'Work');
+    final home = Label(id: Id('home'), displayName: 'Home');
+    final workMailbox = PresentationLabelMailbox.initial(work);
+    final inbox = PresentationMailbox(
+      testMailboxId,
+      role: PresentationMailbox.roleInbox,
+    );
+    late RxList<Label> labels;
+
+    setUp(() {
+      when(emailReceiveManager.pendingSharedFileInfo).thenAnswer((_) => BehaviorSubject.seeded([]));
+      when(downloadController.downloadUIAction).thenAnswer((_) => Rxn(DownloadUIAction.idle));
+      when(labelController.isLabelSettingEnabled).thenReturn(RxBool(true));
+      // The list MailboxController listens to once it is ready
+      labels = RxList([home, work]);
+      when(labelController.labels).thenReturn(labels);
+
+      // Get.put would keep a dashboard left registered by an earlier test,
+      // and MailboxController would then read that one
+      Get.replace(mailboxDashboardController);
+      mailboxDashboardController.onReady();
+      mailboxController = MailboxController(
+        createNewMailboxInteractor,
+        deleteMultipleMailboxInteractor,
+        renameMailboxInteractor,
+        moveMailboxInteractor,
+        subscribeMailboxInteractor,
+        subscribeMultipleMailboxInteractor,
+        subaddressingInteractor,
+        createDefaultMailboxInteractor,
+        moveFolderContentInteractor,
+        treeBuilder,
+        verifyNameInteractor,
+        getAllMailboxInteractor,
+        refreshAllMailboxInteractor);
+      // onInit registers the label list listener under test
+      mailboxController
+        ..onInit()
+        ..onReady();
+      mailboxController.defaultMailboxTree.value = MailboxTree(
+        MailboxNode(
+          MailboxNode.rootItem(),
+          childrenItems: [MailboxNode(inbox)],
+        ),
+      );
+    });
+
+    test('should select the Inbox when the selected label is removed', () {
+      mailboxDashboardController.selectedMailbox.value = workMailbox;
+
+      labels.value = [home];
+
+      expect(mailboxDashboardController.selectedMailbox.value, inbox);
+    });
+
+    test('should keep the selected label when it is still in the list', () {
+      mailboxDashboardController.selectedMailbox.value = workMailbox;
+
+      labels.value = [home, Label(id: Id('work'), displayName: 'Job')];
+
+      expect(mailboxDashboardController.selectedMailbox.value, workMailbox);
+    });
+
+    test('should keep the selected label when another label is removed', () {
+      mailboxDashboardController.selectedMailbox.value = workMailbox;
+
+      labels.value = [work];
+
+      expect(mailboxDashboardController.selectedMailbox.value, workMailbox);
+    });
+
+    test('should keep a folder selected when all labels are removed', () {
+      final folder = PresentationMailbox(MailboxId(Id('folder')));
+      mailboxDashboardController.selectedMailbox.value = folder;
+
+      labels.value = [];
+
+      expect(mailboxDashboardController.selectedMailbox.value, folder);
+    });
+  });
+
   group('handleReceivingFileSharing share routing:', () {
     late Directory tempShareDir;
 
@@ -1352,6 +1519,21 @@ void main() {
     );
 
     test(
+      'a mailto url share keeps the cc and bcc recipients of the mailto link',
+      () {
+        mailboxDashboardController.handleReceivingFileSharing([
+          urlShare(
+            'mailto:user@example.com?cc=cc@example.com&bcc=bcc@example.com',
+          ),
+        ]);
+
+        final arguments = capturedComposerArguments();
+        expect(arguments.cc?.single.email, 'cc@example.com');
+        expect(arguments.bcc?.single.email, 'bcc@example.com');
+      },
+    );
+
+    test(
       'a non-mailto url share opens nothing on non-iOS platforms — Android '
       'url-type events are deep-link VIEW intents owned by DeepLinksManager',
       () {
@@ -1360,6 +1542,38 @@ void main() {
         ]);
 
         verifyNever(composerManager.addComposer(any));
+      },
+    );
+
+    test(
+      'a file share opens the composer from the shared file '
+      '(composeFromFileShared)',
+      () {
+        final share = SharedMediaFile(
+          path: '${tempShareDir.path}/report.pdf',
+          type: SharedMediaType.file,
+          mimeType: 'application/pdf',
+        );
+
+        mailboxDashboardController.handleReceivingFileSharing([share]);
+
+        final arguments = capturedComposerArguments();
+        expect(arguments.emailActionType, EmailActionType.composeFromFileShared);
+        expect(arguments.listSharedMediaFile?.single.path, share.path);
+      },
+    );
+
+    test(
+      'a mailto-type share with a valid address opens the composer to that '
+      'recipient (composeFromEmailAddress)',
+      () {
+        mailboxDashboardController.handleReceivingFileSharing([
+          SharedMediaFile(path: 'user@example.com', type: SharedMediaType.mailto),
+        ]);
+
+        final arguments = capturedComposerArguments();
+        expect(arguments.emailActionType, EmailActionType.composeFromEmailAddress);
+        expect(arguments.listEmailAddress?.single.email, 'user@example.com');
       },
     );
   });

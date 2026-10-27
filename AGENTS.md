@@ -11,3 +11,7 @@
  and recorded in the release plan or an ADR. Do not add or remove product
  features (for example, at-rest encryption of mail caches) merely because a
  review suggests them; propose such changes upstream instead.
+
+## Security review
+
+For a security review, follow `docs/security/local-review.md`: run `bash scripts/security-review.sh <area>` and answer the generated `.security-review/prompt-<area>.md`.

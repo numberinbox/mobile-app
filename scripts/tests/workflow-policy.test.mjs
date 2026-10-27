@@ -167,3 +167,10 @@ test('the release lanes stay available for private CI to invoke', () => {
     'build-release.sh must remain as the build entry point',
   );
 });
+// The inherited HTML jobs test local transforms and do not require Firebase.
+test('HTML display jobs do not restore removed Firebase secret setup', () => {
+  const workflow = readRepoFile('.github', 'workflows', 'html-display.yaml');
+  assert.equal(workflow.includes('./scripts/setup-firebase.sh'), false);
+  assert.equal(workflow.includes('secrets.FIREBASE_ENV'), false);
+  assert.match(workflow, /run: \.\/scripts\/prebuild\.sh/);
+});

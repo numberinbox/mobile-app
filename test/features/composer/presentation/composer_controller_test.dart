@@ -32,6 +32,7 @@ import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
 import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
 import 'package:labels/model/label.dart';
+import 'package:linagora_design_flutter/linagora_design_flutter.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
 import 'package:model/email/attachment.dart';
@@ -47,6 +48,7 @@ import 'package:rich_text_composer/rich_text_composer.dart';
 import 'package:tmail_ui_user/features/base/before_reconnect_manager.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
 import 'package:tmail_ui_user/features/caching/utils/cache_utils.dart';
+import 'package:tmail_ui_user/features/composer/domain/exceptions/forbidden_to_send_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/repository/composer_repository.dart';
@@ -91,6 +93,7 @@ import 'package:tmail_ui_user/features/composer/presentation/model/prefix_recipi
 import 'package:tmail_ui_user/features/composer/presentation/model/saved_composing_email.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/screen_display_mode.dart';
 import 'package:tmail_ui_user/features/composer/presentation/providers/composer_auto_save_notifier.dart';
+import 'package:tmail_ui_user/features/composer/presentation/widgets/domain_activation_pending_dialog.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/get_email_content_interactor.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/print_email_interactor.dart';
 import 'package:tmail_ui_user/features/email/domain/usecases/save_template_email_interactor.dart';
@@ -1687,6 +1690,64 @@ void main() {
         verify(mockMailboxDashBoardController
             .deleteEmailPermanentlyInBackground(EmailId(Id('email-1'))))
             .called(1);
+      });
+
+      testWidgets(
+        'Should keep the composer open, delete the refused email and show the domain dialog\n'
+        'When the server refuses the submission with ForbiddenToSendException',
+      (tester) async {
+        final context = await pumpContext(tester);
+        composerController?.invalidRecipients.value = {'stale@linagora.com'};
+
+        var handled = false;
+        composerController
+            ?.handleSendMessageResult(
+              context: context,
+              resultState: SendEmailFailure(
+                exception: ForbiddenToSendException(
+                  createdEmailId: EmailId(Id('email-1')),
+                ),
+              ),
+            )
+            .then((_) => handled = true);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DomainActivationPendingDialog), findsOneWidget);
+        expect(composerController?.invalidRecipients.value, isEmpty);
+        verify(mockMailboxDashBoardController
+            .deleteEmailPermanentlyInBackground(EmailId(Id('email-1'))))
+            .called(1);
+        verifyNever(mockAppToast.showToastErrorMessage(any, any));
+        // The generic failure dialog offers "Close anyway", which drops the email.
+        expect(find.text('Close anyway'), findsNothing);
+
+        await tester.tap(find.byKey(LinagoraDialog.primaryActionKey));
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DomainActivationPendingDialog), findsNothing);
+        expect(handled, isTrue);
+      });
+
+      testWidgets(
+        'Should show the domain dialog without deleting any email\n'
+        'When the pre-send check refuses with ForbiddenToSendException',
+      (tester) async {
+        final context = await pumpContext(tester);
+
+        composerController?.handleSendMessageResult(
+          context: context,
+          resultState: SendEmailFailure(exception: ForbiddenToSendException()),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DomainActivationPendingDialog), findsOneWidget);
+        verify(mockMailboxDashBoardController
+            .deleteEmailPermanentlyInBackground(null))
+            .called(1);
+
+        await tester.tap(find.byKey(LinagoraDialog.closeButtonKey));
+        await tester.pumpAndSettle();
+        expect(find.byType(DomainActivationPendingDialog), findsNothing);
       });
 
       testWidgets(
@@ -3418,6 +3479,38 @@ void main() {
           context,
           AppLocalizations.of(context).messageDialogSendEmailContentLoadFailed,
         );
+      });
+
+      testWidgets(
+        'Should send the email again\n'
+        'When send is clicked again after dismissing the domain activation pending dialog',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.composerArguments.value = ComposerArguments();
+        when(mockCreateNewAndSendEmailInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+        )).thenAnswer((_) => Stream.value(
+          Left(SendEmailFailure(exception: ForbiddenToSendException())),
+        ));
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(LinagoraDialog.primaryActionKey));
+        await tester.pumpAndSettle();
+        expect(find.byType(DomainActivationPendingDialog), findsNothing);
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(find.byType(DomainActivationPendingDialog), findsOneWidget);
+        verify(mockCreateNewAndSendEmailInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+        )).called(2);
+        verify(mockMailboxDashBoardController
+            .deleteEmailPermanentlyInBackground(null))
+            .called(2);
       });
     });
   });

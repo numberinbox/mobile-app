@@ -123,6 +123,7 @@ app.*.symbols
 
 #generated file
 *.g.dart
+!core/test/fixtures/html_emails/html_email_corpus.g.dart
 messages_*.dart
 *.mocks.dart
 test_bundle.dart
@@ -144,3 +145,6 @@ docs/store/screenshots/capture-manifest.local.json
 # the repo (regenerate with: flutterfire configure --out=/tmp/<name>.dart),
 # so committing it would just re-point CI at a path that does not exist.
 firebase.json
+
+# Local security review output (scripts/security-review.sh)
+/.security-review/

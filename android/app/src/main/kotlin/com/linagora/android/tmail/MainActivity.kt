@@ -1,14 +1,27 @@
 package com.linagora.android.tmail
 
 import android.os.Build
+import android.annotation.SuppressLint
 import android.os.Bundle
 import android.os.PersistableBundle
+import android.view.KeyEvent
+import android.webkit.WebView
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugins.GeneratedPluginRegistrant
 import android.content.Intent.FLAG_ACTIVITY_NEW_TASK
 
 class MainActivity: FlutterFragmentActivity() {
+
+    @SuppressLint("RestrictedApi") // AndroidX restricts the inherited public Activity callback.
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        val focusedEditor = (currentFocus as? WebView)?.takeIf { it.onCheckIsTextEditor() }
+        // Flutter can retain a stale text-field connection after the editor gains focus.
+        if (!event.isSystem && focusedEditor?.dispatchKeyEvent(event) == true) {
+            return true
+        }
+        return super.dispatchKeyEvent(event)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         removeSplashWithoutFade()
