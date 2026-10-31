@@ -1,3 +1,4 @@
+// Private Android smoke Patrol targets depend on these keys; renaming one breaks the release gate.
 // Tests for the real mail-reader back control (M2 release-gate ticket):
 // the Android phone thread-detail route must expose `UiKeys.emailReaderBackButton`
 // as the ONLY reader navigation selector so the platform smoke can open and

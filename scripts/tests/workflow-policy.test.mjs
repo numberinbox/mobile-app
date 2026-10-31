@@ -174,3 +174,7 @@ test('HTML display jobs do not restore removed Firebase secret setup', () => {
   assert.equal(workflow.includes('secrets.FIREBASE_ENV'), false);
   assert.match(workflow, /run: \.\/scripts\/prebuild\.sh/);
 });
+
+test('public CI retains the committed integration-test drift gate', () => {
+  assert.match(readRepoFile('.github', 'workflows', 'analyze-test.yaml'), /run: bash scripts\/check-integration-test-drift\.sh/);
+});

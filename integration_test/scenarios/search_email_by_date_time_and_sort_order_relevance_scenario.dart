@@ -1,19 +1,17 @@
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/search/email_receive_time_type.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/search/email_sort_order_type.dart';
 import 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_builder.dart'
-    if (dart.library.html) 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_web_builder.dart';
+  if (dart.library.html) 'package:tmail_ui_user/features/thread/presentation/widgets/email_tile_web_builder.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
 import '../base/base_test_scenario.dart';
 import '../models/provisioning_email.dart';
 
-class SearchEmailByDatetimeAndSortOrderRelevanceScenario
-    extends BaseTestScenario {
-  const SearchEmailByDatetimeAndSortOrderRelevanceScenario(
-    super.$,
-    super.robots,
-  );
+class SearchEmailByDatetimeAndSortOrderRelevanceScenario extends BaseTestScenario {
+
+  const SearchEmailByDatetimeAndSortOrderRelevanceScenario(super.$, super.robots);
 
   static const queryString = 'relevance';
   static const listUsername = ['Alice', 'Brian', 'Charlotte', 'David', 'Emma'];
@@ -34,15 +32,13 @@ class SearchEmailByDatetimeAndSortOrderRelevanceScenario
   @override
   Future<void> runTestLogic() async {
     final recipients = resolveRecipients();
-    final listProvisioningEmail = List.generate(
-      listUsername.length,
-      (index) => ProvisioningEmail(
-        toEmail: recipients[index],
+    final listProvisioningEmail = listUsername.asMap().entries
+      .map((entry) => ProvisioningEmail(
+        toEmail: recipients[entry.key],
         subject: queryString,
-        content: '$queryString to user ${listUsername[index]}',
-      ),
-      growable: false,
-    );
+        content: '$queryString to user ${entry.value}',
+      ))
+      .toList();
 
     await robots.commonRobot().provisionEmail(listProvisioningEmail);
     await $.pumpAndSettle();
@@ -61,9 +57,7 @@ class SearchEmailByDatetimeAndSortOrderRelevanceScenario
 
     final appLocalizations = AppLocalizations();
     await searchRobot.selectDateTime(
-      EmailReceiveTimeType.last7Days.getTitleByAppLocalizations(
-        appLocalizations,
-      ),
+      EmailReceiveTimeType.last7Days.getTitleByAppLocalizations(appLocalizations),
     );
     await searchRobot.expectSearchResultEmailListVisible();
 
@@ -80,12 +74,7 @@ class SearchEmailByDatetimeAndSortOrderRelevanceScenario
     await _expectEmailListDisplayedCorrectly(listProvisioningEmail);
   }
 
-  Future<void> _expectEmailListDisplayedCorrectly(
-    List<ProvisioningEmail> listProvisioningEmail,
-  ) async {
-    expect(
-      find.byType(EmailTileBuilder),
-      findsNWidgets(listProvisioningEmail.length),
-    );
+  Future<void> _expectEmailListDisplayedCorrectly(List<ProvisioningEmail> listProvisioningEmail) async {
+    expect(find.byType(EmailTileBuilder), findsNWidgets(listProvisioningEmail.length));
   }
 }

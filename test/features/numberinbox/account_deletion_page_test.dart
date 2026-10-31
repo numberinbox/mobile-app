@@ -1,3 +1,4 @@
+// Private Android smoke Patrol targets depend on these keys; renaming one breaks the release gate.
 import 'dart:async';
 
 import 'package:core/presentation/resources/numberinbox_palette.dart';
@@ -150,6 +151,12 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() => FlutterSecureStorage.setMockInitialValues({}));
+
+  testWidgets('deletion selectors belong to the input and tappable action', (tester) async {
+    await pumpDeletionPage(tester);
+    expect(tester.widget(find.byKey(const Key('deletion_phone_field'))), isA<TextField>());
+    expect(tester.widget(find.byKey(const Key('deletion_submit'))), isA<FilledButton>());
+  });
 
   group('button branding', () {
     // The deletion flow is the only NumberInbox surface still on a default

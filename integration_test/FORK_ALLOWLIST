@@ -1,0 +1,16 @@
+# Independent application package ID.
+integration_test/base/app_constants.dart
+# App grid package ID; upstream proposal drafted, not submitted.
+integration_test/robots/mobile/mobile_app_grid_robot.dart
+# Configurable disposable recipient; retain upstream fallback destinations.
+integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart
+# Fail closed on reset errors without retaining sensitive diagnostics; upstream proposal drafted.
+integration_test/utils/backend_reset_client.dart
+# Fork-only store capture entrypoint, isolated from regression discovery.
+integration_test/store_capture/store_capture_test.dart
+# Pinned merged upstream revision.
+integration_test/UPSTREAM_BASE
+# Explicit difference inventory.
+integration_test/FORK_ALLOWLIST
+# Fork test policy and upgrade instructions.
+integration_test/FORK.md

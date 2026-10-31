@@ -284,8 +284,8 @@ fcm/analysis_options.yaml,Analysis policy,Analyzer compatibility without product
 flutter_launcher_icons.yaml,Branding and configuration,NumberInbox assets; branded website; startup; production-origin configuration,e10fc07ac68a7c4ad16bffc497dae59298df1dd8
 forward/analysis_options.yaml,Analysis policy,Analyzer compatibility without product behavior change (6b7a9b6fb),9f94cc7af914eb7d931230997599297a99d4d13e
 integration_test/base/app_constants.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,9f94cc7af914eb7d931230997599297a99d4d13e
-integration_test/robots/mobile/mobile_app_grid_robot.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,9f94cc7af914eb7d931230997599297a99d4d13e
-integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,cb255ff3b3431fe4eecddaf1a62feb2e99f13bd0
+integration_test/robots/mobile/mobile_app_grid_robot.dart,Test and release support,Allowlisted app-grid identifier-only override; upstream proposal drafted (ADR 0117),9f94cc7af914eb7d931230997599297a99d4d13e
+integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart,Test and release support,Allowlisted recipient configuration only; upstream formatting retained (ADR 0117),cb255ff3b3431fe4eecddaf1a62feb2e99f13bd0
 integration_test/store_capture/store_capture_test.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,fdf5f4f734da6197a93351819f79e9a0f3a81266
 integration_test/utils/backend_reset_client.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,cb255ff3b3431fe4eecddaf1a62feb2e99f13bd0
 ios/ExportOptions-appstore.plist,Native branding and integration,Application identity; splash; Firebase/APNs; sharing; signing and privacy declarations,5030124f8973b981f6ab0c293be4a961e24be860
@@ -610,3 +610,6 @@ web/worker_service/img/tmail-3x.png,Branding and configuration,NumberInbox asset
 web/worker_service/img/tmail-4x.png,Branding and configuration,NumberInbox assets; branded website; startup; production-origin configuration,d017b99c169057f7c46a500197d4d2e38dfb5bb9
 web/worker_service/style.css,Branding and configuration,NumberInbox assets; branded website; startup; production-origin configuration,1a2418a780afe0352f0ee176d37905f4b18da603
 web/worker_service/worker_service.js,Branding and configuration,NumberInbox assets; branded website; startup; production-origin configuration,1a2418a780afe0352f0ee176d37905f4b18da603
+integration_test/UPSTREAM_BASE,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9
+integration_test/FORK_ALLOWLIST,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9
+integration_test/FORK.md,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9

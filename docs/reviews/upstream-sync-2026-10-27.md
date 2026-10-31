@@ -136,3 +136,5 @@ only generated ARB timestamp churn while preserving all merged localization text
   simulator apps, generated reports or diagnostic logs are staged for publication.
 - The source remains an **uncommitted merge**. HEAD is the original fork commit,
   MERGE_HEAD is the upstream SHA above, and user approval is still required.
+
+For subsequent syncs, update `integration_test/UPSTREAM_BASE` to the full SHA actually merged and run the drift check described in `integration_test/FORK.md`.

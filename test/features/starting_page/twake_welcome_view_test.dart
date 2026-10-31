@@ -1,3 +1,4 @@
+// Private Android smoke Patrol targets depend on these keys; renaming one breaks the release gate.
 import 'dart:async';
 
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
