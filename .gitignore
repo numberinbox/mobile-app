@@ -137,6 +137,8 @@ test-report-default.json
 # Local reviewer login for store screenshot capture (contains a reusable code).
 docs/store/.screenshot-reviewer-access.local.md
 docs/store/screenshots/capture-manifest.local.json
+ci-logs/
+ftl-results/
 
 # Browser libs downloaded by scripts/fetch-web-vendor.sh
 /web/js/vendor/
