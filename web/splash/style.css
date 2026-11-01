@@ -55,15 +55,16 @@ body {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: 120px;
-  height: 120px;
+  /* Same padded canvas and 100px visible mark as Flutter's HomeView. */
+  width: 256px;
+  height: 256px;
   -ms-transform: translate(-50%, -50%);
   transform: translate(-50%, -50%);
 }
 
 .splash-wordmark {
   position: absolute;
-  top: calc(50% + 82px);
+  top: calc(50% + 72px);
   left: 50%;
   width: 234px;
   -ms-transform: translate(-50%, 0);

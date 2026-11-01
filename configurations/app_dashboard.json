@@ -2,7 +2,7 @@
   "apps": [
     {
       "appName": "NumberInbox",
-      "icon": "ic_twake_app.svg",
+      "icon": "ic_numberinbox_app.svg",
       "appLink": "https://mail.numberinbox.com/"
     },
     {
@@ -16,8 +16,8 @@
       "appLink": "https://calendar.numberinbox.com/"
     },
     {
-      "appName": "TMail",
-      "icon": "ic_tmail_app.svg",
+      "appName": "NumberInbox Mail",
+      "icon": "ic_numberinbox_app.svg",
       "appLink": "https://mail.numberinbox.com/"
     },
     {

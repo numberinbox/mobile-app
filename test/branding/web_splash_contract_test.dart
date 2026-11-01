@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,6 +54,14 @@ void main() {
     );
   });
 
+  test('installed iOS web app does not force a black status bar', () {
+    expect(
+      indexHtml,
+      contains('name="apple-mobile-web-app-status-bar-style" content="default"'),
+      reason: 'a white NumberInbox surface must not request a black PWA status bar',
+    );
+  });
+
   test('splash.js exposes a removal hook for Dart to call', () {
     expect(
       splashJs,
@@ -102,5 +111,51 @@ void main() {
       contains('?.remove()'),
       reason: 'use optional chaining; the overlay may already be gone',
     );
+  });
+
+  test('web splash paints the same visible mark size as Flutter and native',
+      () async {
+    final css = File('web/splash/style.css').readAsStringSync();
+    final markStyle = RegExp(r'\.splash-mark\s*\{([^}]+)\}')
+        .firstMatch(css)!.group(1)!;
+    final canvasWidth = double.parse(
+      RegExp(r'\bwidth:\s*([\d.]+)px').firstMatch(markStyle)!.group(1)!,
+    );
+
+    Future<double> visibleWidth(String path, double renderedWidth) async {
+      final codec = await ui.instantiateImageCodec(File(path).readAsBytesSync());
+      final image = (await codec.getNextFrame()).image;
+      final rgba = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      var left = image.width, right = -1;
+      for (var y = 0; y < image.height; y++) {
+        for (var x = 0; x < image.width; x++) {
+          if (rgba.getUint8((y * image.width + x) * 4 + 3) <= 16) continue;
+          if (x < left) left = x;
+          if (x > right) right = x;
+        }
+      }
+      final visible = (right - left + 1) * renderedWidth / image.width;
+      image.dispose();
+      codec.dispose();
+      return visible;
+    }
+
+    final flutterWidth = await visibleWidth(
+      'assets/splash/numberinbox_splash_mark.png', 256,
+    );
+    final webWidth = await visibleWidth(
+      'web/splash/img/numberinbox-mark.png', canvasWidth,
+    );
+    expect(webWidth, closeTo(flutterWidth, 1),
+        reason: 'removing the web overlay must not resize the visible N');
+
+    final wordmarkStyle = RegExp(r'\.splash-wordmark\s*\{([^}]+)\}')
+        .firstMatch(css)!.group(1)!;
+    final wordmarkOffset = double.parse(
+      RegExp(r'top:\s*calc\(50%\s*\+\s*([\d.]+)px\)')
+          .firstMatch(wordmarkStyle)!.group(1)!,
+    );
+    expect(wordmarkOffset, closeTo(flutterWidth / 2 + 22, 1),
+        reason: 'the web wordmark must use the Flutter stage\'s 22px gap');
   });
 }

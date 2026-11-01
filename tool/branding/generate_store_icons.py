@@ -1,23 +1,20 @@
 #!/usr/bin/env python3
-"""Render NumberInbox store and native icons from the editable light SVG.
+"""Export NumberInbox store and native icons from the shared detailed mark.
 
-Requires CairoSVG and Pillow. The iOS catalog uses numeric filenames, which
+Requires Pillow. The iOS catalog uses numeric filenames, which
 flutter_launcher_icons 0.12 does not update, so render its referenced files
 directly rather than leaving a new but unused icon in the catalog.
 """
 
 import json
-from io import BytesIO
 from pathlib import Path
 
-import cairosvg
 from PIL import Image, ImageDraw
 
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / "assets/brand/source/app-icon-light.svg"
+SOURCE = ROOT / "assets/images/numberinbox_mark.png"
 MASTER_SIZE = 1024
-RENDER_SIZE = 2048
 
 
 def write_png(image: Image.Image, path: Path) -> None:
@@ -27,15 +24,13 @@ def write_png(image: Image.Image, path: Path) -> None:
 
 
 def main() -> None:
-    rendered = cairosvg.svg2png(
-        url=str(SOURCE),
-        output_width=RENDER_SIZE,
-        output_height=RENDER_SIZE,
-    )
-    with Image.open(BytesIO(rendered)) as source_image:
-        master = source_image.convert("RGB").resize(
+    with Image.open(SOURCE) as source_image:
+        mark = source_image.convert("RGBA").resize(
             (MASTER_SIZE, MASTER_SIZE), Image.Resampling.LANCZOS
         )
+    master = Image.new("RGBA", (MASTER_SIZE, MASTER_SIZE), "#F5F7EB")
+    master.alpha_composite(mark)
+    master = master.convert("RGB")
 
     # The iOS bundle icon must be opaque; both stores use this same artwork.
     write_png(master, ROOT / "assets/icons/icon_ni_logo.png")

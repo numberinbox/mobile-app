@@ -2,15 +2,17 @@
 
 The original visual reference is [the September 2026 brand board](reference/numberinbox-brand-board-2026-09-22.png). It shows the full-color N/@ mark, light and dark icon treatments, wordmark, colors, and tagline. It is a design reference, not an app screen or a store screenshot.
 
-The editable artwork used by the mobile app and website lives in `assets/brand/source/`. The light icon source is `assets/brand/source/app-icon-light.svg`; the website also uses the matching `mark-full-color.svg` and `logo-horizontal.svg`. Use the unframed full-color mark on `#F5F7EB` for the iOS and Google Play store icons. The launcher generator uses the same 1024-pixel master for the installed app icons.
+The shared detailed mark is `assets/brand/source/mark-detailed.png`, reconstructed from the large N/@ mark in the owner's selected feature graphic. Every updated full-color app mark derives from this one transparent master. The SVG compatibility assets embed that raster mark while retaining the original outlined wordmark and layout viewBoxes; they are hybrid files, not infinitely scalable vector reconstructions. The website consumer copies are not automatically deployed by this app change. See [the detailed-mark notes](detailed-mark.md).
 
-To rebuild the store and installed icons from the source artwork, install CairoSVG and Pillow, then run:
+The [asset audit](asset-audit.md) records covered surfaces, corrected omissions, regression evidence, and the remaining website/device/screenshot rollout checks.
+
+To rebuild in-app branding, native splashes, padded Android adaptive foregrounds, store/installed icons, and web branding, install Pillow and run:
 
 ```sh
-python3 tool/branding/generate_store_icons.py
+python3 tool/branding/generate_brand_assets.py
 ```
 
-The script produces `docs/store/apple/icon-1024.png`, `docs/store/play/icon-512.png`, the launcher master, the Android Play Store icon, and the native iOS and legacy Android launcher sizes. The existing padded Android adaptive foreground and ice background remain in use. Keep app-store screenshots separate: they must come from the real app UI.
+The script includes `generate_store_icons.py` and produces `docs/store/apple/icon-1024.png`, `docs/store/play/icon-512.png`, the launcher master, the Android Play Store icon, and all referenced native sizes. It preserves the 50dp adaptive foreground inside the safe area, the ice icon background, and the 100dp native/Flutter splash mark on white. Ordinary interface and monochrome notification icons stay unchanged. Keep app-store screenshots separate: they must come from the real app UI; older captures show the previous mark.
 
 The selected Google Play feature graphic is `docs/store/play/feature-graphic-preferred-1024x500.png`. Its original AI-generated artwork is preserved in `feature-graphic-preferred-original.png`; the owner selected its detailed gradients, white background, and large headline. With Pillow installed, rebuild the opaque 1024×500 upload PNG with:
 

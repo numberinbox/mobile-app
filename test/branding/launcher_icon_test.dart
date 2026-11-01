@@ -162,6 +162,39 @@ void main() {
     expect(pngSize('docs/store/play/icon-512.png'), (512, 512));
   });
 
+  test('PWA maskable icons keep the mark inside the guaranteed safe circle',
+      () async {
+    // Web App Manifest guarantees only the central circle of radius 40%.
+    // Sharing the unpadded store icon can lose parts of the N on some masks.
+    for (final path in [
+      'web/icons/Icon-maskable-192.png',
+      'web/icons/Icon-maskable-512.png',
+    ]) {
+      final codec = await ui.instantiateImageCodec(File(path).readAsBytesSync());
+      final image = (await codec.getNextFrame()).image;
+      final rgba = (await image.toByteData(format: ui.ImageByteFormat.rawRgba))!;
+      var outsideSafeCircle = 0;
+      for (var y = 0; y < image.height; y++) {
+        for (var x = 0; x < image.width; x++) {
+          final offset = (y * image.width + x) * 4;
+          final differsFromBackground = List.generate(
+            3, (channel) => (rgba.getUint8(offset + channel) - ice[channel]).abs(),
+          ).any((difference) => difference > 16);
+          if (!differsFromBackground) continue;
+          final dx = x + 0.5 - image.width / 2;
+          final dy = y + 0.5 - image.height / 2;
+          if (dx * dx + dy * dy > math.pow(image.width * 0.4, 2)) {
+            outsideSafeCircle++;
+          }
+        }
+      }
+      image.dispose();
+      codec.dispose();
+      expect(outsideSafeCircle, 0,
+          reason: '$path can have parts of the N cropped by a PWA icon mask');
+    }
+  });
+
   group('adaptive foreground safe geometry', () {
     const densities = ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi'];
     const expectedDimensions = {
