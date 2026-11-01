@@ -2,9 +2,9 @@ on:
   # Tag pushes no longer start a store upload. This repository is public, so a
   # tag push is an event an outside contributor cannot be trusted to control,
   # and this job holds Play and TestFlight credentials. Releases run from the
-  # private platform workflow (mobile-store-release.yml), which verifies the
-  # tag, requires an Android smoke pass, and uploads behind a protected
-  # environment with human approval.
+  # private numberinbox/mobile-ci repository (store-release.yml), which
+  # verifies the tag, requires an Android smoke pass, and uploads behind a
+  # protected environment with human approval.
   #
   # The trigger removal and scripts/tests/workflow-policy.test.mjs land in the
   # same commit. The job is also guarded on refs/tags/v below, so a manual

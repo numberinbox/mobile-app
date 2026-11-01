@@ -31,10 +31,20 @@ platform :android do
       [name, value]
     end
     track = "alpha"
-    latest_build_number = google_play_track_version_codes(
-      track: track,
-      json_key_data: ENV["PLAY_STORE_CONFIG_JSON"]
-    )[0].to_i
+    # Version codes are unique per app, not per track, so the next code must
+    # clear every track a build may already sit on. A track that has no
+    # release yet is reported as an error; it counts as 0.
+    latest_build_number = %w[internal alpha beta production].flat_map do |name|
+      begin
+        google_play_track_version_codes(
+          track: name,
+          json_key_data: ENV["PLAY_STORE_CONFIG_JSON"]
+        )
+      rescue FastlaneCore::Interface::FastlaneError => error
+        UI.important("No version codes on the #{name} track (#{error.class}); counting 0")
+        []
+      end
+    end.map(&:to_i).max || 0
     pubspec = File.read(File.expand_path("../../pubspec.yaml", __dir__))
     sentry_release = pubspec.match(/^version:\s+(\S+)/)[1].split("+").first
     build_name = sentry_release.split("-").first
