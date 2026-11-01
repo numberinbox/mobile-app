@@ -12,8 +12,10 @@ python3 tool/branding/generate_store_icons.py
 
 The script produces `docs/store/apple/icon-1024.png`, `docs/store/play/icon-512.png`, the launcher master, the Android Play Store icon, and the native iOS and legacy Android launcher sizes. The existing padded Android adaptive foreground and ice background remain in use. Keep app-store screenshots separate: they must come from the real app UI.
 
-The Google Play feature graphic uses the outlined `logo-horizontal-tagline.svg` source and the exact primary tagline, “Email, reimagined with your number.” Rebuild its editable SVG and opaque 1024×500 PNG with:
+The selected Google Play feature graphic is `docs/store/play/feature-graphic-preferred-1024x500.png`. Its original AI-generated artwork is preserved in `feature-graphic-preferred-original.png`; the owner selected its detailed gradients, white background, and large headline. With Pillow installed, rebuild the opaque 1024×500 upload PNG with:
 
 ```sh
 python3 tool/branding/generate_play_feature_graphic.py
 ```
+
+`docs/store/play/feature-graphic-v2.svg` is an alternative vector recreation, not the source of the selected PNG. It does not reproduce the raster artwork's fine shading. See `docs/store/play/feature-graphic-v2-notes.md` for provenance and the generation prompt.
