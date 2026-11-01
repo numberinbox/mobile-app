@@ -10,7 +10,11 @@ The runner selects these exact targets in order:
    ordinary OTP login, reading seeded mail and opening the composer.
 2. `numberinbox_relaunch_test.dart`: a force-stop and relaunch with application
    data preserved; no new phone or OTP prompt may appear.
-3. `numberinbox_deletion_test.dart`: a separate account, seeded mail, deletion,
+3. `numberinbox_phone_recipient_test.dart`: on the preserved session, a full
+   international number typed into the composer becomes a canonical
+   `+E164@numberinbox.com` recipient and the message sends. The disposable stack
+   only hosts `numberinbox.test`, so delivery is not asserted.
+4. `numberinbox_deletion_test.dart`: a separate account, seeded mail, deletion,
    recreation and an empty mailbox.
 
 Inputs are supplied as dart-defines: `OTP_HELPER_URL` is the disposable OTP

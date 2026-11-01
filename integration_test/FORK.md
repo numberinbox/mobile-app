@@ -7,7 +7,7 @@ folder exception becomes stale when none of its descendants differs from upstrea
 
 Fork-only tests live in `integration_test/numberinbox/`. Add new files there;
 never rewrite inherited scenarios to match NumberInbox. This folder owns the OTP
-login, cold-relaunch and deletion flows, plus the separate store-capture helper.
+login, cold-relaunch, phone-recipient and deletion flows, plus the separate store-capture helper.
 Runtime numbers, OTPs, credentials, service URLs and private backend configuration
 must not be committed. Tests receive disposable inputs through dart-defines (or
 the capture helper's existing externally supplied environment inputs).
