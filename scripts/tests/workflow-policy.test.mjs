@@ -5,9 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 // Guards on what the PUBLIC repository is allowed to contain. The Android
-// integration run and every store upload move to the private platform repo
-// (platform/docs/private-mobile-ci-release-plan.md); what stays here is app
-// code, ordinary Flutter tests, and the web/James gate.
+// integration run and every store upload run in private CI. What stays here
+// is app code, ordinary Flutter tests, fork-only OTP device tests, and the
+// web/James gate; no private service configuration or runtime values.
 //
 // These checks are static on purpose: they must run in the fast `node --test`
 // job without an Android SDK or a Gradle build.

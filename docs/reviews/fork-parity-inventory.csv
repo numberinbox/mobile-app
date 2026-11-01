@@ -286,7 +286,7 @@ forward/analysis_options.yaml,Analysis policy,Analyzer compatibility without pro
 integration_test/base/app_constants.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,9f94cc7af914eb7d931230997599297a99d4d13e
 integration_test/robots/mobile/mobile_app_grid_robot.dart,Test and release support,Allowlisted app-grid identifier-only override; upstream proposal drafted (ADR 0117),9f94cc7af914eb7d931230997599297a99d4d13e
 integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart,Test and release support,Allowlisted recipient configuration only; upstream formatting retained (ADR 0117),cb255ff3b3431fe4eecddaf1a62feb2e99f13bd0
-integration_test/store_capture/store_capture_test.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,fdf5f4f734da6197a93351819f79e9a0f3a81266
+integration_test/numberinbox/store_capture/store_capture_test.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,fdf5f4f734da6197a93351819f79e9a0f3a81266
 integration_test/utils/backend_reset_client.dart,Test and release support,Real OTP testing; public generic harness; private release gates; branding tooling,cb255ff3b3431fe4eecddaf1a62feb2e99f13bd0
 ios/ExportOptions-appstore.plist,Native branding and integration,Application identity; splash; Firebase/APNs; sharing; signing and privacy declarations,5030124f8973b981f6ab0c293be4a961e24be860
 ios/Podfile.lock,Native branding and integration,Application identity; splash; Firebase/APNs; sharing; signing and privacy declarations,e140a43073395702ab53885febcae40b97917c51
@@ -613,3 +613,7 @@ web/worker_service/worker_service.js,Branding and configuration,NumberInbox asse
 integration_test/UPSTREAM_BASE,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9
 integration_test/FORK_ALLOWLIST,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9
 integration_test/FORK.md,Test and release support,ADR 0117: pinned upstream parity bookkeeping,9a89aabdf3d05214a676eea3745972e1f0f8b5a9
+integration_test/numberinbox/README.md,Test and release support,ADR 0117: public parameterized fork-only test; private CI supplies runtime inputs,pending
+integration_test/numberinbox/numberinbox_login_test.dart,Test and release support,ADR 0117: public parameterized fork-only test; private CI supplies runtime inputs,pending
+integration_test/numberinbox/numberinbox_relaunch_test.dart,Test and release support,ADR 0117: public parameterized fork-only test; private CI supplies runtime inputs,pending
+integration_test/numberinbox/numberinbox_deletion_test.dart,Test and release support,ADR 0117: public parameterized fork-only test; private CI supplies runtime inputs,pending

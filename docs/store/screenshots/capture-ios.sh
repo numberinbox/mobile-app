@@ -2,7 +2,7 @@
 # Capture an iOS simulator screen as a store-valid PNG.
 #
 # Runs on the host, not on the device: `xcrun simctl` only exists on macOS, so
-# screenshot capture must happen here while integration_test/store_capture
+# screenshot capture must happen here while integration_test/numberinbox/store_capture
 # drives the app on the simulator.
 #
 # Usage: ./docs/store/screenshots/capture-ios.sh <output.png> [udid]

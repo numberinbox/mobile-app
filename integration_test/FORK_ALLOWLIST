@@ -6,8 +6,8 @@ integration_test/robots/mobile/mobile_app_grid_robot.dart
 integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart
 # Fail closed on reset errors without retaining sensitive diagnostics; upstream proposal drafted.
 integration_test/utils/backend_reset_client.dart
-# Fork-only store capture entrypoint, isolated from regression discovery.
-integration_test/store_capture/store_capture_test.dart
+# Fork-only OTP flows and store capture; inherited test files remain untouched.
+integration_test/numberinbox/
 # Pinned merged upstream revision.
 integration_test/UPSTREAM_BASE
 # Explicit difference inventory.

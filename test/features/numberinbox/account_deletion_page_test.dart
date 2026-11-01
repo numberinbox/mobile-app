@@ -1,4 +1,4 @@
-// Private Android smoke Patrol targets depend on these keys; renaming one breaks the release gate.
+// integration_test/numberinbox depends on these keys; renaming one breaks the release gate.
 import 'dart:async';
 
 import 'package:core/presentation/resources/numberinbox_palette.dart';

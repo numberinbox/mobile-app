@@ -115,7 +115,7 @@ Do not type the OTP into a command or save it in a script. The terminal may need
 
 ### Automated capture split: device drives, host captures
 
-`integration_test/store_capture/store_capture_test.dart` runs **on the device**, so it cannot read this repository's working copy or launch `xcrun`/`adb`. It only drives the app into the target state. Screenshots are taken afterwards from the **host**:
+`integration_test/numberinbox/store_capture/store_capture_test.dart` runs **on the device**, so it cannot read this repository's working copy or launch `xcrun`/`adb`. It only drives the app into the target state. Screenshots are taken afterwards from the **host**:
 
 ```sh
 # iOS: auto-detects the booted simulator, or pass a udid

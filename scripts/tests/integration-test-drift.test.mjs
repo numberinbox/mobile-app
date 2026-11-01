@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -36,6 +36,35 @@ function fixture(run) {
 test('accepts only explicitly allowlisted committed differences', () => fixture(({ check }) => {
   const r = check(); assert.equal(r.status, 0, r.stderr);
 }));
+test('a folder entry accepts committed and untracked fork-only files', () => fixture(({ dir, write, commit, check }) => {
+  const allow = join(dir, 'integration_test/FORK_ALLOWLIST');
+  writeFileSync(allow, `${readFileSync(allow, 'utf8')}# fork-only tests\nintegration_test/numberinbox/\n`);
+  mkdirSync(join(dir, 'integration_test/numberinbox/nested'), { recursive: true });
+  write('integration_test/numberinbox/nested/otp_test.dart', 'synthetic fork test\n');
+  commit();
+  let r = check(); assert.equal(r.status, 0, r.stderr);
+  write('integration_test/numberinbox/new_test.dart', 'synthetic untracked test\n');
+  r = check('--worktree'); assert.equal(r.status, 0, r.stderr);
+}));
+test('a folder exception never accepts a sibling with the same name prefix', () => fixture(({ dir, write, commit, check }) => {
+  const allow = join(dir, 'integration_test/FORK_ALLOWLIST');
+  writeFileSync(allow, `${readFileSync(allow, 'utf8')}integration_test/numberinbox/\n`);
+  mkdirSync(join(dir, 'integration_test/numberinbox'));
+  mkdirSync(join(dir, 'integration_test/numberinbox2'));
+  write('integration_test/numberinbox/otp_test.dart', 'allowed\n');
+  write('integration_test/numberinbox2/x.dart', 'SENTINEL-not-for-logs\n');
+  commit();
+  const r = check(); assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /unapproved: integration_test\/numberinbox2\/x\.dart/);
+  assert.doesNotMatch(r.stdout + r.stderr, /SENTINEL-not-for-logs/);
+}));
+test('a folder exception is stale when nothing below it differs', () => fixture(({ dir, commit, check }) => {
+  const allow = join(dir, 'integration_test/FORK_ALLOWLIST');
+  writeFileSync(allow, `${readFileSync(allow, 'utf8')}integration_test/numberinbox/\n`);
+  commit();
+  const r = check(); assert.notEqual(r.status, 0);
+  assert.match(r.stderr, /stale: integration_test\/numberinbox\//);
+}));
 test('rejects added, modified and deleted inherited files without printing contents', () => {
   for (const kind of ['add', 'modify', 'delete']) fixture(({ dir, write, commit, check }) => {
     const path = kind === 'add' ? 'integration_test/new.dart' : kind === 'delete' ? 'integration_test/removed.dart' : 'integration_test/same.dart';
@@ -58,11 +87,26 @@ test('worktree mode detects uncommitted and untracked drift', () => fixture(({ w
   assert.doesNotMatch(r.stdout + r.stderr, /SENTINEL/);
 }));
 test('rejects malformed bases and unsafe or duplicate allowlist entries', () => {
-  for (const value of ['../escape', 'integration_test/../escape', 'integration_test/allowed.dart\nintegration_test/allowed.dart']) fixture(({ write, check }) => {
+  for (const value of ['../escape', 'integration_test/../escape', 'integration_test/./escape/', 'integration_test/numberinbox/../']) fixture(({ write, check }) => {
     write('integration_test/FORK_ALLOWLIST', `${value}\n`);
-    assert.notEqual(check().status, 0);
+    const r = check(); assert.notEqual(r.status, 0);
+    assert.equal(r.stderr.trim(), `invalid allowlist entry: ${value}`);
   });
-  fixture(({ write, check }) => { write('integration_test/UPSTREAM_BASE', '--bad-option\n'); assert.notEqual(check().status, 0); });
+  fixture(({ write, check }) => {
+    write('integration_test/FORK_ALLOWLIST', 'integration_test/allowed.dart\nintegration_test/allowed.dart\n');
+    const r = check(); assert.notEqual(r.status, 0);
+    assert.equal(r.stderr.trim(), 'duplicate allowlist entry: integration_test/allowed.dart');
+  });
+  fixture(({ write, check }) => {
+    write('integration_test/FORK_ALLOWLIST', 'integration_test/numberinbox/\nintegration_test/numberinbox/\n');
+    const r = check(); assert.notEqual(r.status, 0);
+    assert.equal(r.stderr.trim(), 'duplicate allowlist entry: integration_test/numberinbox/');
+  });
+  fixture(({ write, check }) => {
+    write('integration_test/UPSTREAM_BASE', '--bad-option\n');
+    const r = check(); assert.notEqual(r.status, 0);
+    assert.equal(r.stderr.trim(), 'malformed upstream base');
+  });
 });
 
 test('missing base fetch uses the public URL without a configured remote and fails closed', () => fixture(({ dir, write }) => {
@@ -80,7 +124,7 @@ exec "$DRIFT_REAL_GIT" "$@"
     ...process.env, PATH: `${bin}:${process.env.PATH}`, DRIFT_REAL_GIT: realGit, DRIFT_FETCH_TRACE: trace,
   } });
   assert.notEqual(r.status, 0);
-  assert.match(r.stdout + r.stderr, /integration_test\/UPSTREAM_BASE/);
+  assert.equal(r.stderr.trim(), 'upstream base not found after fetch');
   const args = spawnSync('cat', [trace], { encoding: 'utf8' }).stdout;
   assert.match(args, /fetch --no-tags --depth=1 https:\/\/github\.com\/linagora\/tmail-flutter\.git f{40}/);
 }));

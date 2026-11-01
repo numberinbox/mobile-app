@@ -1,4 +1,4 @@
-// Private Android smoke Patrol targets depend on these keys; renaming one breaks the release gate.
+// integration_test/numberinbox depends on these keys; renaming one breaks the release gate.
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/resources/numberinbox_palette.dart';

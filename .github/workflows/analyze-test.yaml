@@ -104,6 +104,8 @@ jobs:
         id: prebuild
         run: ./scripts/prebuild.sh
 
+      # Default-module analysis includes integration_test/numberinbox; keep
+      # fork-only device test compilation covered even though devices run privately.
       - name: Analyze
         uses: zgosalvez/github-actions-analyze-dart@d9d6a56518f87b85b5f6ea3664c360e3c361a54f # v1.8.2
 
