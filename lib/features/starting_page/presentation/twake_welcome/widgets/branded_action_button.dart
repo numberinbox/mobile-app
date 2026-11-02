@@ -41,7 +41,7 @@ class BrandedActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Loading only suppresses interaction: the brand gradient stays so the
-    // white progress indicator keeps its contrast. The neutral fill is
+    // white progress indicator stays visible. The neutral fill is
     // reserved for a genuinely disabled, non-loading control.
     final isDisabledFill = !isEnabled && !isLoading;
 
@@ -60,8 +60,8 @@ class BrandedActionButton extends StatelessWidget {
           style: FilledButton.styleFrom(
             backgroundColor: Colors.transparent,
             disabledBackgroundColor: Colors.transparent,
-            foregroundColor: Colors.white,
-            disabledForegroundColor: Colors.white.withValues(alpha: 0.85),
+            foregroundColor: NumberInboxPalette.primaryActionForeground,
+            disabledForegroundColor: NumberInboxPalette.primaryActionForeground,
             shadowColor: Colors.transparent,
             minimumSize: const Size.fromHeight(minHeight),
             padding: EdgeInsets.zero,
@@ -76,13 +76,15 @@ class BrandedActionButton extends StatelessWidget {
                   height: spinnerSize,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      NumberInboxPalette.primaryActionForeground,
+                    ),
                   ),
                 )
               : Text(
                   label,
                   style: ThemeUtils.defaultTextStyleInterFont.copyWith(
-                    color: Colors.white,
+                    color: NumberInboxPalette.primaryActionForeground,
                     fontSize: 16,
                     fontWeight: FontWeight.w500,
                   ),

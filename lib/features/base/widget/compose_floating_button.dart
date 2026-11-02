@@ -32,6 +32,10 @@ class ComposeFloatingButton extends StatelessWidget {
           imagePaths!.icComposeWeb,
           width: 28,
           height: 28,
+          colorFilter: const ColorFilter.mode(
+            NumberInboxPalette.primaryActionForeground,
+            BlendMode.srcIn,
+          ),
           fit: BoxFit.fill
         ),
         text: Padding(
@@ -40,7 +44,7 @@ class ComposeFloatingButton extends StatelessWidget {
             overflow: CommonTextStyle.defaultTextOverFlow,
             softWrap: CommonTextStyle.defaultSoftWrap,
             style: ThemeUtils.defaultTextStyleInterFont.copyWith(
-              color: Colors.white,
+              color: NumberInboxPalette.primaryActionForeground,
               fontSize: 16.0,
               fontWeight: FontWeight.w500
             )

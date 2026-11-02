@@ -61,10 +61,12 @@ class ComposeButtonWidget extends StatelessWidget {
 
     final style = primaryActionStyle.copyWith(
       backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
-      foregroundColor: const WidgetStatePropertyAll(Colors.white),
+      foregroundColor: const WidgetStatePropertyAll(
+        NumberInboxPalette.primaryActionForeground,
+      ),
     );
     final iconColor = style.foregroundColor?.resolve(const <WidgetState>{})
-        ?? Colors.white;
+        ?? NumberInboxPalette.primaryActionForeground;
 
     return Padding(
       padding: resolvedPadding,

@@ -538,7 +538,7 @@ void main() {
       );
       expect(
         sendStops,
-        [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
+        [NumberInboxPalette.logoGreen, NumberInboxPalette.logoCyan, NumberInboxPalette.logoBlue],
       );
     });
 
@@ -558,15 +558,15 @@ void main() {
       expect(verifyRadius, sendRadius);
     });
 
-    testWidgets('both phases render a white enabled label', (tester) async {
+    testWidgets('both phases render the selected white label', (tester) async {
       await pumpScreen(tester);
-      expect(labelColorOf(tester, 'otp_send_cta'), Colors.white);
+      expect(labelColorOf(tester, 'otp_send_cta'), NumberInboxPalette.primaryActionForeground);
 
       await pumpCodePhase(tester);
-      expect(labelColorOf(tester, 'otp_verify_cta'), Colors.white);
+      expect(labelColorOf(tester, 'otp_verify_cta'), NumberInboxPalette.primaryActionForeground);
     });
 
-    testWidgets('loading state shows a white spinner and blocks repeat taps',
+    testWidgets('loading state shows a readable spinner and blocks repeat taps',
         (tester) async {
       var startCalls = 0;
       // A long response delay keeps the request in flight, so the CTA stays in
@@ -604,18 +604,18 @@ void main() {
       final spinner = tester.widget<CircularProgressIndicator>(progress);
       expect(
         spinner.valueColor?.value,
-        Colors.white,
-        reason: 'the spinner must be visibly white on the branded background',
+        NumberInboxPalette.primaryActionForeground,
+        reason: 'the spinner must be readable across the bright branded background',
       );
       expect(
         brandedGradientOf(tester, 'otp_send_cta'),
         NumberInboxPalette.primaryActionGradient,
         reason: 'loading must keep the shared gradient token, not fall back to '
-            'a neutral fill that would swallow the white spinner',
+            'a neutral fill that would hide the spinner',
       );
       expect(
         gradientStopsOf(tester, 'otp_send_cta'),
-        [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
+        [NumberInboxPalette.logoGreen, NumberInboxPalette.logoCyan, NumberInboxPalette.logoBlue],
       );
       expect(
         tester.widget<FilledButton>(find.byKey(const Key('otp_send_cta'))).onPressed,

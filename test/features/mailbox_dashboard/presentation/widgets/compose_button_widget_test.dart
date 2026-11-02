@@ -101,7 +101,7 @@ Future<void> _testLightModeGradientBehindButton(WidgetTester tester) async {
     reason: 'a translucent state layer keeps hover and focus visible',
   );
 
-  expect(button.style?.foregroundColor?.resolve({}), Colors.white);
+  expect(button.style?.foregroundColor?.resolve({}), NumberInboxPalette.primaryActionForeground);
   expect(button.style?.minimumSize?.resolve({}), const Size(0, 40));
   expect(
     tester.getSize(find.byType(FilledButton)),

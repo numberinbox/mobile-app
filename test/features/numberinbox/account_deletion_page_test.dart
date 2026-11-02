@@ -228,8 +228,9 @@ void main() {
             'Send code and Verify, not a local copy',
       );
       expect(gradient.colors, [
-        NumberInboxPalette.actionGreen,
-        NumberInboxPalette.actionBlue,
+        NumberInboxPalette.logoGreen,
+        NumberInboxPalette.logoCyan,
+        NumberInboxPalette.logoBlue,
       ]);
     });
 
@@ -248,7 +249,7 @@ void main() {
       expect(
         buttonDecoration(tester).gradient! as LinearGradient,
         NumberInboxPalette.primaryActionGradient,
-        reason: 'the loading state keeps the brand gradient so the white '
+        reason: 'the loading state keeps the brand gradient so the '
             'spinner stays legible',
       );
     });
@@ -408,7 +409,7 @@ void main() {
           matching: find.byType(CircularProgressIndicator),
         ),
         findsOneWidget,
-        reason: 'the white spinner belongs on the branded gradient',
+        reason: 'the readable spinner belongs on the branded gradient',
       );
 
       final button = tester.widget<FilledButton>(find.byKey(_key));

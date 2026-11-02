@@ -4,6 +4,7 @@ import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/floating_button/scrolling_floating_button_animated.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -42,6 +43,11 @@ Future<void> _testLightModeUsesSharedGradient(WidgetTester tester) async {
   );
   expect(button.color, isNull, reason: 'a gradient button must not also set '
       'a solid fill, which BoxDecoration rejects');
+  expect(
+    (button.icon as SvgPicture).colorFilter,
+    const ColorFilter.mode(NumberInboxPalette.primaryActionForeground, BlendMode.srcIn),
+    reason: 'the Compose glyph must share the selected white foreground',
+  );
 
   final ink = tester.widget<Ink>(
     find.descendant(
@@ -81,7 +87,7 @@ Future<void> _testKeepsGeometryAndTap(WidgetTester tester) async {
   );
 
   final label = tester.widget<Text>(find.text('Compose'));
-  expect(label.style?.color, Colors.white);
+  expect(label.style?.color, NumberInboxPalette.primaryActionForeground);
 
   await tester.tap(find.byType(ScrollingFloatingButtonAnimated));
   await tester.pump();
