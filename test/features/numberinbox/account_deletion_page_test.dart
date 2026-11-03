@@ -228,9 +228,9 @@ void main() {
             'Send code and Verify, not a local copy',
       );
       expect(gradient.colors, [
-        NumberInboxPalette.logoGreen,
-        NumberInboxPalette.logoCyan,
-        NumberInboxPalette.logoBlue,
+        NumberInboxPalette.primaryActionStart,
+        NumberInboxPalette.primaryActionMiddle,
+        NumberInboxPalette.primaryActionEnd,
       ]);
     });
 

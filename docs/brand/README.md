@@ -6,7 +6,7 @@ The shared detailed mark is `assets/brand/source/mark-detailed.png`, reconstruct
 
 The [asset audit](asset-audit.md) records covered surfaces, corrected omissions, regression evidence, and the remaining website/device/screenshot rollout checks.
 
-Primary action styling now follows [ADR 0120](../adr/0120-logo-coloured-primary-actions.md): the selected logo-colour gradient (`#05D792` → `#03CDFC` → `#018AFC`) and white foreground come from `NumberInboxPalette.primaryActionGradient` and `primaryActionForeground`. This supersedes the earlier dark action-gradient treatment for these controls. Ordinary text/link colours and dark Compose styling retain their existing behavior.
+Primary action styling now follows [ADR 0121](../adr/0121-accessible-primary-action-gradient.md): the green, teal and blue gradient (`#0D7C66` → `#0B7A94` → `#0A6FB5`, white label contrast at least 4.5:1) and white foreground come from `NumberInboxPalette.primaryActionGradient` and `primaryActionForeground`. This supersedes the earlier dark action-gradient treatment for these controls. Ordinary text/link colours and dark Compose styling retain their existing behavior.
 
 To rebuild in-app branding, native splashes, padded Android adaptive foregrounds, store/installed icons, and web branding, install Pillow and run:
 

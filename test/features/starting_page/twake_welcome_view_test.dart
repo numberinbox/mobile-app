@@ -538,7 +538,11 @@ void main() {
       );
       expect(
         sendStops,
-        [NumberInboxPalette.logoGreen, NumberInboxPalette.logoCyan, NumberInboxPalette.logoBlue],
+        [
+          NumberInboxPalette.primaryActionStart,
+          NumberInboxPalette.primaryActionMiddle,
+          NumberInboxPalette.primaryActionEnd,
+        ],
       );
     });
 
@@ -615,7 +619,11 @@ void main() {
       );
       expect(
         gradientStopsOf(tester, 'otp_send_cta'),
-        [NumberInboxPalette.logoGreen, NumberInboxPalette.logoCyan, NumberInboxPalette.logoBlue],
+        [
+          NumberInboxPalette.primaryActionStart,
+          NumberInboxPalette.primaryActionMiddle,
+          NumberInboxPalette.primaryActionEnd,
+        ],
       );
       expect(
         tester.widget<FilledButton>(find.byKey(const Key('otp_send_cta'))).onPressed,

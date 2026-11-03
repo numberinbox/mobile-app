@@ -1,6 +1,6 @@
 # 0120 — Logo-coloured primary actions with white foregrounds
 
-Date: 2026-11-02. Status: selected by the owner after the button preview.
+Date: 2026-11-02. Status: superseded by ADR 0121 (the label contrast was too low).
 
 Use the bright emerald → cyan → blue gradient shown beside the detailed logo,
 with white labels, icons and loading indicators on the branded primary actions.

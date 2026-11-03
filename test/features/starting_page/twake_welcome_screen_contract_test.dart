@@ -202,9 +202,9 @@ void main() {
         ctaDecoration(tester, const Key('otp_send_cta')).gradient!
             as LinearGradient;
     expect(gradient.colors, [
-      NumberInboxPalette.logoGreen,
-      NumberInboxPalette.logoCyan,
-      NumberInboxPalette.logoBlue,
+      NumberInboxPalette.primaryActionStart,
+      NumberInboxPalette.primaryActionMiddle,
+      NumberInboxPalette.primaryActionEnd,
     ]);
   });
 
