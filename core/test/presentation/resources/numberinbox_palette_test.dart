@@ -6,7 +6,7 @@ void main() {
   group('NumberInboxPalette::primaryActionGradient', () {
     test(
       'WHEN painted on a light-mode primary action\n'
-      'THEN it runs left-to-right from actionGreen to actionBlue',
+      'THEN it runs left-to-right through the three logo colours',
       () {
         const gradient = NumberInboxPalette.primaryActionGradient;
 
@@ -15,7 +15,11 @@ void main() {
         expect(gradient.end, AlignmentDirectional.centerEnd);
         expect(
           gradient.colors,
-          [NumberInboxPalette.actionGreen, NumberInboxPalette.actionBlue],
+          [
+            NumberInboxPalette.logoGreen,
+            NumberInboxPalette.logoCyan,
+            NumberInboxPalette.logoBlue,
+          ],
         );
       },
     );
