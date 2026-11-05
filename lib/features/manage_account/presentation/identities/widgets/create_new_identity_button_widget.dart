@@ -1,5 +1,5 @@
-import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:flutter/material.dart';
@@ -25,17 +25,17 @@ class CreateNewIdentityButtonWidget extends StatelessWidget {
       key: const Key('create_new_identity_button'),
       text: AppLocalizations.of(context).createNewIdentity,
       icon: imagePaths.icAddIdentity,
-      backgroundColor: AppColor.primaryMain,
+      backgroundGradient: NumberInboxPalette.primaryActionGradient,
       borderRadius: 100,
       height: 48,
       maxWidth: 300,
       margin: margin,
-      textStyle: ThemeUtils.textStyleM3LabelLarge(color: Colors.white),
+      textStyle: ThemeUtils.textStyleM3LabelLarge(color: NumberInboxPalette.primaryActionForeground),
       padding: const EdgeInsetsDirectional.symmetric(
         horizontal: 32,
       ),
       iconSize: 16,
-      iconColor: Colors.white,
+      iconColor: NumberInboxPalette.primaryActionForeground,
       iconSpace: 8,
       maxLines: 1,
       flexibleText: true,

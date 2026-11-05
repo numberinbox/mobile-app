@@ -52,13 +52,18 @@ class TMailContainerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
-      color: backgroundColor ?? AppColor.colorButtonHeaderThread,
+      color: backgroundGradient == null
+          ? backgroundColor ?? AppColor.colorButtonHeaderThread
+          : null,
       gradient: backgroundGradient,
       borderRadius: BorderRadius.circular(borderRadius),
       border: border,
       boxShadow: boxShadow,
     );
-    final content = Container(
+    final contentPadding = padding ?? const EdgeInsetsDirectional.all(8);
+    // Ink includes the decoration's border padding. Keep the dimensions
+    // outside it so a gradient cannot enlarge a bordered button.
+    final item = Container(
       decoration: backgroundGradient == null ? decoration : null,
       width: width,
       height: height,
@@ -67,14 +72,19 @@ class TMailContainerWidget extends StatelessWidget {
         maxHeight: maxHeight,
         minWidth: minWidth,
       ),
-      alignment: alignment,
-      padding: padding ?? const EdgeInsetsDirectional.all(8),
-      child: child,
+      alignment: backgroundGradient == null ? alignment : null,
+      padding: backgroundGradient == null ? contentPadding : null,
+      child: backgroundGradient == null
+          ? child
+          : Ink(
+              decoration: decoration,
+              child: Container(
+                alignment: alignment,
+                padding: contentPadding,
+                child: child,
+              ),
+            ),
     );
-
-    final item = backgroundGradient == null
-        ? content
-        : Ink(decoration: decoration, child: content);
 
     final materialChild = Material(
       type: MaterialType.transparency,

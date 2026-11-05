@@ -9,7 +9,8 @@ class NumberInboxPalette {
   static const navy = Color(0xFF0F172A);
   static const coolGray = Color(0xFFE5E7EB);
   static const ice = Color(0xFFF5F7EB);
-  static const actionGreen = Color(0xFF047857);
+  static const interactiveAccent = Color(0xFF0B7A94);
+  static const actionGreen = interactiveAccent;
   static const actionBlue = Color(0xFF0369A1);
   // Representative colours sampled from the detailed mark. They are brand
   // reference values only: white text on them is 1.9:1 to 3.5:1, so controls

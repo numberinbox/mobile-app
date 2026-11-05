@@ -1,9 +1,9 @@
-
 import 'dart:async';
 import 'dart:math';
 
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/keyboard_utils.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
@@ -276,8 +276,8 @@ class _AutocompleteContactTextFieldWithTagsState extends State<AutocompleteConta
     return TMailButtonWidget(
       text: AppLocalizations.of(context).addRecipientButton,
       icon: _imagePaths.icAddIdentity,
-      backgroundColor: AppColor.primaryMain,
-      iconColor: Colors.white,
+      backgroundGradient: NumberInboxPalette.primaryActionGradient,
+      iconColor: NumberInboxPalette.primaryActionForeground,
       iconSize: 18,
       height: 48,
       minWidth: 183,
@@ -287,7 +287,7 @@ class _AutocompleteContactTextFieldWithTagsState extends State<AutocompleteConta
       iconSpace: 8,
       borderRadius: 100,
       padding: const EdgeInsets.symmetric(horizontal: 24),
-      textStyle: ThemeUtils.textStyleM3LabelLarge(color: Colors.white),
+      textStyle: ThemeUtils.textStyleM3LabelLarge(color: NumberInboxPalette.primaryActionForeground),
       onTapActionCallback: () => _handleAddRecipientAction(context),
     );
   }

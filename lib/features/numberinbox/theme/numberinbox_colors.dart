@@ -5,7 +5,7 @@ import 'package:core/presentation/resources/numberinbox_palette.dart';
 class NumberInboxColors {
   NumberInboxColors._();
 
-  static const primary = NumberInboxPalette.actionGreen;
+  static const primary = NumberInboxPalette.interactiveAccent;
   static const accent = NumberInboxPalette.cyan;
   static const background = NumberInboxPalette.ice;
   static const danger = Color(0xFFC0392B);

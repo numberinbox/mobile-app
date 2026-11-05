@@ -70,7 +70,7 @@ class HomeView extends GetWidget<HomeController> {
                       ),
                       const SizedBox(height: 32),
                       const CupertinoActivityIndicator(
-                        color: NumberInboxPalette.actionGreen,
+                        color: NumberInboxPalette.interactiveAccent,
                       ),
                     ],
                   ),

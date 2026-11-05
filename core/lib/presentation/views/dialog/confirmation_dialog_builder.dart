@@ -1,5 +1,6 @@
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
@@ -20,6 +21,7 @@ class ConfirmationDialogBuilder extends StatelessWidget {
   final Widget? additionalWidgetContent;
   final Color? cancelBackgroundButtonColor;
   final Color? confirmBackgroundButtonColor;
+  final Gradient? confirmBackgroundGradient;
   final Color? cancelLabelButtonColor;
   final Color? confirmLabelButtonColor;
   final TextStyle? styleTextCancelButton;
@@ -48,6 +50,7 @@ class ConfirmationDialogBuilder extends StatelessWidget {
     this.additionalWidgetContent,
     this.cancelBackgroundButtonColor,
     this.confirmBackgroundButtonColor,
+    this.confirmBackgroundGradient,
     this.cancelLabelButtonColor,
     this.confirmLabelButtonColor,
     this.styleTextCancelButton,
@@ -79,6 +82,7 @@ class ConfirmationDialogBuilder extends StatelessWidget {
             additionalWidgetContent: additionalWidgetContent,
             cancelBackgroundButtonColor: cancelBackgroundButtonColor,
             confirmBackgroundButtonColor: confirmBackgroundButtonColor,
+            confirmBackgroundGradient: confirmBackgroundGradient,
             cancelLabelButtonColor: cancelLabelButtonColor,
             confirmLabelButtonColor: confirmLabelButtonColor,
             margin: margin,
@@ -108,6 +112,7 @@ class ConfirmationDialogBuilder extends StatelessWidget {
               additionalWidgetContent: additionalWidgetContent,
               cancelBackgroundButtonColor: cancelBackgroundButtonColor,
               confirmBackgroundButtonColor: confirmBackgroundButtonColor,
+              confirmBackgroundGradient: confirmBackgroundGradient,
               cancelLabelButtonColor: cancelLabelButtonColor,
               confirmLabelButtonColor: confirmLabelButtonColor,
               margin: margin,
@@ -134,6 +139,7 @@ class _BodyContent extends StatelessWidget {
   final Widget? additionalWidgetContent;
   final Color? cancelBackgroundButtonColor;
   final Color? confirmBackgroundButtonColor;
+  final Gradient? confirmBackgroundGradient;
   final Color? cancelLabelButtonColor;
   final Color? confirmLabelButtonColor;
   final EdgeInsetsGeometry? margin;
@@ -160,6 +166,7 @@ class _BodyContent extends StatelessWidget {
     this.additionalWidgetContent,
     this.cancelBackgroundButtonColor,
     this.confirmBackgroundButtonColor,
+    this.confirmBackgroundGradient,
     this.cancelLabelButtonColor,
     this.confirmLabelButtonColor,
     this.margin,
@@ -327,8 +334,11 @@ class _BodyContent extends StatelessWidget {
                 height: 48,
                 child: ConfirmDialogButton(
                   label: confirmText,
-                  backgroundColor: confirmBackgroundButtonColor
-                      ?? AppColor.primaryMain,
+                  backgroundColor: confirmBackgroundButtonColor,
+                  backgroundGradient: confirmBackgroundGradient ??
+                      (confirmBackgroundButtonColor == null
+                          ? NumberInboxPalette.primaryActionGradient
+                          : null),
                   textColor: confirmLabelButtonColor ?? Colors.white,
                   onTapAction: onConfirmButtonAction,
                 ),
@@ -365,8 +375,11 @@ class _BodyContent extends StatelessWidget {
                 height: 48,
                 child: ConfirmDialogButton(
                   label: confirmText,
-                  backgroundColor: confirmBackgroundButtonColor
-                      ?? AppColor.primaryMain,
+                  backgroundColor: confirmBackgroundButtonColor,
+                  backgroundGradient: confirmBackgroundGradient ??
+                      (confirmBackgroundButtonColor == null
+                          ? NumberInboxPalette.primaryActionGradient
+                          : null),
                   textColor: confirmLabelButtonColor ?? Colors.white,
                   onTapAction: onConfirmButtonAction,
                 ),

@@ -1,4 +1,4 @@
-import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -36,8 +36,8 @@ class ListButtonWidget extends StatelessWidget {
       height: 48,
       child: ConfirmDialogButton(
         label: AppLocalizations.of(context).restore,
-        backgroundColor: AppColor.primaryMain,
-        textColor: Colors.white,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
+        textColor: NumberInboxPalette.primaryActionForeground,
         onTapAction: onRestore,
       ),
     );

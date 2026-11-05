@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
@@ -184,8 +186,8 @@ class _EditTextDialogBuilderState extends State<EditTextDialogBuilder> {
                             height: 48,
                             child: ConfirmDialogButton(
                               label: widget.positiveText,
-                              backgroundColor: AppColor.primaryMain,
-                              textColor: Colors.white,
+                              backgroundGradient: NumberInboxPalette.primaryActionGradient,
+                              textColor: NumberInboxPalette.primaryActionForeground,
                               onTapAction: _onPositiveAction,
                             ),
                           ),

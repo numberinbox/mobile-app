@@ -14,7 +14,7 @@ class ThemeUtils {
       colorScheme: ColorScheme.fromSeed(
         seedColor: NumberInboxPalette.emerald,
       ).copyWith(
-        primary: NumberInboxPalette.actionGreen,
+        primary: NumberInboxPalette.interactiveAccent,
         onPrimary: Colors.white,
         secondary: NumberInboxPalette.actionBlue,
         onSecondary: Colors.white,
@@ -28,17 +28,17 @@ class ThemeUtils {
       appBarTheme: _appBarTheme,
       textTheme: _textTheme,
       extensions: [_textThemeExtension],
-      hoverColor: NumberInboxPalette.actionGreen.withValues(alpha: 0.08),
+      hoverColor: NumberInboxPalette.interactiveAccent.withValues(alpha: 0.08),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: NumberInboxPalette.actionGreen,
+          backgroundColor: NumberInboxPalette.interactiveAccent,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: NumberInboxPalette.actionGreen,
+          backgroundColor: NumberInboxPalette.interactiveAccent,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -52,7 +52,7 @@ class ThemeUtils {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: NumberInboxPalette.actionGreen, width: 2),
+          borderSide: const BorderSide(color: NumberInboxPalette.interactiveAccent, width: 2),
         ),
       ),
       textSelectionTheme: _textSelectionTheme,

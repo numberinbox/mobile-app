@@ -80,51 +80,79 @@ Widget buildSVGIconButton({
   );
 }
 
-Widget buildTextButton(String text, {
+Widget buildTextButton(
+  String text, {
   TextStyle? textStyle,
   double? width,
   double? height,
   Color? backgroundColor,
+  Gradient? backgroundGradient,
   EdgeInsetsGeometry? padding,
   double? radius,
   IconWebCallback? onTap,
   FocusNode? focusNode,
 }) {
-  return SizedBox(
+  final button = SizedBox(
     width: width ?? double.infinity,
     height: height ?? 40,
     child: ElevatedButton(
-        focusNode: focusNode,
-        style: ButtonStyle(
-            backgroundColor: WidgetStateProperty.resolveWith((states) => backgroundColor ?? AppColor.colorTextButton),
-            elevation: WidgetStateProperty.resolveWith((states) => 0),
-            padding: WidgetStateProperty.resolveWith<EdgeInsetsGeometry>(
-                (Set<WidgetState> states) => padding ?? const EdgeInsets.symmetric(horizontal: 8)),
-            shape: WidgetStateProperty.all(RoundedRectangleBorder(borderRadius: BorderRadius.circular(radius ?? 0)))),
-        child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: textStyle ?? ThemeUtils.defaultTextStyleInterFont.copyWith(
-                fontSize: 17,
-                color: Colors.white,
-                fontWeight: FontWeight.w500)),
-        onPressed: () => onTap?.call()
+      focusNode: focusNode,
+      style: ButtonStyle(
+        backgroundColor: WidgetStateProperty.resolveWith(
+          (states) => backgroundGradient == null
+              ? (backgroundColor ?? AppColor.colorTextButton)
+              : Colors.transparent,
+        ),
+        elevation: WidgetStateProperty.resolveWith((states) => 0),
+        padding: WidgetStateProperty.resolveWith<EdgeInsetsGeometry>(
+          (Set<WidgetState> states) =>
+              padding ?? const EdgeInsets.symmetric(horizontal: 8),
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius ?? 0),
+          ),
+        ),
+      ),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style:
+            textStyle ??
+            ThemeUtils.defaultTextStyleInterFont.copyWith(
+              fontSize: 17,
+              color: Colors.white,
+              fontWeight: FontWeight.w500,
+            ),
+      ),
+      onPressed: () => onTap?.call(),
     ),
   );
+  return backgroundGradient == null
+      ? button
+      : DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: backgroundGradient,
+            borderRadius: BorderRadius.circular(radius ?? 0),
+          ),
+          child: button,
+        );
 }
 
-Widget buildButtonWrapText(String name, {
+Widget buildButtonWrapText(
+  String name, {
   TextStyle? textStyle,
   Color? bgColor,
+  Gradient? backgroundGradient,
   Color? borderColor,
   double? radius,
   double? height,
   double? minWidth,
   EdgeInsetsGeometry? padding,
   FocusNode? focusNode,
-  IconWebCallback? onTap
+  IconWebCallback? onTap,
 }) {
-  return Container(
+  final button = Container(
     height: height ?? 40,
     padding: padding,
     constraints: BoxConstraints(minWidth: minWidth ?? 0),
@@ -132,24 +160,52 @@ Widget buildButtonWrapText(String name, {
       focusNode: focusNode,
       onPressed: () => onTap?.call(),
       style: ButtonStyle(
-          backgroundColor: WidgetStateProperty.resolveWith<Color>(
-              (Set<WidgetState> states) => bgColor ?? AppColor.colorTextButton),
-          shape: WidgetStateProperty.all(RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(radius ?? 8),
-              side: BorderSide(
-                  width: borderColor != null ? 1 : 0,
-                  color: borderColor ?? bgColor ?? AppColor.colorTextButton))),
-          padding: WidgetStateProperty.resolveWith<EdgeInsets>(
-              (Set<WidgetState> states) => const EdgeInsets.symmetric(horizontal: 16)),
-          elevation: WidgetStateProperty.resolveWith<double>(
-              (Set<WidgetState> states) => 0)),
-      child: Text(name,
-          textAlign: TextAlign.center,
-          style: textStyle ??
-              ThemeUtils.defaultTextStyleInterFont.copyWith(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.white)),
+        backgroundColor: WidgetStateProperty.resolveWith<Color>(
+          (Set<WidgetState> states) => backgroundGradient == null
+              ? (bgColor ?? AppColor.colorTextButton)
+              : Colors.transparent,
+        ),
+        shape: WidgetStateProperty.all(
+          RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radius ?? 8),
+            side: BorderSide(
+              width: borderColor != null ? 1 : 0,
+              color:
+                  borderColor ??
+                  (backgroundGradient == null
+                      ? (bgColor ?? AppColor.colorTextButton)
+                      : Colors.transparent),
+            ),
+          ),
+        ),
+        padding: WidgetStateProperty.resolveWith<EdgeInsets>(
+          (Set<WidgetState> states) =>
+              const EdgeInsets.symmetric(horizontal: 16),
+        ),
+        elevation: WidgetStateProperty.resolveWith<double>(
+          (Set<WidgetState> states) => 0,
+        ),
+      ),
+      child: Text(
+        name,
+        textAlign: TextAlign.center,
+        style:
+            textStyle ??
+            ThemeUtils.defaultTextStyleInterFont.copyWith(
+              fontSize: 17,
+              fontWeight: FontWeight.w500,
+              color: Colors.white,
+            ),
+      ),
     ),
   );
+  return backgroundGradient == null
+      ? button
+      : DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: backgroundGradient,
+            borderRadius: BorderRadius.circular(radius ?? 8),
+          ),
+          child: button,
+        );
 }

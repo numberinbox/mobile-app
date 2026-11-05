@@ -1,4 +1,5 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
 import 'package:core/presentation/views/loading/cupertino_loading_widget.dart';
 import 'package:flutter/material.dart';
@@ -46,8 +47,11 @@ class ModalListActionButtonWidget extends StatelessWidget {
         key: positiveKey,
         label: positiveLabel,
         backgroundColor: isPositiveActionEnabled
-            ? AppColor.primaryMain
+            ? null
             : AppColor.profileMenuDivider.withValues(alpha: 0.12),
+        backgroundGradient: isPositiveActionEnabled
+            ? NumberInboxPalette.primaryActionGradient
+            : null,
         textColor: isPositiveActionEnabled
             ? Colors.white
             : AppColor.m3SurfaceBackground.withValues(alpha: 0.38),
@@ -61,7 +65,7 @@ class ModalListActionButtonWidget extends StatelessWidget {
       child: ConfirmDialogButton(
         label: positiveLabel,
         padding: EdgeInsets.zero,
-        backgroundColor: AppColor.primaryMain,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         child: CupertinoLoadingWidget(
           color: Colors.white,
           semanticLabel: positiveLabel,

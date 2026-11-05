@@ -1,14 +1,17 @@
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:flutter/material.dart';
+import 'package:custom_pop_up_menu/custom_pop_up_menu.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/app_bar_composer_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/landscape_app_bar_composer_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/tablet_bottom_bar_composer_widget.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations_delegate.dart';
+import 'package:tmail_ui_user/features/composer/presentation/widgets/web/mobile_responsive_app_bar_composer_widget.dart';
 
 void main() {
   final imagePaths = ImagePaths();
@@ -34,8 +37,10 @@ void main() {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: Scaffold(
-          body: Align(alignment: Alignment.topCenter, child: bar),
+        home: ProviderScope(
+          child: Scaffold(
+            body: Align(alignment: Alignment.topCenter, child: bar),
+          ),
         ),
       ),
     );
@@ -100,6 +105,49 @@ void main() {
         expect(taps, 1);
       });
     }
+  }
+
+  for (final enabled in [false, true]) {
+    testWidgets('responsive web Send shares the primary treatment ($enabled)', (
+      tester,
+    ) async {
+      var taps = 0;
+      final menu = CustomPopupMenuController();
+      addTearDown(menu.dispose);
+      await pumpBar(
+        tester,
+        MobileResponsiveAppBarComposerWidget(
+          imagePaths: imagePaths,
+          isCodeViewEnabled: false,
+          isFormattingOptionsEnabled: false,
+          isSendButtonEnabled: enabled,
+          hasRequestReadReceipt: false,
+          isMarkAsImportant: false,
+          isEmailChanged: false,
+          menuMoreOptionController: menu,
+          openRichToolbarAction: () {},
+          onCloseViewAction: () {},
+          attachFileAction: () {},
+          insertImageAction: () {},
+          sendMessageAction: () => taps++,
+          toggleCodeViewAction: () {},
+          toggleRequestReadReceiptAction: () {},
+          printDraftAction: () {},
+          saveToDraftsAction: () {},
+          saveToTemplateAction: () {},
+          deleteComposerAction: () {},
+          toggleMarkAsImportantAction: () {},
+        ),
+        const Size(480, 640),
+      );
+      expect(
+        find.descendant(of: send, matching: gradient),
+        enabled ? findsOneWidget : findsNothing,
+      );
+      expect(tester.getSize(send), const Size(36, 36));
+      await tester.tap(send);
+      expect(taps, 1);
+    });
   }
 
   testWidgets('tablet Send uses the gradient and invokes Send once', (

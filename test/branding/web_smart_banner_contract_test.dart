@@ -94,8 +94,8 @@ void main() {
         reason: 'the banner surface must use the light brand palette',
       );
       expect(css, contains('#0F172A'), reason: 'banner text uses the brand navy');
-      expect(css.toUpperCase(), contains('#047857'),
-          reason: 'the Open action uses the contrast-safe brand green');
+      expect(css.toUpperCase(), contains('#0B7A94'),
+          reason: 'the Open action uses the shared brand teal');
     });
 
     test('shows the branded English tagline', () {

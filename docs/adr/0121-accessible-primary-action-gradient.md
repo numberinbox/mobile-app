@@ -16,7 +16,7 @@ the logo's green, teal and blue family and give white text 5.1:1, 5.0:1 and
 `NumberInboxPalette.primaryActionGradient` (stops `primaryActionStart`,
 `primaryActionMiddle`, `primaryActionEnd`) and `primaryActionForeground` remain
 the shared controls. They also cover contact picker Done and native composer
-Send on phones and tablets. The bright
+Send on phones, tablets, and the responsive web composer. The bright
 `logoGreen`, `logoCyan` and `logoBlue` values stay as brand reference samples;
 labelled controls must not use them.
 
@@ -24,3 +24,21 @@ Alternatives previewed: navy labels on the bright gradient (8.2:1 on green and
 cyan, 4.4:1 on blue) and the previous `#047857` → `#0369A1` gradient (5.5:1 to
 5.9:1). A test now asserts at least 4.5:1 white contrast on every stop, so a
 future colour change cannot silently drop below it.
+
+
+## Shared solid accent
+
+The owner selected `#0B7A94` for small icons, links, cursors, focus borders,
+selection indicators, progress tracks, and other existing green accents.
+`NumberInboxPalette.interactiveAccent` is the shared value. Legacy aliases
+retain their names and resolve to that accent for upstream compatibility.
+
+Primary fills also cover account actions (including logout and identities),
+rules, vacation, forwarding, recovery, search, folder/label modals, legacy login,
+and positive edit/color dialogs. They use the existing gradient and white
+foreground. Callers supplying destructive, neutral, or unavailable styles retain
+those explicit styles. Dialogs with no supplied positive fill use the gradient.
+The small gray profile-popover icon override remains effective.
+
+See [the migration checklist](../brand/interactive-accent-verification.md)
+for source coverage, tests, and validation limits.

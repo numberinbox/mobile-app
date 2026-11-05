@@ -1,4 +1,5 @@
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/views/bottom_popup/confirmation_dialog_action_sheet_builder.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
@@ -88,7 +89,7 @@ class EmptyMailboxDialogOverlay extends StatelessWidget {
                   const SizedBox(width: EmptyMailboxDialogOverlayStyles.buttonSpace),
                   TMailButtonWidget.fromText(
                     text: AppLocalizations.of(context).clean,
-                    backgroundColor: EmptyMailboxDialogOverlayStyles.emptyButtonColor,
+                    backgroundGradient: NumberInboxPalette.primaryActionGradient,
                     padding: EmptyMailboxDialogOverlayStyles.buttonPadding,
                     textStyle: EmptyMailboxDialogOverlayStyles.cleanButtonTextStyle,
                     borderRadius: EmptyMailboxDialogOverlayStyles.buttonRadius,

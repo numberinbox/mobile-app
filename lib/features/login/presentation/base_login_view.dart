@@ -1,4 +1,5 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/text/type_ahead_form_field_builder.dart';
 import 'package:flutter/material.dart';
@@ -18,25 +19,31 @@ abstract class BaseLoginView extends GetWidget<LoginController> {
       margin: const EdgeInsetsDirectional.only(bottom: 16, start: 24, end: 24),
       width: controller.responsiveUtils.getDeviceWidth(context),
       height: 48,
-      child: ElevatedButton(
-        key: const Key('loginSubmitForm'),
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: AppColor.primaryColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(width: 0, color: AppColor.primaryColor)
-          )
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: NumberInboxPalette.primaryActionGradient,
+          borderRadius: BorderRadius.circular(10),
         ),
-        onPressed: () => controller.handleLoginPressed(context),
-        child: Text(
-          AppLocalizations.of(context).signIn,
-          style: ThemeUtils.defaultTextStyleInterFont.copyWith(
-            fontSize: 16,
-            color: Colors.white,
+        child: ElevatedButton(
+          key: const Key('loginSubmitForm'),
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(width: 0, color: AppColor.primaryColor),
+            ),
+          ),
+          onPressed: () => controller.handleLoginPressed(context),
+          child: Text(
+            AppLocalizations.of(context).signIn,
+            style: ThemeUtils.defaultTextStyleInterFont.copyWith(
+              fontSize: 16,
+              color: Colors.white,
+            ),
           ),
         ),
-      )
+      ),
     );
   }
 

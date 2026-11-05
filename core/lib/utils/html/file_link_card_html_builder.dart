@@ -1,5 +1,8 @@
 import 'dart:convert';
 
+import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
+
 /// Card sizing for [FileLinkCardHtmlBuilder.buildFileLinkCard].
 class FileLinkCardSize {
   const FileLinkCardSize({
@@ -52,7 +55,7 @@ class FileLinkCardHtmlBuilder {
         '<div style="font-size:14px;font-weight:500;color:#1F2937;white-space:nowrap;'
         'overflow:hidden;text-overflow:ellipsis;" title="$safeTitle">$safeTitle</div>'
         '<div style="display:block;margin-top:6px;font-size:12px;'
-        'color:#047857;white-space:nowrap;overflow:hidden;'
+        'color:${NumberInboxPalette.interactiveAccent.toHexTriplet()};white-space:nowrap;overflow:hidden;'
         'text-overflow:ellipsis;">$safeActionLabel ↗</div>'
         '</div>'
         '</a>';

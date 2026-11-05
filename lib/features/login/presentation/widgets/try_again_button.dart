@@ -1,4 +1,4 @@
-import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
@@ -35,7 +35,7 @@ class TryAgainButton extends StatelessWidget {
         fontSize: 16,
         color: Colors.white,
       ),
-      backgroundColor: AppColor.primaryColor,
+      backgroundGradient: NumberInboxPalette.primaryActionGradient,
       onTapActionCallback: onRetry,
       borderRadius: 10,
       margin: const EdgeInsetsDirectional.only(bottom: 16, start: 24, end: 24),

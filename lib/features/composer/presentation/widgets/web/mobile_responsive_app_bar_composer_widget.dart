@@ -11,6 +11,7 @@ import 'package:tmail_ui_user/features/base/widget/highlight_svg_icon_on_hover.d
 import 'package:tmail_ui_user/features/base/widget/popup_item_widget.dart';
 import 'package:tmail_ui_user/features/base/widget/popup_menu_overlay_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/styles/mobile_app_bar_composer_widget_style.dart';
+import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/mobile_composer_send_button.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/web/external_attachment_composer_button.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
@@ -136,16 +137,10 @@ class MobileResponsiveAppBarComposerWidget extends StatelessWidget {
               onTapActionCallback: insertImageAction,
             ),
           const SizedBox(width: MobileAppBarComposerWidgetStyle.space),
-          TMailButtonWidget.fromIcon(
-            key: const ValueKey(UiKeys.sendEmailButton),
-            icon: isSendButtonEnabled
-              ? imagePaths.icSendMobile
-              : imagePaths.icSendDisable,
-            backgroundColor: Colors.transparent,
-            padding: MobileAppBarComposerWidgetStyle.iconPadding,
-            iconSize: MobileAppBarComposerWidgetStyle.sendButtonIconSize,
-            tooltipMessage: AppLocalizations.of(context).send,
-            onTapActionCallback: sendMessageAction,
+          MobileComposerSendButton(
+            imagePaths: imagePaths,
+            isEnabled: isSendButtonEnabled,
+            onTap: sendMessageAction,
           ),
           const SizedBox(width: MobileAppBarComposerWidgetStyle.space),
           PopupMenuOverlayWidget(

@@ -1,4 +1,5 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/views/checkbox/custom_icon_labeled_checkbox.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
 import 'package:core/utils/platform_info.dart';
@@ -74,8 +75,8 @@ class IdentityCreatorFormBottomView extends StatelessWidget {
           return ConfirmDialogButton(
             key: const Key('save_identity_button'),
             label: actionType.getPositiveButtonTitle(appLocalizations),
-            backgroundColor: AppColor.primaryMain,
-            textColor: Colors.white,
+            backgroundGradient: NumberInboxPalette.primaryActionGradient,
+            textColor: NumberInboxPalette.primaryActionForeground,
             onTapAction: () => controller.createNewIdentity(context),
           );
         }

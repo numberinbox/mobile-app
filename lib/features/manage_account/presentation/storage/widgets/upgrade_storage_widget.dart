@@ -1,5 +1,6 @@
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
 import 'package:flutter/material.dart';
@@ -87,8 +88,8 @@ class UpgradeStorageWidget extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 179),
       child: ConfirmDialogButton(
         label: appLocalizations.upgradeStorage,
-        backgroundColor: AppColor.primaryMain,
-        textColor: Colors.white,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
+        textColor: NumberInboxPalette.primaryActionForeground,
         onTapAction: onUpgradeStorageAction,
       ),
     );

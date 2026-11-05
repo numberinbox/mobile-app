@@ -1,4 +1,5 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -6,6 +7,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 class ConfirmDialogButton extends StatelessWidget {
   final String label;
   final Color? backgroundColor;
+  final Gradient? backgroundGradient;
   final Color? textColor;
   final Color? borderColor;
   final String? icon;
@@ -21,6 +23,7 @@ class ConfirmDialogButton extends StatelessWidget {
     super.key,
     required this.label,
     this.backgroundColor,
+    this.backgroundGradient,
     this.textColor,
     this.borderColor,
     this.icon,
@@ -44,44 +47,82 @@ class ConfirmDialogButton extends StatelessWidget {
             borderRadius: BorderRadius.all(Radius.circular(radius ?? 100)),
           );
 
-    return TextButton(
+    final button = TextButton(
       style: TextButton.styleFrom(
-        backgroundColor: backgroundColor,
-        overlayColor: Theme.of(context).colorScheme.outline.withValues(alpha: 0.08),
+        backgroundColor: backgroundGradient == null
+            ? backgroundColor
+            : Colors.transparent,
+        overlayColor: Theme.of(
+          context,
+        ).colorScheme.outline.withValues(alpha: 0.08),
         shape: outlineBorder,
         padding: padding ?? const EdgeInsets.symmetric(horizontal: 10),
       ),
       onPressed: onTapAction,
-      child: child ?? (icon == null
-          ? Text(
-              label,
-              style: textStyle ?? ThemeUtils.textStyleM3LabelLarge(color: textColor),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            )
-          : Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SvgPicture.asset(
-                  icon!,
-                  width: iconSize ?? 14,
-                  height: iconSize ?? 14,
-                  fit: BoxFit.fill,
-                  colorFilter: iconColor?.toInt() == Colors.transparent.toInt()
-                      ? null
-                      : iconColor?.asFilter() ?? AppColor.primaryMain.asFilter(),
-                ),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Text(
-                    label,
-                    style: textStyle ?? ThemeUtils.textStyleM3LabelLarge(color: textColor),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            )),
+      child:
+          child ??
+          (icon == null
+              ? Text(
+                  label,
+                  style:
+                      textStyle ??
+                      ThemeUtils.textStyleM3LabelLarge(
+                        color:
+                            textColor ??
+                            (backgroundGradient != null
+                                ? NumberInboxPalette.primaryActionForeground
+                                : null),
+                      ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SvgPicture.asset(
+                      icon!,
+                      width: iconSize ?? 14,
+                      height: iconSize ?? 14,
+                      fit: BoxFit.fill,
+                      colorFilter:
+                          iconColor?.toInt() == Colors.transparent.toInt()
+                          ? null
+                          : (iconColor ??
+                                    (backgroundGradient != null
+                                        ? NumberInboxPalette
+                                              .primaryActionForeground
+                                        : AppColor.primaryMain))
+                                .asFilter(),
+                    ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        label,
+                        style:
+                            textStyle ??
+                            ThemeUtils.textStyleM3LabelLarge(
+                              color:
+                                  textColor ??
+                                  (backgroundGradient != null
+                                      ? NumberInboxPalette
+                                            .primaryActionForeground
+                                      : null),
+                            ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                )),
     );
+    return backgroundGradient == null
+        ? button
+        : DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: backgroundGradient,
+              borderRadius: BorderRadius.circular(radius ?? 100),
+            ),
+            child: button,
+          );
   }
 }

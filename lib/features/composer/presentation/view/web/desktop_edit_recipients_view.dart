@@ -1,6 +1,7 @@
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/extensions/string_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
@@ -123,8 +124,8 @@ class DesktopEditRecipientsView extends StatelessWidget {
                           height: 36,
                           child: ConfirmDialogButton(
                             label: AppLocalizations.of(context).editEmail,
-                            backgroundColor: AppColor.primaryMain,
-                            textColor: Colors.white,
+                            backgroundGradient: NumberInboxPalette.primaryActionGradient,
+                            textColor: NumberInboxPalette.primaryActionForeground,
                             onTapAction: onEditAction,
                           ),
                         ),

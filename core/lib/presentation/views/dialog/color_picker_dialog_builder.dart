@@ -1,5 +1,6 @@
 
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/icon_button_web.dart';
 import 'package:flex_color_picker/flex_color_picker.dart';
@@ -136,6 +137,7 @@ class ColorPickerDialogBuilder {
               onTap: () => resetToDefaultActionCallback?.call()),
           buildButtonWrapText(
               textActionSetColor ?? '',
+              backgroundGradient: NumberInboxPalette.primaryActionGradient,
               radius: 5,
               height: 30,
               textStyle: ThemeUtils.defaultTextStyleInterFont.copyWith(

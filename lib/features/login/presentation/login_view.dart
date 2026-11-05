@@ -1,4 +1,5 @@
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/text/type_ahead_form_field_builder.dart';
@@ -185,32 +186,43 @@ class LoginView extends BaseLoginView {
 
   Widget _buildNextButton(BuildContext context) {
     return Container(
-      margin:  const EdgeInsets.only(bottom: 16, left: 24, right: 24),
-      width: controller.responsiveUtils.getDeviceWidth(context),height: 48,
-      child: ElevatedButton(
-        key: const Key('nextToCredentialForm'),
-        style: ElevatedButton.styleFrom(
-          foregroundColor: Colors.white,
-          backgroundColor: AppColor.primaryColor,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(10),
-            side: const BorderSide(width: 0, color: AppColor.primaryColor)
-          )
+      margin: const EdgeInsets.only(bottom: 16, left: 24, right: 24),
+      width: controller.responsiveUtils.getDeviceWidth(context),
+      height: 48,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: NumberInboxPalette.primaryActionGradient,
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Text(AppLocalizations.of(context).next,
-          style: ThemeUtils.defaultTextStyleInterFont.copyWith(fontSize: 16, color: Colors.white)
+        child: ElevatedButton(
+          key: const Key('nextToCredentialForm'),
+          style: ElevatedButton.styleFrom(
+            foregroundColor: Colors.white,
+            backgroundColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+              side: const BorderSide(width: 0, color: AppColor.primaryColor),
+            ),
+          ),
+          child: Text(
+            AppLocalizations.of(context).next,
+            style: ThemeUtils.defaultTextStyleInterFont.copyWith(
+              fontSize: 16,
+              color: Colors.white,
+            ),
+          ),
+          onPressed: () {
+            if (controller.loginFormType.value == LoginFormType.retry) {
+              controller.loginFormType.value = LoginFormType.dnsLookupForm;
+            }
+            if (controller.loginFormType.value == LoginFormType.dnsLookupForm) {
+              controller.invokeDNSLookupToGetJmapUrl();
+            } else {
+              controller.handleNextInUrlInputFormPress();
+            }
+          },
         ),
-        onPressed: () {
-          if (controller.loginFormType.value == LoginFormType.retry) {
-            controller.loginFormType.value = LoginFormType.dnsLookupForm;
-          }
-          if (controller.loginFormType.value == LoginFormType.dnsLookupForm) {
-            controller.invokeDNSLookupToGetJmapUrl();
-          } else {
-            controller.handleNextInUrlInputFormPress();
-          }
-        }
-      )
+      ),
     );
   }
 
