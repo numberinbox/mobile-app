@@ -18,6 +18,7 @@ class TMailContainerWidget extends StatelessWidget {
   final double minWidth;
   final String? tooltipMessage;
   final Color? backgroundColor;
+  final Gradient? backgroundGradient;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final List<BoxShadow>? boxShadow;
@@ -39,6 +40,7 @@ class TMailContainerWidget extends StatelessWidget {
     this.minWidth = 0,
     this.tooltipMessage,
     this.backgroundColor,
+    this.backgroundGradient,
     this.padding,
     this.boxShadow,
     this.margin,
@@ -49,13 +51,15 @@ class TMailContainerWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final item = Container(
-      decoration: BoxDecoration(
-        color: backgroundColor ?? AppColor.colorButtonHeaderThread,
-        borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
-        border: border,
-        boxShadow: boxShadow,
-      ),
+    final decoration = BoxDecoration(
+      color: backgroundColor ?? AppColor.colorButtonHeaderThread,
+      gradient: backgroundGradient,
+      borderRadius: BorderRadius.circular(borderRadius),
+      border: border,
+      boxShadow: boxShadow,
+    );
+    final content = Container(
+      decoration: backgroundGradient == null ? decoration : null,
       width: width,
       height: height,
       constraints: BoxConstraints(
@@ -67,6 +71,10 @@ class TMailContainerWidget extends StatelessWidget {
       padding: padding ?? const EdgeInsetsDirectional.all(8),
       child: child,
     );
+
+    final item = backgroundGradient == null
+        ? content
+        : Ink(decoration: decoration, child: content);
 
     final materialChild = Material(
       type: MaterialType.transparency,

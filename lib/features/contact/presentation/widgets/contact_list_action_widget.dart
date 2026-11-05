@@ -1,6 +1,7 @@
 
 import 'package:core/presentation/extensions/capitalize_extension.dart';
 import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/theme_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:flutter/material.dart';
@@ -46,7 +47,7 @@ class ContactListActionWidget extends StatelessWidget {
           Flexible(
             child: TMailButtonWidget.fromText(
               text: AppLocalizations.of(context).done,
-              backgroundColor: AppColor.primaryColor,
+              backgroundGradient: NumberInboxPalette.primaryActionGradient,
               borderRadius: 10,
               maxHeight: 44,
               minWidth: 156,
@@ -55,7 +56,7 @@ class ContactListActionWidget extends StatelessWidget {
               textStyle: ThemeUtils.defaultTextStyleInterFont.copyWith(
                 fontWeight: FontWeight.w500,
                 fontSize: 17,
-                color: Colors.white
+                color: NumberInboxPalette.primaryActionForeground
               ),
               onTapActionCallback: onDoneAction,
             ),

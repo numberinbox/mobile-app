@@ -21,6 +21,7 @@ class TMailButtonWidget extends StatelessWidget {
   final double minWidth;
   final String? tooltipMessage;
   final Color? backgroundColor;
+  final Gradient? backgroundGradient;
   final EdgeInsetsGeometry? padding;
   final EdgeInsetsGeometry? margin;
   final String text;
@@ -60,6 +61,7 @@ class TMailButtonWidget extends StatelessWidget {
     this.minWidth = 0,
     this.tooltipMessage,
     this.backgroundColor,
+    this.backgroundGradient,
     this.padding,
     this.verticalDirection = false,
     this.icon,
@@ -156,6 +158,7 @@ class TMailButtonWidget extends StatelessWidget {
     double minWidth = 0,
     String? tooltipMessage,
     Color? backgroundColor,
+    Gradient? backgroundGradient,
     EdgeInsetsGeometry? padding,
     TextStyle? textStyle,
     List<BoxShadow>? boxShadow,
@@ -182,6 +185,7 @@ class TMailButtonWidget extends StatelessWidget {
       minWidth: minWidth,
       tooltipMessage: tooltipMessage,
       backgroundColor: backgroundColor,
+      backgroundGradient: backgroundGradient,
       padding: padding,
       textStyle: textStyle,
       boxShadow: boxShadow,
@@ -313,6 +317,7 @@ class TMailButtonWidget extends StatelessWidget {
       minWidth: minWidth,
       tooltipMessage: tooltipMessage,
       backgroundColor: backgroundColor,
+      backgroundGradient: backgroundGradient,
       padding: padding,
       margin: margin,
       boxShadow: boxShadow,

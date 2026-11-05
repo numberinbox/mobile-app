@@ -15,7 +15,8 @@ the logo's green, teal and blue family and give white text 5.1:1, 5.0:1 and
 
 `NumberInboxPalette.primaryActionGradient` (stops `primaryActionStart`,
 `primaryActionMiddle`, `primaryActionEnd`) and `primaryActionForeground` remain
-the shared controls, with the same consumers as ADR 0120. The bright
+the shared controls. They also cover contact picker Done and native composer
+Send on phones and tablets. The bright
 `logoGreen`, `logoCyan` and `logoBlue` values stay as brand reference samples;
 labelled controls must not use them.
 

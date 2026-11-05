@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:scribe/scribe/ai/presentation/widgets/button/ai_assistant_button.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/composer/presentation/styles/mobile_app_bar_composer_widget_style.dart';
+import 'package:tmail_ui_user/features/composer/presentation/widgets/mobile/mobile_composer_send_button.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
 typedef OnOpenContextMenuAction = Function(RelativeRect position);
@@ -93,16 +94,10 @@ class AppBarComposerWidget extends StatelessWidget {
               ),
               const SizedBox(width: MobileAppBarComposerWidgetStyle.space),
             ],
-          TMailButtonWidget.fromIcon(
-            key: const ValueKey(UiKeys.sendEmailButton),
-            icon: isSendButtonEnabled
-              ? imagePaths.icSendMobile
-              : imagePaths.icSendDisable,
-            backgroundColor: Colors.transparent,
-            padding: MobileAppBarComposerWidgetStyle.iconPadding,
-            iconSize: MobileAppBarComposerWidgetStyle.sendButtonIconSize,
-            tooltipMessage: AppLocalizations.of(context).send,
-            onTapActionCallback: sendMessageAction,
+          MobileComposerSendButton(
+            imagePaths: imagePaths,
+            isEnabled: isSendButtonEnabled,
+            onTap: sendMessageAction,
           ),
           const SizedBox(width: MobileAppBarComposerWidgetStyle.space),
           TMailButtonWidget.fromIcon(

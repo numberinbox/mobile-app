@@ -1,4 +1,5 @@
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:pointer_interceptor/pointer_interceptor.dart';
@@ -101,12 +102,13 @@ class TabletBottomBarComposerWidget extends StatelessWidget {
               key: const ValueKey(UiKeys.sendEmailButton),
               text: AppLocalizations.of(context).send,
               icon: imagePaths.icSend,
+              iconColor: NumberInboxPalette.primaryActionForeground,
               iconAlignment: TextDirection.rtl,
               padding: TabletBottomBarComposerWidgetStyle.sendButtonPadding,
               iconSize: TabletBottomBarComposerWidgetStyle.iconSize,
               iconSpace: TabletBottomBarComposerWidgetStyle.sendButtonIconSpace,
               textStyle: TabletBottomBarComposerWidgetStyle.sendButtonTextStyle,
-              backgroundColor: TabletBottomBarComposerWidgetStyle.sendButtonBackgroundColor,
+              backgroundGradient: NumberInboxPalette.primaryActionGradient,
               borderRadius: TabletBottomBarComposerWidgetStyle.sendButtonRadius,
               onTapActionCallback: sendMessageAction,
             )

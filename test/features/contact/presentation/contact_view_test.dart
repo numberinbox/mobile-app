@@ -1,4 +1,5 @@
 import 'package:core/presentation/resources/image_paths.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
@@ -63,7 +64,10 @@ void main() {
     Get.reset();
   });
 
-  Future<void> pumpView(WidgetTester tester) async {
+  Future<void> pumpView(
+    WidgetTester tester, {
+    ValueChanged<List<EmailAddress>?>? onResult,
+  }) async {
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async => null);
@@ -74,21 +78,76 @@ void main() {
         return 0;
       },
     );
-    await tester.pumpWidget(const MaterialApp(
-      localizationsDelegates: [
+    await tester.pumpWidget(GetMaterialApp(
+      localizationsDelegates: const [
         AppLocalizationsDelegate(),
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
       supportedLocales: LocalizationService.supportedLocales,
-      home: ContactView(),
+      home: onResult == null
+          ? const ContactView()
+          : Scaffold(
+              body: TextButton(
+                onPressed: () async => onResult(
+                  await Get.to<List<EmailAddress>>(() => const ContactView()),
+                ),
+                child: const Text('Open contacts'),
+              ),
+            ),
     ));
     await tester.pumpAndSettle();
+    if (onResult != null) {
+      await tester.tap(find.text('Open contacts'));
+      await tester.pumpAndSettle();
+    }
     // Flush the 500ms delayed permission check in ContactController.onReady.
     // pumpAndSettle alone does not advance lone timers.
     await tester.pump(const Duration(milliseconds: 600));
     await tester.pumpAndSettle();
+  }
+
+  testWidgets('only Done has the primary gradient on a narrow screen',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 640));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await pumpView(tester);
+
+    final gradientFill = find.byWidgetPredicate(
+      (widget) => widget is Ink &&
+          widget.decoration is BoxDecoration &&
+          (widget.decoration as BoxDecoration).gradient ==
+              NumberInboxPalette.primaryActionGradient,
+    );
+    final done = find.text('Done');
+    final clearFilter = find.text('Clear Filter');
+    expect(find.ancestor(of: done, matching: gradientFill), findsOneWidget);
+    expect(find.ancestor(of: clearFilter, matching: gradientFill), findsNothing);
+    expect(tester.widget<Text>(done).style?.color,
+        NumberInboxPalette.primaryActionForeground);
+    expect(done.hitTestable(), findsOneWidget);
+    expect(clearFilter.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final action in ['Done', 'Clear Filter']) {
+    testWidgets('$action returns the picker selection once', (tester) async {
+      final contact = EmailAddress('Example Contact', 'contact@example.com');
+      Get.find<ContactController>().setAllDeviceContacts([contact]);
+      final results = <List<EmailAddress>?>[];
+
+      await pumpView(tester, onResult: results.add);
+      await tester.tap(find.text('Example Contact'));
+      await tester.pumpAndSettle();
+      expect(Get.find<ContactController>().selectedContactList, [contact]);
+
+      await tester.tap(find.text(action));
+      await tester.pumpAndSettle();
+
+      expect(results, [action == 'Done' ? [contact] : <EmailAddress>[]]);
+      expect(find.byType(ContactView), findsNothing);
+    });
   }
 
   group('ContactView all-device-contacts list', () {
