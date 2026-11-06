@@ -44,6 +44,13 @@ void main() {
         )
         .waitUntilVisible(timeout: const Duration(seconds: 15));
 
+    // Typing started a debounced contact lookup. If the composer closes while
+    // it is still in flight, the tag editor package touches a disposed
+    // notifier and the debug build's assertion fails the test, although
+    // release builds are unaffected. Let the lookup finish before sending.
+    await Future<void>.delayed(const Duration(seconds: 5));
+    await $.pumpAndTrySettle();
+
     await composer.addSubject(subject);
     await composer.sendEmail(ImagePaths());
     await $.pumpAndSettle();
