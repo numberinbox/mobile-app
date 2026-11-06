@@ -3,6 +3,8 @@ import Foundation
 class JmapConstants {
     static let EMAIL_GET_METHOD_NAME = "Email/get"
     static let EMAIL_CHANGES_METHOD_NAME = "Email/changes"
+    static let ERROR_METHOD_NAME = "error"
+    static let CANNOT_CALCULATE_CHANGES = "cannotCalculateChanges"
     
     static let CREATED_REFERENCE_PATH = "/created/*"
     

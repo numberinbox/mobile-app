@@ -10,6 +10,8 @@ import 'package:tmail_ui_user/features/thread/domain/model/email_response.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart' as jmap;
 
 abstract class FCMRepository {
+  Future<jmap.State?> getCurrentEmailState(Session session, AccountId accountId);
+
   Future<EmailsResponse> getEmailChangesToPushNotification(
     Session session,
     AccountId accountId,

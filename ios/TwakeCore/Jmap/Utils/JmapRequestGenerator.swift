@@ -3,6 +3,31 @@ import Foundation
 class JmapRequestGenerator {
     static let shared: JmapRequestGenerator = JmapRequestGenerator()
     
+    /// Email/get with no ids returns only the current Email state.
+    func createCurrentEmailStateRequest(accountId: String) -> JmapRequestObject? {
+        return JmapRequestObject(
+            using: [
+                JmapConstants.JMAP_CORE_CAPABILITY,
+                JmapConstants.JMAP_MAIL_CAPABILITY
+            ],
+            methodCalls: [
+                [
+                    RequestInvocation.string(JmapConstants.EMAIL_GET_METHOD_NAME),
+                    RequestInvocation.methodRequest(
+                        MethodRequest(
+                            accountId: accountId,
+                            sinceState: nil,
+                            ids: nil,
+                            properties: ["id"],
+                            literalIds: []
+                        )
+                    ),
+                    RequestInvocation.string("c0"),
+                ]
+            ]
+        )
+    }
+
     func createEmailChangesRequest(accountId: String, sinceState: String) -> JmapRequestObject? {
         return JmapRequestObject(
             using: [

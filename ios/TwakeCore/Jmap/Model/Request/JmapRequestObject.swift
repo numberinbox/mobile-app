@@ -38,12 +38,14 @@ struct MethodRequest: Codable {
     let sinceState: String?
     let ids: ResultReference?
     let properties: [String]?
+    var literalIds: [String]? = nil
     
     enum CodingKeys: String, CodingKey {
         case accountId
         case sinceState
         case ids = "#ids"
         case properties
+        case literalIds = "ids"
     }
 }
 

@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:jmap_dart_client/jmap/core/state.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:mockito/annotations.dart';
@@ -26,7 +27,10 @@ import 'package:tmail_ui_user/features/push_notification/data/local/fcm_cache_ma
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
+import 'package:tmail_ui_user/features/login/domain/exceptions/authentication_exception.dart';
+import 'package:tmail_ui_user/features/login/domain/state/get_authenticated_account_state.dart';
 import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
+import 'package:tmail_ui_user/features/login/domain/state/get_stored_token_oidc_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_stored_email_delivery_state.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_stored_email_delivery_state_interactor.dart';
@@ -35,6 +39,9 @@ import 'package:tmail_ui_user/features/push_notification/presentation/listener/e
 import 'package:tmail_ui_user/features/push_notification/presentation/services/fcm_service.dart';
 
 import 'fcm_message_controller_test.mocks.dart';
+import '../listener/email_change_listener_test.mocks.dart' as pipeline;
+import 'package:tmail_ui_user/features/push_notification/domain/state/get_email_changes_to_push_notification_state.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/state/store_email_delivery_state.dart';
 
 import '../../../../fixtures/account_fixtures.dart';
 import '../../../../fixtures/numberinbox_push_fixture.dart';
@@ -673,7 +680,7 @@ void main() {
             // The recheck happens after the session fetch; the user signed
             // out while it was in flight.
             return Stream.value(dartz.Left<Failure, Success>(GetCredentialFailure(
-                'Signed out during the session fetch')));
+                NotFoundAuthenticationInfoCache())));
           }
           return Stream.value(dartz.Right<Failure, Success>(GetCredentialViewState(
             Uri.parse('https://jmap.numberinbox.com'),
@@ -698,8 +705,7 @@ void main() {
         when(mockAuthorizationInterceptors.authenticationType)
             .thenReturn(AuthenticationType.basic);
 
-        FcmMessageController.instance
-            .handlePushPayload(_backendMailDeliveredPayload);
+        expect(await FcmMessageController.instance.handlePushPayload(_backendMailDeliveredPayload), PlatformPushOutcome.dropped);
         await pumpEventQueue();
 
         verify(mockGetAuthenticatedAccountInteractor.execute()).called(2);
@@ -764,8 +770,7 @@ void main() {
         when(mockAuthorizationInterceptors.authenticationType)
             .thenReturn(AuthenticationType.basic);
 
-        FcmMessageController.instance
-            .handlePushPayload(_backendMailDeliveredPayload);
+        expect(await FcmMessageController.instance.handlePushPayload(_backendMailDeliveredPayload), PlatformPushOutcome.dropped);
         await pumpEventQueue();
 
         verify(mockGetAuthenticatedAccountInteractor.execute()).called(2);
@@ -831,8 +836,12 @@ void main() {
           Stream.value(dartz.Right<Failure, Success>(bobCredentialState())),
           // 2: Bob authentication recheck after Bob's session resolves.
           Stream.value(dartz.Right<Failure, Success>(bobCredentialState())),
-          // 3: Alice authentication recheck after her gate opens and her
+          // 3: Bob recheck after his mail fetch, before any display.
+          Stream.value(dartz.Right<Failure, Success>(bobCredentialState())),
+          // 4: Alice authentication recheck after her gate opens and her
           // session resolves.
+          Stream.value(dartz.Right<Failure, Success>(aliceCredentialState())),
+          // 5: Alice recheck after her mail fetch, before any display.
           Stream.value(dartz.Right<Failure, Success>(aliceCredentialState())),
         ];
         var accountLookupCount = 0;
@@ -857,6 +866,23 @@ void main() {
         when(mockAuthorizationInterceptors.authenticationType)
             .thenReturn(AuthenticationType.basic);
 
+        final stored = pipeline.MockGetStoredEmailDeliveryStateInteractor();
+        final changes = pipeline.MockGetEmailChangesToPushNotificationInteractor();
+        final store = pipeline.MockStoreEmailDeliveryStateInteractor();
+        when(stored.execute(any, any)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state')));
+        });
+        when(changes.execute(any, any, any, any,
+          propertiesCreated: anyNamed('propertiesCreated'),
+          propertiesUpdated: anyNamed('propertiesUpdated'))).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetEmailChangesToPushNotificationSuccess(
+            AccountFixtures.aliceAccountId, SessionFixtures.aliceSession.username, [], newState: State('real-state')));
+        });
+        when(store.execute(any, any, any)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(StoreEmailDeliveryStateSuccess());
+        });
+        EmailChangeListener.instance.setStoredEmailDeliveryStateInteractorForTesting(stored, changes: changes, store: store);
+
         final aliceHandling = FcmMessageController.instance
             .handlePushPayload(_backendMailDeliveredPayload);
         final bobHandling = FcmMessageController.instance
@@ -865,7 +891,7 @@ void main() {
         aliceAccountGate.complete();
         await aliceHandling;
 
-        verify(mockGetAuthenticatedAccountInteractor.execute()).called(4);
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(6);
         verify(mockGetSessionInteractor.execute(stateChange: null)).called(2);
         verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(4);
       },
@@ -1048,8 +1074,23 @@ void main() {
           ));
         });
 
-        FcmMessageController.instance
-            .handlePushPayload(_backendMailDeliveredPayload);
+        final stored = pipeline.MockGetStoredEmailDeliveryStateInteractor();
+        final changes = pipeline.MockGetEmailChangesToPushNotificationInteractor();
+        final store = pipeline.MockStoreEmailDeliveryStateInteractor();
+        when(stored.execute(any, any)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state')));
+        });
+        when(changes.execute(any, any, any, any,
+          propertiesCreated: anyNamed('propertiesCreated'),
+          propertiesUpdated: anyNamed('propertiesUpdated'))).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(GetEmailChangesToPushNotificationSuccess(
+            AccountFixtures.aliceAccountId, SessionFixtures.aliceSession.username, [], newState: State('real-state')));
+        });
+        when(store.execute(any, any, any)).thenAnswer((_) async* {
+          yield dartz.Right<Failure, Success>(StoreEmailDeliveryStateSuccess());
+        });
+        EmailChangeListener.instance.setStoredEmailDeliveryStateInteractorForTesting(stored, changes: changes, store: store);
+        expect(await FcmMessageController.instance.handlePushPayload(_backendMailDeliveredPayload), PlatformPushOutcome.completed);
         await pumpEventQueue();
 
         verify(mockFcmCacheManager.recordProcessedDelivery(
@@ -1103,8 +1144,7 @@ void main() {
               GetSessionFailure(Exception('backend unreachable')));
         });
 
-        FcmMessageController.instance
-            .handlePushPayload(_backendMailDeliveredPayload);
+        expect(await FcmMessageController.instance.handlePushPayload(_backendMailDeliveredPayload), PlatformPushOutcome.failed);
         await pumpEventQueue();
 
         verifyNever(mockFcmCacheManager.recordProcessedDelivery(
@@ -1233,5 +1273,178 @@ void main() {
         }
       },
     );
+  });
+
+  group('FcmMessageController::platform push outcomes', () {
+    late MockGetAuthenticatedAccountInteractor account;
+    late MockGetSessionInteractor sessions;
+    late MockFCMCacheManager cache;
+
+    GetCredentialViewState signedIn({AccountId? accountId}) => GetCredentialViewState(
+      Uri.parse('https://jmap.numberinbox.com'),
+      UserName('+66841234567@numberinbox.com'),
+      Password('stalwart-password'),
+      PersonalAccount(
+        'personal-account-id',
+        AuthenticationType.basic,
+        isSelected: true,
+        accountId: accountId ?? AccountFixtures.aliceAccountId,
+        apiUrl: _platformApiUrl,
+      ),
+      stateChange: null,
+    );
+
+    /// Answers each account lookup in turn; the last answer repeats.
+    void accountAnswers(List<Object> answers) {
+      var call = 0;
+      when(account.execute()).thenAnswer((_) async* {
+        final answer = answers[call < answers.length ? call : answers.length - 1];
+        call++;
+        if (answer is Exception) throw answer;
+        if (answer is Failure) {
+          yield dartz.Left<Failure, Success>(answer);
+        } else {
+          yield dartz.Right<Failure, Success>(answer as Success);
+        }
+      });
+    }
+
+    Future<PlatformPushOutcome> handle() =>
+        FcmMessageController.instance.handlePushPayload(_backendMailDeliveredPayload);
+
+    setUp(() {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      Get.testMode = true;
+      // Get.put keeps an existing instance, so clear what earlier groups left.
+      Get.reset();
+      FcmMessageController.instance.resetPendingPlatformPushForTesting();
+      account = MockGetAuthenticatedAccountInteractor();
+      sessions = MockGetSessionInteractor();
+      cache = MockFCMCacheManager();
+      final authorization = MockAuthorizationInterceptors();
+      Get.put<GetAuthenticatedAccountInteractor>(account);
+      Get.put<DynamicUrlInterceptors>(MockDynamicUrlInterceptors());
+      Get.put<AuthorizationInterceptors>(authorization);
+      Get.put<GetSessionInteractor>(sessions);
+      Get.put<FCMCacheManager>(cache);
+      when(authorization.authenticationType).thenReturn(AuthenticationType.basic);
+      when(cache.hasProcessedDelivery(
+        stalwartAccountId: anyNamed('stalwartAccountId'),
+        deliveryId: anyNamed('deliveryId'),
+        now: anyNamed('now'),
+        ttl: anyNamed('ttl'),
+      )).thenAnswer((_) async => false);
+      when(sessions.execute(stateChange: null)).thenAnswer((_) async* {
+        yield dartz.Right<Failure, Success>(
+            GetSessionSuccess(SessionFixtures.aliceSession, stateChange: null));
+      });
+      EmailChangeListener.instance.setStoredEmailDeliveryStateInteractorForTesting(
+        _FailingStoredEmailDeliveryStateInteractor(),
+      );
+    });
+
+    tearDown(() {
+      debugDefaultTargetPlatformOverride = null;
+      Get.reset();
+    });
+
+    final signedOut = <String, Failure Function()>{
+      'no current account': () => GetAuthenticatedAccountFailure(NotFoundAuthenticatedAccountException()),
+      'no stored password': () => GetCredentialFailure(NotFoundAuthenticationInfoCache()),
+      'bad stored credentials': () => GetCredentialFailure(BadCredentials()),
+      'no stored token': () => GetStoredTokenOidcFailure(NotFoundStoredTokenException()),
+      'invalid stored base url': () => GetStoredTokenOidcFailure(InvalidBaseUrl()),
+    };
+    signedOut.forEach((name, failure) {
+      test('WHEN the account lookup reports $name THEN the push is dropped', () async {
+        accountAnswers([failure()]);
+        expect(await handle(), PlatformPushOutcome.dropped);
+      });
+
+      test('WHEN the re-check after the session fetch reports $name THEN the push is dropped', () async {
+        accountAnswers([signedIn(), failure()]);
+        expect(await handle(), PlatformPushOutcome.dropped);
+      });
+    });
+
+    final transient = <String, Failure Function()>{
+      'an account storage error': () => GetAuthenticatedAccountFailure(Exception('storage locked')),
+      'a credential storage error': () => GetCredentialFailure(Exception('storage locked')),
+      'a token storage error': () => GetStoredTokenOidcFailure(Exception('storage locked')),
+    };
+    transient.forEach((name, failure) {
+      test('WHEN the account lookup reports $name THEN the push failed so the user is still told', () async {
+        accountAnswers([failure()]);
+        expect(await handle(), PlatformPushOutcome.failed);
+      });
+
+      test('WHEN the re-check after the session fetch reports $name THEN the push failed', () async {
+        accountAnswers([signedIn(), failure()]);
+        expect(await handle(), PlatformPushOutcome.failed);
+      });
+    });
+
+    test('WHEN the re-check after the session fetch throws THEN the push failed', () async {
+      accountAnswers([signedIn(), Exception('storage locked')]);
+      expect(await handle(), PlatformPushOutcome.failed);
+    });
+
+    test('WHEN the active account differs from the push THEN the push is dropped', () async {
+      accountAnswers([signedIn(accountId: AccountFixtures.bobAccountId)]);
+      expect(await handle(), PlatformPushOutcome.dropped);
+    });
+
+    test('WHEN the account changes during the session fetch THEN the push is dropped', () async {
+      accountAnswers([signedIn(), signedIn(accountId: AccountFixtures.bobAccountId)]);
+      expect(await handle(), PlatformPushOutcome.dropped);
+    });
+
+    test('WHEN this delivery was already processed THEN the push is dropped without any lookup', () async {
+      when(cache.hasProcessedDelivery(
+        stalwartAccountId: anyNamed('stalwartAccountId'),
+        deliveryId: anyNamed('deliveryId'),
+        now: anyNamed('now'),
+        ttl: anyNamed('ttl'),
+      )).thenAnswer((_) async => true);
+      expect(await handle(), PlatformPushOutcome.dropped);
+      verifyNever(account.execute());
+    });
+
+    test('WHEN the account interactor is not bound THEN the push failed', () async {
+      Get.delete<GetAuthenticatedAccountInteractor>();
+      expect(await handle(), PlatformPushOutcome.failed);
+    });
+
+    test('WHEN the session has no API URL THEN the push failed', () async {
+      accountAnswers([signedIn()]);
+      final alice = SessionFixtures.aliceSession;
+      when(sessions.execute(stateChange: null)).thenAnswer((_) async* {
+        yield dartz.Right<Failure, Success>(GetSessionSuccess(
+          Session(alice.capabilities, alice.accounts, alice.primaryAccounts, alice.username,
+            Uri(), alice.downloadUrl, alice.uploadUrl, alice.eventSourceUrl, alice.state),
+          stateChange: null,
+        ));
+      });
+      expect(await handle(), PlatformPushOutcome.failed);
+    });
+
+    test('WHEN the pipeline is incomplete and the account is still active THEN the push failed', () async {
+      accountAnswers([signedIn()]);
+      expect(await handle(), PlatformPushOutcome.failed);
+    });
+
+    test('WHEN the pipeline is incomplete because the user signed out THEN the push is dropped', () async {
+      accountAnswers([
+        signedIn(),
+        signedIn(),
+        GetAuthenticatedAccountFailure(NotFoundAuthenticatedAccountException()),
+      ]);
+      expect(await handle(), PlatformPushOutcome.dropped);
+    });
+
+    test('WHEN the pipeline is incomplete and the re-check throws THEN the push failed', () async {
+      accountAnswers([signedIn(), signedIn(), Exception('storage locked')]);
+      expect(await handle(), PlatformPushOutcome.failed);
+    });
   });
 }

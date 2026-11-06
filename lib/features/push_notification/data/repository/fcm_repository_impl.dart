@@ -6,6 +6,7 @@ import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/properties/properties.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart' as jmap;
+import 'package:jmap_dart_client/jmap/core/unsigned_int.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_comparator.dart';
@@ -59,6 +60,17 @@ class FCMRepositoryImpl extends FCMRepository {
       emailList: listEmails,
       emailChangeResponse: emailChangeResponse,
     );
+  }
+
+  @override
+  Future<jmap.State?> getCurrentEmailState(Session session, AccountId accountId) async {
+    final response = await _threadDataSource.getAllEmail(
+      session,
+      accountId,
+      limit: UnsignedInt(1),
+      properties: Properties({EmailProperty.id}),
+    );
+    return response.state;
   }
 
   @override

@@ -76,6 +76,13 @@
 		F5E7D88D2B3878580009BB8A /* AuthenticationInterceptor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5E7D88C2B3878580009BB8A /* AuthenticationInterceptor.swift */; };
 		F5EFC07D2B328B9F00829056 /* TwakeLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5EFC07C2B328B9F00829056 /* TwakeLogger.swift */; };
 		F5EFC07E2B328B9F00829056 /* TwakeLogger.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5EFC07C2B328B9F00829056 /* TwakeLogger.swift */; };
+		A11005000000000000000011 /* NumberInboxPushPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11005000000000000000001 /* NumberInboxPushPayload.swift */; };
+		A11005000000000000000012 /* NumberInboxPushPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11005000000000000000001 /* NumberInboxPushPayload.swift */; };
+		A11005000000000000000013 /* JmapEmailChangesResultTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11005000000000000000002 /* JmapEmailChangesResultTests.swift */; };
+		A11005000000000000000014 /* NumberInboxPushPayloadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11005000000000000000003 /* NumberInboxPushPayloadTests.swift */; };
+		A11005000000000000000015 /* JmapResponseObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53D1E772B2E2C7E00051FD0 /* JmapResponseObject.swift */; };
+		A11005000000000000000016 /* JmapRequestGenerator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53D1E852B2E401B00051FD0 /* JmapRequestGenerator.swift */; };
+		A11005000000000000000017 /* JmapRequestObject.swift in Sources */ = {isa = PBXBuildFile; fileRef = F53D1E822B2E3D4600051FD0 /* JmapRequestObject.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -207,6 +214,9 @@
 		F5E7D8872B38775C0009BB8A /* TokenRefreshManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TokenRefreshManager.swift; sourceTree = "<group>"; };
 		F5E7D88C2B3878580009BB8A /* AuthenticationInterceptor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuthenticationInterceptor.swift; sourceTree = "<group>"; };
 		F5EFC07C2B328B9F00829056 /* TwakeLogger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TwakeLogger.swift; sourceTree = "<group>"; };
+		A11005000000000000000001 /* NumberInboxPushPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberInboxPushPayload.swift; sourceTree = "<group>"; };
+		A11005000000000000000002 /* JmapEmailChangesResultTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JmapEmailChangesResultTests.swift; sourceTree = "<group>"; };
+		A11005000000000000000003 /* NumberInboxPushPayloadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NumberInboxPushPayloadTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -358,6 +368,7 @@
 		F53D1E6A2B2E1F6700051FD0 /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				A11005000000000000000001 /* NumberInboxPushPayload.swift */,
 				F53D1E812B2E3D0300051FD0 /* Request */,
 				F53D1E802B2E3CF600051FD0 /* Response */,
 				F53D1E7D2B2E369300051FD0 /* Email */,
@@ -403,6 +414,8 @@
 			isa = PBXGroup;
 			children = (
 				F55114CE2BFBACFA00E41E93 /* DateConversionTests.swift */,
+				A11005000000000000000002 /* JmapEmailChangesResultTests.swift */,
+				A11005000000000000000003 /* NumberInboxPushPayloadTests.swift */,
 				F522E87E2C0EE23400DDA35B /* AuthenticationSSOTests.swift */,
 				A14E00022F6E000000000002 /* SentryManagerTests.swift */,
 			);
@@ -850,6 +863,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A11005000000000000000011 /* NumberInboxPushPayload.swift in Sources */,
+				A11005000000000000000015 /* JmapResponseObject.swift in Sources */,
+				A11005000000000000000016 /* JmapRequestGenerator.swift in Sources */,
+				A11005000000000000000017 /* JmapRequestObject.swift in Sources */,
 				F5E7D87C2B38764F0009BB8A /* StringExtensions.swift in Sources */,
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				F5E7D8792B38763B0009BB8A /* DateExtensions.swift in Sources */,
@@ -876,6 +893,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A11005000000000000000013 /* JmapEmailChangesResultTests.swift in Sources */,
+				A11005000000000000000014 /* NumberInboxPushPayloadTests.swift in Sources */,
 				F55114CF2BFBACFA00E41E93 /* DateConversionTests.swift in Sources */,
 				F522E8882C0EE8B600DDA35B /* CoreUtils.swift in Sources */,
 				F522E87F2C0EE23400DDA35B /* AuthenticationSSOTests.swift in Sources */,
@@ -890,6 +909,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A11005000000000000000012 /* NumberInboxPushPayload.swift in Sources */,
 				F5BBBF512B2EEC37007930E1 /* NetworkExceptions.swift in Sources */,
 				F53D1E7F2B2E3C2600051FD0 /* JmapConstants.swift in Sources */,
 				84EC933C2F236E8300A0EDC7 /* SentryConfig.swift in Sources */,

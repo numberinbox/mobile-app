@@ -1,4 +1,8 @@
+import 'dart:convert';
+import 'dart:async';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
+import 'package:model/notification/notification_payload.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
@@ -139,6 +143,40 @@ void main() {
     tearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null);
+    });
+
+    test('generic fallback uses fixed text, rich id and email tap payload with sound', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      try {
+        await LocalNotificationManager.instance.showGenericNewMailNotification(emailId: 'synthetic-e1');
+        final args = calls.single.arguments as Map;
+        expect(args['id'], 'synthetic-e1'.hashCode);
+        expect(args['title'], 'NumberInbox');
+        expect(args['body'], 'You have new mail');
+        final android = args['platformSpecifics'] as Map;
+        expect(android['silent'], isFalse);
+        expect(NotificationPayload.fromJson(jsonDecode(args['payload'] as String) as Map<String, dynamic>).emailId?.id.value, 'synthetic-e1');
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
+
+    test('cancelAll clears notifications and swallows platform errors', () async {
+      await LocalNotificationManager.instance.cancelAll();
+      expect(calls.single.method, 'cancelAll');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => throw PlatformException(code: 'failure'));
+      await LocalNotificationManager.instance.cancelAll();
+    });
+
+    testWidgets('cancelAll has a deadline when the platform does not reply', (tester) async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+        (_) => Completer<void>().future);
+      var completed = false;
+      final cleanup = LocalNotificationManager.instance.cancelAll().then((_) => completed = true);
+      await tester.pump(const Duration(seconds: 2));
+      await cleanup;
+      expect(completed, isTrue);
     });
 
     test('posts an escaped, private notification', () async {

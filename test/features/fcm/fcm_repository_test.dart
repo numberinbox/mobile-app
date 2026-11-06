@@ -1,6 +1,11 @@
 import 'package:core/data/model/source_type/data_source_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:jmap_dart_client/jmap/core/properties/properties.dart';
+import 'package:jmap_dart_client/jmap/core/state.dart';
+import 'package:jmap_dart_client/jmap/core/unsigned_int.dart';
+import 'package:model/email/email_property.dart';
+import 'package:tmail_ui_user/features/thread/domain/model/email_response.dart';
 import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
 import 'package:mockito/annotations.dart';
 import 'package:mockito/mockito.dart';
@@ -141,6 +146,18 @@ void main() {
       expect(result, hasLength(1));
       expect(result.first.pushNotificationDeactivated, isTrue);
       verify(mailboxDataSource.getAllMailbox(sessionFixture, accountIdFixture)).called(1);
+    });
+
+    test('getCurrentEmailState asks for one email id and returns the Email/get state', () async {
+      when(threadDataSource.getAllEmail(
+        sessionFixture,
+        accountIdFixture,
+        limit: UnsignedInt(1),
+        properties: Properties({EmailProperty.id}),
+      )).thenAnswer((_) async => EmailsResponse(state: State('server-state')));
+
+      expect(await fcmRepository.getCurrentEmailState(sessionFixture, accountIdFixture),
+          State('server-state'));
     });
   });
 }

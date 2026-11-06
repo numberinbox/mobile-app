@@ -26,6 +26,8 @@ class FcmUtils {
 
   static FcmUtils get instance => _instance;
 
+  static const platformPushDeadline = Duration(seconds: 20);
+
   static const String hashCodeKey = 'TwakeMail';
   static final List<TypeName> defaultFirebaseRegistrationTypes = [
     TypeName.emailType,

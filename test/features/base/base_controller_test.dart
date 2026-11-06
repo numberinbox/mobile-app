@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'package:dio/dio.dart' show CancelToken;
 import 'package:core/presentation/state/success.dart';
@@ -413,6 +414,24 @@ void main() {
       when(mockTwakeAppManager.runClearDataOnce(any)).thenAnswer(
         (invocation) => (invocation.positionalArguments[0] as Future<void> Function())());
     });
+
+    for (final fails in [false, true]) {
+      test('logout cancels notifications and clears credentials (cancel fails=$fails)', () async {
+        const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+        final calls = <String>[];
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+          calls.add(call.method);
+          if (fails) throw PlatformException(code: 'synthetic-failure');
+          return null;
+        });
+        addTearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+        when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+        await mockBaseController.clearAllData();
+        expect(calls, ['cancelAll']);
+        verify(mockDeleteCredentialInteractor.execute()).called(1);
+        verify(mockCachingManager.clearAll()).called(1);
+      });
+    }
 
     test('OIDC session: deletes via deleteAuthorityOidcInteractor, not deleteCredentialInteractor', () async {
       when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.oidc);

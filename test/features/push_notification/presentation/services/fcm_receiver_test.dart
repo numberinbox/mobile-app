@@ -9,6 +9,10 @@ import 'package:core/utils/logging/log_record.dart';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/core/state.dart';
 import 'package:jmap_dart_client/jmap/core/user_name.dart';
@@ -20,6 +24,7 @@ import 'package:model/account/personal_account.dart';
 import 'package:model/email/presentation_email.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/get_session_interactor.dart';
+import 'package:tmail_ui_user/features/login/domain/exceptions/authentication_exception.dart';
 import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/get_email_changes_to_push_notification_state.dart';
@@ -52,6 +57,7 @@ const _platformPushMessage = RemoteMessage(
 final _userName = UserName('alice@domain.tld');
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   late MockGetAuthenticatedAccountInteractor mockGetAuthenticatedAccountInteractor;
   late MockGetSessionInteractor mockGetSessionInteractor;
   late MockGetStoredEmailDeliveryStateInteractor mockGetStoredEmailDeliveryStateInteractor;
@@ -129,6 +135,134 @@ void main() {
         refreshSentryConfiguration: (_) async {},
         invalidateSentryConfiguration: (_) async {},
       );
+
+  group('rich platform background delivery', () {
+    setUp(() => debugDefaultTargetPlatformOverride = TargetPlatform.android);
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    for (final systemDisplayed in [false, true]) {
+      for (final outcome in PlatformPushOutcome.values) {
+        test('WHEN system displayed=$systemDisplayed and outcome=$outcome THEN fallback follows policy', () async {
+          final fallbacks = <String>[];
+          bool? display;
+          await handleFirebaseBackgroundMessage(
+            RemoteMessage(data: platformMailDeliveredPushPayload,
+              notification: systemDisplayed ? const RemoteNotification(title: 'NumberInbox') : null),
+            ensureBackgroundInitialized: () async {},
+            refreshSentryConfiguration: (_) async {},
+            processPlatformPush: (data, {required displayNotification}) async {
+              display = displayNotification;
+              expect(data, platformMailDeliveredPushPayload);
+              return outcome;
+            },
+            showGenericNotification: (id) async => fallbacks.add(id),
+          );
+          expect(display, !systemDisplayed);
+          expect(fallbacks, !systemDisplayed && outcome == PlatformPushOutcome.failed
+              ? [platformMailDeliveredPushPayload['emailId']] : isEmpty);
+        });
+      }
+    }
+
+    test('WHEN iOS receives a background push THEN only the extension owns the rich cursor', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) async* {
+        yield dartz.Right<Failure, Success>(GetCredentialViewState(
+          Uri.parse('https://example.com'), _userName, Password('synthetic'),
+          PersonalAccount('synthetic', AuthenticationType.basic, isSelected: true,
+            accountId: AccountFixtures.aliceAccountId, userName: _userName, apiUrl: 'https://example.com/jmap'),
+          stateChange: null));
+      });
+      expect(await FcmMessageController.instance.handlePushPayload(platformMailDeliveredPushPayload), PlatformPushOutcome.completed);
+      verifyNever(mockGetStoredEmailDeliveryStateInteractor.execute(any, any));
+      verifyNever(mockGetEmailChangesToPushNotificationInteractor.execute(any, any, any, any,
+        propertiesCreated: anyNamed('propertiesCreated'), propertiesUpdated: anyNamed('propertiesUpdated')));
+    });
+
+    test('WHEN logout happens during the mail fetch THEN no rich content is displayed', () async {
+      var authenticated = true;
+      when(mockGetAuthenticatedAccountInteractor.execute()).thenAnswer((_) async* {
+        if (!authenticated) {
+          yield dartz.Left<Failure, Success>(GetCredentialFailure(NotFoundAuthenticationInfoCache()));
+          return;
+        }
+        yield dartz.Right<Failure, Success>(GetCredentialViewState(
+          Uri.parse('https://example.com'), _userName, Password('synthetic'),
+          PersonalAccount('synthetic', AuthenticationType.basic, isSelected: true,
+            accountId: AccountFixtures.aliceAccountId), stateChange: null));
+      });
+      when(mockGetEmailChangesToPushNotificationInteractor.execute(any, any, any, any,
+        propertiesCreated: anyNamed('propertiesCreated'), propertiesUpdated: anyNamed('propertiesUpdated')))
+        .thenAnswer((_) async* {
+          authenticated = false;
+          yield dartz.Right<Failure, Success>(GetEmailChangesToPushNotificationSuccess(
+            AccountFixtures.aliceAccountId, _userName,
+            [PresentationEmail(id: EmailId(Id('synthetic-email')), subject: 'private-subject')],
+            newState: State('real-state')));
+        });
+      const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+      final shown = <Map>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+        if (call.method == 'show') shown.add(call.arguments as Map);
+        return null;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(channel, null));
+      final fallbacks = <String>[];
+      await handleFirebaseBackgroundMessage(_platformPushMessage,
+        ensureBackgroundInitialized: () async {}, refreshSentryConfiguration: (_) async {},
+        showGenericNotification: (id) async => fallbacks.add(id));
+      expect(shown, isEmpty);
+      expect(fallbacks, isEmpty, reason: 'a signed-out phone must not be told about mail');
+      verifyNever(mockStoreEmailDeliveryStateInteractor.execute(any, any, any));
+    });
+
+    test('WHEN initialization fails THEN fallback still has the parsed email ID', () async {
+      final ids = <String>[];
+      await handleFirebaseBackgroundMessage(_platformPushMessage,
+        ensureBackgroundInitialized: () async => throw StateError('synthetic failure'),
+        showGenericNotification: (id) async => ids.add(id));
+      expect(ids, [platformMailDeliveredPushPayload['emailId']]);
+    });
+
+    test('WHEN initialization exceeds the deadline THEN fallback returns without late dispatch', () async {
+      final initialization = Completer<void>();
+      var dispatched = false;
+      var fallbacks = 0;
+      await handleFirebaseBackgroundMessage(_platformPushMessage,
+        ensureBackgroundInitialized: () => initialization.future,
+        platformPushDeadline: const Duration(milliseconds: 5),
+        refreshSentryConfiguration: (_) async {},
+        processPlatformPush: (_, {required displayNotification}) async {
+          dispatched = true;
+          return PlatformPushOutcome.completed;
+        },
+        showGenericNotification: (_) async { fallbacks++; });
+      expect(fallbacks, 1);
+      initialization.complete();
+      await pumpEventQueue();
+      expect(dispatched, isFalse);
+    });
+
+    test('WHEN processing never completes and fallback throws THEN handler returns without rethrow', () async {
+      await handleFirebaseBackgroundMessage(_platformPushMessage,
+        ensureBackgroundInitialized: () async {},
+        refreshSentryConfiguration: (_) async {},
+        platformPushDeadline: const Duration(milliseconds: 5),
+        processPlatformPush: (_, {required displayNotification}) => Completer<PlatformPushOutcome>().future,
+        showGenericNotification: (_) async => throw StateError('synthetic failure'));
+    });
+
+    test('WHEN legacy payload arrives THEN no platform processor or fallback runs', () async {
+      var legacy = 0;
+      await handleFirebaseBackgroundMessage(const RemoteMessage(data: {'legacy': 'state'}),
+        ensureBackgroundInitialized: () async {},
+        refreshSentryConfiguration: (_) async {},
+        handleMessage: (_) { legacy++; },
+        processPlatformPush: (_, {required displayNotification}) async => throw StateError('unexpected'),
+        showGenericNotification: (_) async => fail('unexpected fallback'));
+      expect(legacy, 1);
+    });
+  });
 
   test('refreshes Sentry consent for every background message', () async {
     var initializationCalls = 0;
@@ -264,6 +398,42 @@ void main() {
       expect(callbackCompleted, isTrue);
     },
   );
+
+  group('background failure logging', () {
+    late _CapturingLogHandler logs;
+    const platformMessage = RemoteMessage(data: platformMailDeliveredPushPayload);
+
+    setUp(() {
+      logs = _CapturingLogHandler();
+      AppLoggerRegistry.instance.registerHandler(logs);
+    });
+
+    tearDown(() => AppLoggerRegistry.instance.resetForTesting());
+
+    test('WHEN background processing throws THEN the exception and stack are logged as an error', () async {
+      final failure = StateError('initialization failed');
+      await handleFirebaseBackgroundMessage(
+        platformMessage,
+        ensureBackgroundInitialized: () async => throw failure,
+        showGenericNotification: (_) async {},
+      );
+      final errors = logs.records.where((r) => r.level == Level.error && identical(r.exception, failure));
+      expect(errors, isNotEmpty);
+      expect(errors.first.stackTrace, isNotNull);
+    });
+
+    test('WHEN posting the fallback throws THEN the exception and stack are logged as an error', () async {
+      final failure = StateError('plugin failed');
+      await handleFirebaseBackgroundMessage(
+        platformMessage,
+        ensureBackgroundInitialized: () async => throw StateError('initialization failed'),
+        showGenericNotification: (_) async => throw failure,
+      );
+      final errors = logs.records.where((r) => r.level == Level.error && identical(r.exception, failure));
+      expect(errors, isNotEmpty);
+      expect(errors.first.stackTrace, isNotNull);
+    });
+  });
 
   group('token acquisition logging contract (M3)', () {
     _CapturingLogHandler logs = _CapturingLogHandler();

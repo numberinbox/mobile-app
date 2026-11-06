@@ -25,7 +25,7 @@ class JmapClient {
         tokenEndpointUrl: String?,
         oidcScopes: [String]?,
         isTWP: Bool?,
-        onComplete: @escaping ([Email], [Error]) -> Void
+        onComplete: @escaping ([Email], [Error], String?) -> Void
     ) {
         if (authenticationType == AuthenticationType.basic) {
             authentication = AuthenticationCredential(
@@ -68,14 +68,14 @@ class JmapClient {
     
     private func handleGetEmailChanges(apiUrl: String, 
                                        accountId: String,
-                                       onComplete: @escaping ([Email], [Error]) -> Void) {
+                                       onComplete: @escaping ([Email], [Error], String?) -> Void) {
         guard hasMoreChanges, let sinceState = currentSinceState else {
             if !self.totalListEmails.isEmpty {
                 let sortedListEmails = self.sortListEmails(currentListEmails: self.totalListEmails)
                 self.totalListEmails = sortedListEmails
             }
             
-            return onComplete(self.totalListEmails, self.listErrors)
+            return onComplete(self.totalListEmails, self.listErrors, self.listErrors.isEmpty ? self.currentSinceState : nil)
         }
         
         let jmapRequestObject = JmapRequestGenerator.shared.createEmailChangesRequest(
@@ -89,12 +89,11 @@ class JmapClient {
             headers: HTTPHeaders([jmapHeader]),
             interceptor: authenticationInterceptor,
             onSuccess: { (data: JmapResponseObject<Email>) in
-                if let response = data.parsing(methodName: JmapConstants.EMAIL_GET_METHOD_NAME, methodCallId: "c1") {
-                    if let listEmail = response.list, 
-                       !listEmail.isEmpty {
-                        self.totalListEmails.append(contentsOf: listEmail)
-                    }
-                    self.hasMoreChanges = response.hasMoreChanges ?? false
+                if data.isEmailChangesStateExpired {
+                    self.handleExpiredEmailState(apiUrl: apiUrl, accountId: accountId, onComplete: onComplete)
+                } else if let response = data.emailChangesResult {
+                    self.totalListEmails.append(contentsOf: response.emails)
+                    self.hasMoreChanges = response.hasMoreChanges
                     self.currentSinceState = response.newState
                     
                     self.handleGetEmailChanges(apiUrl: apiUrl, accountId: accountId, onComplete: onComplete)
@@ -108,7 +107,7 @@ class JmapClient {
                         self.totalListEmails = sortedListEmails
                     }
                     
-                    onComplete(self.totalListEmails, self.listErrors)
+                    onComplete(self.totalListEmails, self.listErrors, self.listErrors.isEmpty ? self.currentSinceState : nil)
                 }
             },
             onFailure: { error in
@@ -121,11 +120,35 @@ class JmapClient {
                     self.totalListEmails = sortedListEmails
                 }
                 
-                onComplete(self.totalListEmails, self.listErrors)
+                onComplete(self.totalListEmails, self.listErrors, self.listErrors.isEmpty ? self.currentSinceState : nil)
             }
         )
     }
     
+    /// Reports the current server state so the caller can move its cursor. The
+    /// mail behind this push stays unannounced, so an error is reported too.
+    private func handleExpiredEmailState(apiUrl: String,
+                                         accountId: String,
+                                         onComplete: @escaping ([Email], [Error], String?) -> Void) {
+        hasMoreChanges = false
+        currentSinceState = nil
+        listErrors.append(JmapExceptions.emailStateExpired)
+
+        AlamofireService.shared.post(
+            url: apiUrl,
+            payloadData: JmapRequestGenerator.shared.createCurrentEmailStateRequest(accountId: accountId)?.toData(),
+            headers: HTTPHeaders([jmapHeader]),
+            interceptor: authenticationInterceptor,
+            onSuccess: { (data: JmapResponseObject<Email>) in
+                onComplete(self.totalListEmails, self.listErrors, data.currentEmailState)
+            },
+            onFailure: { error in
+                self.listErrors.append(error)
+                onComplete(self.totalListEmails, self.listErrors, nil)
+            }
+        )
+    }
+
     private func sortListEmails(currentListEmails: [Email]) -> [Email] {
         let sortedListEmails = currentListEmails.sorted(by: { (email1, email2) -> Bool in
             if let date1 = email1.receivedAt?.convertUTCDateToLocalDate(),

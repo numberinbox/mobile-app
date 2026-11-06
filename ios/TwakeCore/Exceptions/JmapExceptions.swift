@@ -6,6 +6,7 @@ class JmapExceptions: Error, Equatable {
     }
     
     static let notFoundNewEmails = JmapExceptions(value: "Not found news emails")
+    static let emailStateExpired = JmapExceptions(value: "Email state expired")
     
     var value: String?
     

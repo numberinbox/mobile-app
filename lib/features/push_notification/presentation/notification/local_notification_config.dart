@@ -22,6 +22,7 @@ class LocalNotificationConfig {
       android: AndroidNotificationDetails(
         NOTIFICATION_CHANNEL,
         NOTIFICATION_CHANNEL,
+        icon: 'notification_icon',
         groupKey: groupId,
         // Email subject, sender and preview are attacker-controlled and
         // confidential: honour the "hide sensitive content" lock screen

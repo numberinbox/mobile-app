@@ -207,6 +207,11 @@ Required RED/characterization cases:
 
 ### M5 — Enforce notification, tap and dedup semantics
 
+**2026-11-05:** The owner restored rich on-device notifications for platform pushes.
+[ADR 0122](adr/0122-rich-platform-mail-notifications.md) supersedes the generic-only
+display bullets below; all account-isolation, tap, awaited-processing and dedup
+requirements remain. The original M5 requirements are retained as history.
+
 Follow the context table in section 2. Carry foreground/background/tap context and
 `RemoteMessage.notification` metadata through the SDK entry points; a data map alone
 cannot establish whether Android already displayed a notification.

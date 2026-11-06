@@ -6,6 +6,9 @@ import 'package:core/utils/app_logger.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
+import 'package:jmap_dart_client/jmap/mail/email/email.dart';
+import 'package:jmap_dart_client/jmap/core/id.dart';
+import 'package:model/notification/notification_payload.dart';
 import 'package:model/extensions/email_address_extension.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/notification/local_notification_config.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
@@ -183,6 +186,23 @@ class LocalNotificationManager {
     if (name.isEmpty || name == email) return email;
     if (email.isEmpty) return name;
     return '$email ($name)';
+  }
+
+  Future<void> showGenericNewMailNotification({required String emailId}) {
+    return showPushNotification(
+      id: emailId,
+      title: 'NumberInbox',
+      message: 'You have new mail',
+      payload: NotificationPayload(emailId: EmailId(Id(emailId))).encodeToString,
+    );
+  }
+
+  Future<void> cancelAll() async {
+    try {
+      await _localNotificationsPlugin.cancelAll().timeout(const Duration(seconds: 2));
+    } catch (_) {
+      logWarning('LocalNotificationManager::cancelAll: notification cleanup failed');
+    }
   }
 
   Future<void> removeNotification(String id) async {

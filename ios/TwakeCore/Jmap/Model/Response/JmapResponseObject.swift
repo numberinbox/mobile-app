@@ -48,7 +48,9 @@ enum ResponseInvocation<T: Codable>: Codable {
 }
 
 struct MethodResponse<T: Codable>: Codable {
-    let accountId: String
+    let accountId: String?
+    // Set only on an "error" invocation, which has no accountId.
+    let type: String?
     let oldState: String?
     let newState: String?
     let hasMoreChanges: Bool?
@@ -95,5 +97,46 @@ extension JmapResponseObject {
         default:
             return false
         }
+    }
+}
+
+extension JmapResponseObject {
+    private func exactResponse(_ method: String, _ callId: String) -> MethodResponse<T>? {
+        guard let invocation = methodResponses.first(where: { values in
+            guard values.count == 3,
+                  case .string(let name) = values[0],
+                  case .string(let id) = values[2] else { return false }
+            return name == method && id == callId
+        }) else { return nil }
+        return invocation[1].response
+    }
+
+    /// The since-state is older than the server's change history. Retrying can
+    /// never succeed, so the cursor has to move to the current server state.
+    var isEmailChangesStateExpired: Bool {
+        exactResponse(JmapConstants.ERROR_METHOD_NAME, "c0")?.type == JmapConstants.CANNOT_CALCULATE_CHANGES
+    }
+
+    var currentEmailState: String? {
+        guard let state = exactResponse(JmapConstants.EMAIL_GET_METHOD_NAME, "c0")?.state,
+              !state.isEmpty else { return nil }
+        return state
+    }
+}
+
+/// Cursor and paging belong to Email/changes (c0), never Email/get (c1).
+struct JmapEmailChangesResult<T: Codable> {
+    let emails: [T]
+    let newState: String
+    let hasMoreChanges: Bool
+}
+
+extension JmapResponseObject {
+    var emailChangesResult: JmapEmailChangesResult<T>? {
+        guard let changes = exactResponse(JmapConstants.EMAIL_CHANGES_METHOD_NAME, "c0"),
+              let state = changes.newState, !state.isEmpty,
+              let more = changes.hasMoreChanges,
+              let emails = exactResponse(JmapConstants.EMAIL_GET_METHOD_NAME, "c1")?.list else { return nil }
+        return JmapEmailChangesResult(emails: emails, newState: state, hasMoreChanges: more)
     }
 }

@@ -7,6 +7,13 @@ class NotificationService: UNNotificationServiceExtension {
     private let newEmailDefaultMessageKey: String = "newMessageInTwakeMail"
     private let newNotificationDefaultMessageKey: String = "newNotificationInTwakeMail"
 
+    // The system creates one service per notification, in one shared process.
+    // A client per service keeps concurrent pushes from mixing fetch state.
+    private let platformJmapClient = JmapClient()
+
+    private var isPlatformPush = false
+    private var originalPlatformContent: UNMutableNotificationContent?
+
     private var handler: ((UNNotificationContent) -> Void)?
     private var modifiedContent: UNMutableNotificationContent?
     
@@ -27,6 +34,15 @@ class NotificationService: UNNotificationServiceExtension {
         if isAppActive == true {
             self.modifiedContent?.userInfo = request.content.userInfo.merging(["data": request.content.userInfo], uniquingKeysWith: {(_, new) in new})
             contentHandler(self.modifiedContent ?? request.content)
+            return
+        }
+
+        if let payload = request.content.userInfo as? [String: Any],
+           let push = NumberInboxPushPayload(userInfo: payload) {
+            isPlatformPush = true
+            modifiedContent?.userInfo[JmapConstants.EMAIL_ID] = push.emailId
+            originalPlatformContent = modifiedContent?.mutableCopy() as? UNMutableNotificationContent
+            handlePlatformPush(push)
             return
         }
 
@@ -52,10 +68,51 @@ class NotificationService: UNNotificationServiceExtension {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
         SentryManager.shared.capture(message: "NSE: Service Extension Time Expired (Timeout)", flushTimeout: 0.3)
-        self.showDefaultNotification(message: NSLocalizedString(self.newNotificationDefaultMessageKey, comment: "Localizable"))
+        if isPlatformPush {
+            modifiedContent = originalPlatformContent
+        } else {
+            self.showDefaultNotification(message: NSLocalizedString(self.newNotificationDefaultMessageKey, comment: "Localizable"))
+        }
         self.notify()
     }
     
+    private func handlePlatformPush(_ push: NumberInboxPushPayload) {
+        guard let session = keychainController.retrieveSharingSessionFromKeychain(accountId: push.stalwartAccountId),
+              session.tokenOIDC != nil || session.basicAuth?.isEmpty == false,
+              let state = session.emailDeliveryState ?? session.emailState else {
+            SentryManager.shared.capture(message: "NSE: Platform session unavailable")
+            return notify()
+        }
+        platformJmapClient.getNewEmails(
+            apiUrl: session.apiUrl, accountId: session.accountId, sinceState: state,
+            authenticationType: session.authenticationType, tokenOidc: session.tokenOIDC,
+            basicAuth: session.basicAuth, tokenEndpointUrl: session.tokenEndpoint,
+            oidcScopes: session.oidcScopes, isTWP: session.isTWP,
+            onComplete: { (emails, errors, newState) in
+                // Expiry may have completed the handler while the request was in flight.
+                guard self.handler != nil else { return }
+                guard let active = self.keychainController.retrieveSharingSessionFromKeychain(accountId: session.accountId),
+                      active.basicAuth == session.basicAuth,
+                      active.tokenOIDC?.token == session.tokenOIDC?.token else {
+                    SentryManager.shared.capture(message: "NSE: Platform session ended")
+                    return self.notify()
+                }
+                if let newState {
+                    self.keychainController.updateEmailDeliveryStateToKeychain(
+                        accountId: session.accountId, newEmailDeliveryState: newState)
+                }
+                if !errors.isEmpty && emails.isEmpty {
+                    SentryManager.shared.capture(message: "NSE: Platform fetch failed")
+                    return self.notify()
+                }
+                let filtered = self.filterEmailsToPushNotification(
+                    emails: emails, mailboxIdsBlockNotification: active.mailboxIdsBlockNotification ?? [])
+                if filtered.isEmpty { return self.discard() }
+                self.showListNotification(emails: filtered)
+            }
+        )
+    }
+
     @available(iOSApplicationExtension 13.0.0, *)
     private func handlePushNotificationForNewEmail(payloadData: [String: Any]) async {
         self.handleGetNewEmails(payloadData: payloadData)
@@ -108,7 +165,7 @@ class NotificationService: UNNotificationServiceExtension {
                 tokenEndpointUrl: keychainSharingSession.tokenEndpoint,
                 oidcScopes: keychainSharingSession.oidcScopes,
                 isTWP: keychainSharingSession.isTWP,
-                onComplete: { (emails, errors) in
+                onComplete: { (emails, errors, _) in
                     errors.forEach { SentryManager.shared.capture(error: $0) }
 
                     if emails.isEmpty {
@@ -235,7 +292,10 @@ class NotificationService: UNNotificationServiceExtension {
     }
     
     private func discard() {
-        SentryManager.shared.capture(message: "NSE: modifiedContent nil, notification discarded")
+        // A platform push discards on purpose when its mail was already announced.
+        if !isPlatformPush {
+            SentryManager.shared.capture(message: "NSE: modifiedContent nil, notification discarded")
+        }
         handler?(UNNotificationContent())
         cleanUp()
     }
@@ -244,6 +304,8 @@ class NotificationService: UNNotificationServiceExtension {
         SentryManager.shared.clearUser()
         handler = nil
         modifiedContent = nil
+        originalPlatformContent = nil
+        isPlatformPush = false
     }
     
     deinit {

@@ -32,5 +32,12 @@ class GetEmailChangesToPushNotificationSuccess extends UIState {
 
 class GetEmailChangesToPushNotificationFailure extends FeatureFailure {
 
-  GetEmailChangesToPushNotificationFailure(exception) : super(exception: exception);
+  /// The current server state, present only when the since-state expired.
+  /// The delivery cursor moves to it so later pushes can use Email/changes.
+  final jmap.State? recoveredState;
+
+  GetEmailChangesToPushNotificationFailure(exception, {this.recoveredState}) : super(exception: exception);
+
+  @override
+  List<Object?> get props => [...super.props, recoveredState];
 }

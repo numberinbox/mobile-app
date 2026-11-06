@@ -1,6 +1,9 @@
 import 'dart:async';
 
 import 'package:core/utils/app_logger.dart';
+import 'package:core/utils/platform_info.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/local_notification_manager.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/utils/fcm_utils.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/model/numberinbox_push_message.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/controller/fcm_message_controller.dart';
@@ -29,39 +32,62 @@ Future<void> handleFirebaseBackgroundMessage(
   Future<void> Function(FcmSentrySetupCancellation cancellation)? invalidateSentryConfiguration,
   void Function(RemoteMessage)? handleMessage,
   Duration sentryRefreshTimeout = const Duration(seconds: 10),
+  Duration platformPushDeadline = FcmUtils.platformPushDeadline,
+  Future<PlatformPushOutcome> Function(Map<String, dynamic>, {required bool displayNotification})? processPlatformPush,
+  Future<void> Function(String emailId)? showGenericNotification,
 }) async {
-  try {
+  final push = NumberInboxPushMessage.tryParseFromFcmData(message.data);
+  var expired = false;
+  Future<PlatformPushOutcome> process() async {
     await (ensureBackgroundInitialized ?? _ensureBackgroundInitialized)();
+    if (expired) return PlatformPushOutcome.failed;
     await _refreshSentryForBackgroundMessage(
       refreshSentryConfiguration: refreshSentryConfiguration,
       invalidateSentryConfiguration: invalidateSentryConfiguration,
       timeout: sentryRefreshTimeout,
     );
+    if (expired) return PlatformPushOutcome.failed;
     if (handleMessage != null) {
       handleMessage(message);
-      return;
+      return PlatformPushOutcome.completed;
     }
-    if (await _handlePlatformPushMessage(message)) return;
+    if (push != null) {
+      return (processPlatformPush ??
+          (data, {required displayNotification}) => FcmMessageController.instance.handlePushPayload(
+            data, displayNotification: displayNotification))(
+          message.data, displayNotification: message.notification == null);
+    }
     FcmService.instance.handleFirebaseBackgroundMessage(message);
+    return PlatformPushOutcome.completed;
+  }
+
+  var outcome = PlatformPushOutcome.failed;
+  try {
+    outcome = await process().timeout(platformPushDeadline, onTimeout: () {
+      expired = true;
+      return PlatformPushOutcome.failed;
+    });
   } catch (e, st) {
     logError(
-      'FcmReceiver::handleFirebaseBackgroundMessage: throw exception',
+      'FcmReceiver::handleFirebaseBackgroundMessage: background processing failed',
       exception: e,
       stackTrace: st,
     );
   }
-}
-
-/// NumberInbox platform pushes are processed inline and awaited: the Android
-/// background isolate may be torn down as soon as this callback returns, so a
-/// fire-and-forget stream handoff would lose the account lookup and the JMAP
-/// work. Returns true when the message was such a push.
-Future<bool> _handlePlatformPushMessage(RemoteMessage message) async {
-  final data = message.data;
-  if (data.isEmpty) return false;
-  if (NumberInboxPushMessage.tryParseFromFcmData(data) == null) return false;
-  await FcmMessageController.instance.handlePushPayload(data);
-  return true;
+  if (outcome == PlatformPushOutcome.failed && push != null &&
+      PlatformInfo.isAndroid && message.notification == null) {
+    try {
+      await (showGenericNotification ??
+          (emailId) => LocalNotificationManager.instance.showGenericNewMailNotification(emailId: emailId))(
+        push.emailId);
+    } catch (e, st) {
+      logError(
+        'FcmReceiver::handleFirebaseBackgroundMessage: generic notification failed',
+        exception: e,
+        stackTrace: st,
+      );
+    }
+  }
 }
 
 Future<void> _refreshSentryForBackgroundMessage({

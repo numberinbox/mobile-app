@@ -1,3 +1,4 @@
+import 'package:flutter/services.dart';
 import 'dart:async';
 
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
@@ -289,6 +290,8 @@ void main() {
   }
 
   setUp(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), (_) async => null);
     welcomeControllerCreations = 0;
     welcomeControllerClosures = 0;
     dio = Dio(BaseOptions(baseUrl: 'http://localhost:18080'));
@@ -300,6 +303,8 @@ void main() {
   });
 
   tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger.setMockMethodCallHandler(
+      const MethodChannel('dexterous.com/flutter/local_notifications'), null);
     Get.reset();
   });
 

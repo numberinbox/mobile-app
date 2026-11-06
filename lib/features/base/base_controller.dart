@@ -730,6 +730,7 @@ abstract class BaseController extends GetxController
 /// can run the exact same teardown, still serialised by callers through
 /// [TwakeAppManager.runClearDataOnce].
 Future<void> clearLocalSessionData() async {
+  await LocalNotificationManager.instance.cancelAll();
   await _clearSentryForSessionEnd();
   final authorizationInterceptors = Get.find<AuthorizationInterceptors>();
   final cachingManager = Get.find<CachingManager>();

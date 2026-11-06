@@ -1,8 +1,8 @@
 /// Mirrors the FCM data map built by the platform's FcmPushGateway:
 /// data.put("schemaVersion", ...), data.put("eventType", "mail.delivered"),
 /// data.put("deliveryId", ...), data.put("stalwartAccountId", ...),
-/// data.put("emailId", ...). The visible notification text is fixed and the
-/// data payload holds opaque identifiers only.
+/// data.put("emailId", ...). The data payload holds opaque identifiers only.
+/// Rich content is fetched on-device; generic alerts remain the fallback.
 ///
 /// Neutral version-1 MailDelivered push payload: single source of truth for
 /// the mobile receive-path contract tests (platform ticket P9). If the

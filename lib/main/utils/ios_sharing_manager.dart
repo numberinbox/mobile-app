@@ -198,6 +198,12 @@ class IOSSharingManager {
     await _keychainSharingManager.saveSharingSession(newKeychain);
   }
 
+  Future<void> updateEmailDeliveryStateInKeyChain(AccountId accountId, String state) async {
+    final stored = await getKeychainSharingSession(accountId);
+    if (stored == null) return;
+    await _keychainSharingManager.saveSharingSession(stored.updating(emailDeliveryState: state));
+  }
+
   Future<bool> isExistMailboxIdsBlockNotificationInKeyChain(AccountId accountId) async {
     try {
       final keychainSharingStored = await getKeychainSharingSession(accountId);

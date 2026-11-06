@@ -9,6 +9,7 @@ import 'package:tmail_ui_user/features/push_notification/domain/state/get_email_
 import 'package:tmail_ui_user/features/push_notification/domain/usecases/get_email_changes_to_push_notification_interactor.dart';
 import 'package:tmail_ui_user/features/thread/data/model/email_change_response.dart';
 import 'package:tmail_ui_user/features/thread/domain/model/email_response.dart';
+import 'package:tmail_ui_user/main/exceptions/remote/method_level_exception.dart';
 
 import '../../../../fixtures/account_fixtures.dart';
 import '../../../../fixtures/session_fixtures.dart';
@@ -34,8 +35,72 @@ class _FakeFCMRepository implements FCMRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _ThrowingFCMRepository implements FCMRepository {
+  final Object changesError;
+  final Future<jmap.State?> Function()? currentState;
+  int currentStateCalls = 0;
+
+  _ThrowingFCMRepository(this.changesError, {this.currentState});
+
+  @override
+  Future<EmailsResponse> getEmailChangesToPushNotification(
+    Session session,
+    AccountId accountId,
+    jmap.State currentState, {
+    EmailChangesProperties? properties,
+  }) async =>
+      throw changesError;
+
+  @override
+  Future<jmap.State?> getCurrentEmailState(Session session, AccountId accountId) {
+    currentStateCalls++;
+    return currentState!();
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   final userName = UserName('alice@domain.tld');
+
+  Future<GetEmailChangesToPushNotificationFailure> failureFrom(FCMRepository repository) async {
+    final states = await GetEmailChangesToPushNotificationInteractor(repository)
+        .execute(
+          SessionFixtures.aliceSession,
+          AccountFixtures.aliceAccountId,
+          userName,
+          StateFixtures.currentEmailState,
+        )
+        .toList();
+    return states.last.fold((failure) => failure, (_) => fail('expected a failure'))
+        as GetEmailChangesToPushNotificationFailure;
+  }
+
+  test('WHEN the since-state expired THEN the failure carries the current server state', () async {
+    final failure = await failureFrom(_ThrowingFCMRepository(
+      CannotCalculateChangesMethodResponseException(),
+      currentState: () async => jmap.State('server-state'),
+    ));
+    expect(failure.exception, isA<CannotCalculateChangesMethodResponseException>());
+    expect(failure.recoveredState, jmap.State('server-state'));
+  });
+
+  test('WHEN the since-state expired and the state lookup fails THEN the failure has no state', () async {
+    final failure = await failureFrom(_ThrowingFCMRepository(
+      CannotCalculateChangesMethodResponseException(),
+      currentState: () async => throw Exception('offline'),
+    ));
+    expect(failure.exception, isA<CannotCalculateChangesMethodResponseException>());
+    expect(failure.recoveredState, isNull);
+  });
+
+  test('WHEN Email/changes fails for another reason THEN the server state is not fetched', () async {
+    final repository = _ThrowingFCMRepository(Exception('offline'));
+    final failure = await failureFrom(repository);
+    expect(failure.recoveredState, isNull);
+    expect(repository.currentStateCalls, 0);
+  });
 
   test(
     'should emit a growable email list when the JMAP response has no emails '
