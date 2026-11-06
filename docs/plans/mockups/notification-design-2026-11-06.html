@@ -1,0 +1,116 @@
+<div id="ni-notification-design">
+  <div class="viz-carousel viz-dotted-background" aria-label="NumberInbox notification designs">
+    <section data-variant="Layout fix" aria-label="Proposed collapsed and expanded notification">
+      <div class="ni-stage">
+        <div class="ni-label">FIRST RELEASE · COLLAPSED</div>
+        <article class="ni-notice" aria-label="Collapsed mail notification">
+          <div class="ni-header"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-dot">·</span><span>3:06 PM</span><i data-lucide="chevron-down" aria-hidden="true"></i></div>
+          <div class="ni-content"><strong class="ni-sender" data-sender>alex@example.com</strong><div class="ni-subject ni-ellipsis">Your weekend plans</div></div>
+        </article>
+        <div class="ni-label ni-later">FIRST RELEASE · EXPANDED</div>
+        <article class="ni-notice" aria-label="Expanded mail notification">
+          <div class="ni-header"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-dot">·</span><span>3:06 PM</span><i data-lucide="chevron-up" aria-hidden="true"></i></div>
+          <div class="ni-content"><strong class="ni-sender" data-sender>alex@example.com</strong><div class="ni-identity" data-identity>Alex Morgan</div><div class="ni-subject">Your weekend plans</div><p class="ni-preview">Hi! Shall we meet for coffee on Saturday? I found a quiet place by the river that I think you’ll love.</p></div>
+        </article>
+      </div>
+    </section>
+    <section data-variant="Local avatar" aria-label="Optional locally generated initials avatar" hidden>
+      <div class="ni-stage">
+        <div class="ni-label">LATER PHASE · LOCAL INITIALS ONLY</div>
+        <article class="ni-notice">
+          <div class="ni-header"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-dot">·</span><span>3:06 PM</span><i data-lucide="chevron-up" aria-hidden="true"></i></div>
+          <div class="ni-content ni-with-avatar"><div class="ni-avatar" aria-label="Alex Morgan initials">AM</div><strong class="ni-sender" data-sender>alex@example.com</strong><div class="ni-identity" data-identity>Alex Morgan</div><div class="ni-subject">Your weekend plans</div><p class="ni-preview">Hi! Shall we meet for coffee on Saturday? I found a quiet place by the river that I think you’ll love.</p></div>
+        </article>
+        <div class="ni-label ni-later">NO SENDER NAME</div>
+        <article class="ni-notice">
+          <div class="ni-header"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-dot">·</span><span>3:04 PM</span></div>
+          <div class="ni-content ni-with-avatar"><div class="ni-avatar" aria-label="Sender initial">B</div><strong class="ni-sender">booking@example.org</strong><div class="ni-subject">Your reservation is confirmed</div><p class="ni-preview">We look forward to welcoming you on Saturday.</p></div>
+        </article>
+      </div>
+    </section>
+    <section data-variant="Quick actions · later" aria-label="Later notification actions concept" hidden>
+      <div class="ni-stage">
+        <div class="ni-label">LATER PHASE · REQUIRES ACTION HANDLERS</div>
+        <article class="ni-notice">
+          <div class="ni-header"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-dot">·</span><span>3:06 PM</span><i data-lucide="chevron-up" aria-hidden="true"></i></div>
+          <div class="ni-content"><strong class="ni-sender" data-sender>alex@example.com</strong><div class="ni-identity" data-identity>Alex Morgan</div><div class="ni-subject">Your weekend plans</div><p class="ni-preview">Hi! Shall we meet for coffee on Saturday? I found a quiet place by the river that I think you’ll love.</p></div>
+          <div class="ni-actions" aria-label="Notification action previews"><button type="button" class="cursor-interaction" data-demo="Mark as read">Mark as read</button><button type="button" class="cursor-interaction" data-demo="Archive">Archive</button><button type="button" class="cursor-interaction" data-demo="Reply">Reply</button></div>
+        </article>
+        <div class="ni-status" aria-live="polite">Preview only · no mailbox changes</div>
+      </div>
+    </section>
+    <section data-variant="Grouped mail" aria-label="Two messages grouped by account" hidden>
+      <div class="ni-stage">
+        <div class="ni-label">MULTIPLE MESSAGES · EXISTING GROUPING</div>
+        <div class="ni-group">
+          <div class="ni-group-title"><span class="ni-small" aria-hidden="true">N</span><span>NumberInbox</span><span class="ni-count">2 new emails</span></div>
+          <article class="ni-child"><div class="ni-header"><span>3:06 PM</span></div><strong class="ni-sender" data-sender>alex@example.com</strong><div class="ni-subject ni-ellipsis">Your weekend plans</div><p class="ni-preview ni-ellipsis">Shall we meet for coffee on Saturday?</p></article>
+          <article class="ni-child"><div class="ni-header"><span>3:04 PM</span></div><strong class="ni-sender">booking@example.org</strong><div class="ni-subject ni-ellipsis">Your reservation is confirmed</div><p class="ni-preview ni-ellipsis">We look forward to welcoming you.</p></article>
+        </div>
+      </div>
+    </section>
+    <section data-variant="iOS reference" aria-label="Existing iOS layout reference and protected lock screen" hidden>
+      <div class="ni-stage ni-ios-stage">
+        <div class="ni-label">iOS · EXISTING FIELD ORDER, SUBJECT TO DEVICE CHECK</div>
+        <article class="ni-notice ni-ios">
+          <div class="ni-header"><i data-lucide="mail" aria-hidden="true"></i><span>NUMBERINBOX</span><span class="ni-time">now</span></div>
+          <div class="ni-content"><strong class="ni-sender">Alex Morgan</strong><div class="ni-subject">Your weekend plans</div><p class="ni-preview">Hi! Shall we meet for coffee on Saturday? I found a quiet place by the river.</p></div>
+        </article>
+        <div class="ni-label ni-later">LOCK SCREEN · PREVIEWS HIDDEN</div>
+        <article class="ni-notice ni-ios"><div class="ni-header"><i data-lucide="mail" aria-hidden="true"></i><span>NUMBERINBOX</span><span class="ni-time">now</span></div><div class="ni-content"><strong class="ni-sender">Notification</strong><p class="ni-preview">Content hidden until unlocked</p></div></article>
+      </div>
+    </section>
+  </div>
+</div>
+<style>
+#ni-notification-design { font-family: Arial, sans-serif; color-scheme: light dark; --ni-fg:light-dark(#202124,#f3f3f3); --ni-muted:light-dark(#575b60,#c6c8ca); --ni-surface:light-dark(#f6f6f8,#383b3c); --ni-edge:light-dark(#d8dadd,#545657); --ni-shade:light-dark(#e9ecef,#272a2d); --ni-accent:light-dark(#0b7a94,#83d9e8); }
+#ni-notification-design .ni-stage { box-sizing:border-box; min-height:510px; padding:28px 18px; display:flex; flex-direction:column; justify-content:flex-start; max-width:560px; margin:auto; }
+#ni-notification-design .ni-label { color:var(--ni-muted); font-size:11px; letter-spacing:.06em; line-height:1.5; margin:0 0 12px; }
+#ni-notification-design .ni-later { margin-top:28px; }
+#ni-notification-design .ni-notice, #ni-notification-design .ni-group { background:var(--ni-surface); color:var(--ni-fg); border-radius:24px; padding:18px 20px; box-sizing:border-box; }
+#ni-notification-design .ni-header { display:flex; align-items:center; gap:7px; color:var(--ni-muted); font-size:12px; line-height:1.4; min-height:24px; }
+#ni-notification-design .ni-header svg { width:16px; height:16px; margin-left:auto; }
+#ni-notification-design .ni-header > i { margin-left:auto; }
+#ni-notification-design .ni-small { display:inline-flex; align-items:center; justify-content:center; width:23px; height:23px; flex-shrink:0; background:var(--ni-accent); color:light-dark(#ffffff,#083440); font-weight:700; border-radius:50%; font-size:14px; }
+#ni-notification-design .ni-content { margin-top:10px; min-width:0; }
+#ni-notification-design .ni-sender { display:block; font-size:17px; line-height:1.4; font-weight:600; overflow-wrap:anywhere; }
+#ni-notification-design .ni-subject { font-size:15px; font-weight:500; line-height:1.45; margin-top:3px; }
+#ni-notification-design .ni-preview { font-size:15px; line-height:1.45; color:var(--ni-muted); margin:5px 0 0; }
+#ni-notification-design .ni-identity { color:var(--ni-muted); font-size:13px; line-height:1.45; margin-bottom:7px; overflow-wrap:anywhere; }
+#ni-notification-design .ni-ellipsis { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+#ni-notification-design .ni-with-avatar { position:relative; padding-right:62px; min-height:48px; }
+#ni-notification-design .ni-avatar { position:absolute; right:0; top:2px; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; background:light-dark(#d9eef1,#244f5a); color:light-dark(#145666,#b7eaf0); font-size:17px; font-weight:600; }
+#ni-notification-design .ni-actions { display:flex; gap:12px; margin-top:15px; flex-wrap:wrap; }
+#ni-notification-design .ni-actions button { background:none; border:0; color:var(--ni-accent); font-family:inherit; font-size:14px; font-weight:600; padding:10px 0; min-height:44px; }
+#ni-notification-design .ni-actions button:focus-visible { outline:2px solid var(--ni-accent); outline-offset:3px; }
+#ni-notification-design .ni-status { font-size:12px; color:var(--ni-muted); padding-top:16px; }
+#ni-notification-design .ni-group-title { display:flex; align-items:center; gap:8px; font-size:13px; font-weight:500; }
+#ni-notification-design .ni-count { margin-left:auto; font-size:12px; color:var(--ni-muted); }
+#ni-notification-design .ni-child { border-top:1px solid var(--ni-edge); margin-top:14px; padding-top:8px; }
+#ni-notification-design .ni-child .ni-header { justify-content:flex-end; }
+#ni-notification-design .ni-ios { border-radius:20px; }
+#ni-notification-design .ni-ios .ni-header svg { margin-left:0; }
+#ni-notification-design .ni-time { margin-left:auto; }
+@media(max-width:400px) { #ni-notification-design .ni-stage { padding:20px 10px; min-height:570px; } #ni-notification-design .ni-notice, #ni-notification-design .ni-group { padding:16px; } #ni-notification-design .ni-with-avatar { padding-right:52px; } #ni-notification-design .ni-sender { font-size:16px; } }
+</style>
+<script>
+(() => {
+  const root = document.getElementById('ni-notification-design');
+  const state = { senderOrder: 'Address first' };
+  function render() {
+    root.querySelectorAll('[data-sender]').forEach(el => { el.textContent = state.senderOrder === 'Name first' ? 'Alex Morgan' : 'alex@example.com'; });
+    root.querySelectorAll('[data-identity]').forEach(el => { el.textContent = state.senderOrder === 'Name first' ? 'alex@example.com' : 'Alex Morgan'; });
+  }
+  root.querySelectorAll('[data-demo]').forEach(button => {
+    button.addEventListener('click', () => {
+      const action = button.dataset.demo;
+      root.querySelector('.ni-status').textContent = action === 'Reply' ? 'Preview only · opens the existing reply composer after authentication' : 'Preview only · ' + action + ' requires authenticated JMAP success';
+    });
+  });
+  render();
+  if (globalThis.Tweak) {
+    const tweak = new Tweak({ container: root, onChange: render });
+    tweak.addSelect(state, 'senderOrder', { label: 'Sender title', options: ['Address first', 'Name first'] });
+  }
+})();
+</script>

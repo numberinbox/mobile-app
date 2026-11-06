@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -177,6 +178,36 @@ void main() {
       await tester.pump(const Duration(seconds: 2));
       await cleanup;
       expect(completed, isTrue);
+    });
+
+    test('recognized action responses reach the existing stream and unknown actions are ignored', () async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.android;
+      final manager = LocalNotificationManager.instance;
+      final received = <NotificationResponse>[];
+      final subscription = manager.localNotificationStream.listen(received.add);
+      try {
+        await manager.setUp(groupId: 'synthetic-group');
+        for (final action in ['mark_read', 'archive', 'reply', 'delete']) {
+          final completed = Completer<void>();
+          ServicesBinding.instance.channelBuffers.push(
+            channel.name, const StandardMethodCodec().encodeMethodCall(MethodCall('didReceiveNotificationResponse', {
+              'notificationResponseType': NotificationResponseType.selectedNotificationAction.index,
+              'id': 1, 'actionId': action,
+              'payload': const NumberInboxNotificationTarget(accountId: 'a', emailId: 'e').encode(),
+            })), (_) => completed.complete());
+          await completed.future;
+        }
+        await pumpEventQueue();
+        expect(received.map((response) => response.actionId), ['mark_read', 'archive', 'reply']);
+      } finally { await subscription.cancel(); debugDefaultTargetPlatformOverride = null; }
+    });
+
+    test('group summary updates can be silent and have no sender image or actions', () async {
+      await LocalNotificationManager.instance.groupPushNotificationOnAndroid(groupId: 'synthetic-group', countNotifications: 2, silent: true);
+      final android = (calls.single.arguments as Map)['platformSpecifics'] as Map;
+      expect(android['silent'], isTrue);
+      expect(android['largeIcon'], isNull);
+      expect(android['actions'], isNull);
     });
 
     test('posts an escaped, private notification', () async {

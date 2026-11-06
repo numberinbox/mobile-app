@@ -1,5 +1,17 @@
 {
   "@@last_modified": "2026-10-20T08:30:46.960034",
+  "notificationUnknownSender": "Unknown sender",
+  "@notificationUnknownSender": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "notificationArchiveUnavailable": "This account has no Archive folder yet.",
+  "@notificationArchiveUnavailable": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",

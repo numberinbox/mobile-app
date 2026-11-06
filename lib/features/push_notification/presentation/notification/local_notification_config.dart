@@ -1,9 +1,23 @@
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
+import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class LocalNotificationConfig {
   static const String NOTIFICATION_CHANNEL = 'New Email';
 
-  static const iosInitializationSettings = DarwinInitializationSettings();
+  static DarwinInitializationSettings get iosInitializationSettings {
+    final strings = AppLocalizations();
+    return DarwinInitializationSettings(notificationCategories: [DarwinNotificationCategory(
+      NumberInboxNotificationTarget.category, actions: [
+        for (final entry in <NumberInboxMailAction, String>{
+          NumberInboxMailAction.markRead: strings.mark_as_read,
+          NumberInboxMailAction.archive: strings.archiveMessage,
+          NumberInboxMailAction.reply: strings.reply,
+        }.entries)
+          DarwinNotificationAction.plain(entry.key.id, entry.value,
+            options: {DarwinNotificationActionOption.foreground, DarwinNotificationActionOption.authenticationRequired}),
+      ])]);
+  }
   static const androidInitializationSettings = AndroidInitializationSettings('notification_icon');
 
   LocalNotificationConfig._internal();
@@ -17,6 +31,9 @@ class LocalNotificationConfig {
     bool setAsGroup = false,
     bool silent = false,
     String? groupId,
+    AndroidBitmap<Object>? largeIcon = const DrawableResourceAndroidBitmap('ic_large_notification'),
+    List<AndroidNotificationAction>? actions,
+    String? categoryIdentifier,
   }) {
     return NotificationDetails(
       android: AndroidNotificationDetails(
@@ -38,9 +55,11 @@ class LocalNotificationConfig {
           : GroupAlertBehavior.all,
         channelShowBadge: true,
         showWhen: true,
-        largeIcon: const DrawableResourceAndroidBitmap('ic_large_notification')
+        largeIcon: largeIcon,
+        actions: actions
       ),
-      iOS: const DarwinNotificationDetails(
+      iOS: DarwinNotificationDetails(
+        categoryIdentifier: categoryIdentifier,
         presentSound: true,
         presentAlert: true,
         presentBadge: true,

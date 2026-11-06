@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
 
 import 'dart:async';
 
@@ -19,11 +22,29 @@ class IOSNotificationManager {
   BehaviorSubject<EmailId?> get pendingCurrentEmailIdInNotification => _pendingCurrentEmailIdInNotification;
 
   StreamSubscription<EmailId?>? _getCurrentEmailIdStreamSubscription;
+  BehaviorSubject<NotificationResponse?> pendingNumberInboxResponse = BehaviorSubject.seeded(null);
+  void clearPendingNumberInboxResponse() { if (!pendingNumberInboxResponse.isClosed) pendingNumberInboxResponse.add(null); }
+
+  void _acceptNumberInboxInteraction(dynamic arguments) {
+    if (arguments is! Map || pendingNumberInboxResponse.isClosed) return;
+    final action = arguments['actionId'];
+    if (action is! String || (action.isNotEmpty && NumberInboxMailAction.fromId(action) == null)) return;
+    final payload = jsonEncode({'niVersion': arguments['niVersion'], 'niAccountId': arguments['niAccountId'], 'emailId': arguments['emailId']});
+    if (NumberInboxNotificationTarget.decode(payload) == null) return;
+    pendingNumberInboxResponse.add(NotificationResponse(
+      notificationResponseType: action.isEmpty ? NotificationResponseType.selectedNotification : NotificationResponseType.selectedNotificationAction,
+      actionId: action, payload: payload));
+  }
+
 
   void listenClickNotification() {
+    if (pendingNumberInboxResponse.isClosed) pendingNumberInboxResponse = BehaviorSubject.seeded(null);
     try {
       _notificationInteractionChannel.setMethodCallHandler((methodCall) async {
-        log('IOSNotificationManager::listenClickNotification: $methodCall');
+        if (methodCall.method == 'numberinbox_notification_action') {
+          _acceptNumberInboxInteraction(methodCall.arguments);
+          return true;
+        }
         if (methodCall.method == CURRENT_EMAIL_ID_IN_NOTIFICATION_CLICK_WHEN_APP_FOREGROUND_OR_BACKGROUND
             && methodCall.arguments != null) {
           final emailId = EmailId(Id(methodCall.arguments));
@@ -31,6 +52,8 @@ class IOSNotificationManager {
         }
       });
 
+      unawaited(_notificationInteractionChannel.invokeMethod<dynamic>('get_pending_numberinbox_notification_action')
+        .then(_acceptNumberInboxInteraction).catchError((_) {}));
       _getCurrentEmailIdStreamSubscription = Stream.fromFuture(_getCurrentEmailIdInNotificationClick()).listen((emailId) {
         log('IOSNotificationManager::listenClickNotification:_getCurrentEmailIdInNotificationClick:EmailId = ${emailId?.asString}');
         if (emailId != null) {
@@ -71,7 +94,12 @@ class IOSNotificationManager {
     }
   }
 
+  Future<void> removeMailNotification(String accountId, String emailId) =>
+    _notificationInteractionChannel.invokeMethod<void>('remove_numberinbox_mail_notification',
+      {'niAccountId': accountId, 'emailId': emailId});
+
   void dispose() {
+    pendingNumberInboxResponse.close();
     _pendingCurrentEmailIdInNotification.close();
     _getCurrentEmailIdStreamSubscription?.cancel();
     _getCurrentEmailIdStreamSubscription = null;

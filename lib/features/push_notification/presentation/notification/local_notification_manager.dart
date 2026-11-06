@@ -1,3 +1,6 @@
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_mail_presentation.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_sender_avatar.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -27,6 +30,18 @@ class LocalNotificationManager {
   static LocalNotificationManager get instance => _instance;
 
   final _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
+
+  /// The avatar is optional, so it never delays the notification for long, but
+  /// a cold start needs more than a warm app to draw the first bitmap.
+  static const _avatarBudget = Duration(milliseconds: 500);
+
+  NotificationResponse? _pendingNumberInboxResponse;
+  void holdNumberInboxResponse(NotificationResponse response) => _pendingNumberInboxResponse = response;
+  NotificationResponse? takeNumberInboxResponse() {
+    final response = _pendingNumberInboxResponse;
+    _pendingNumberInboxResponse = null;
+    return response;
+  }
 
   bool _isNotificationClickedOnTerminate = false;
 
@@ -64,7 +79,7 @@ class LocalNotificationManager {
 
   Future<bool?> _initLocalNotification() async {
     return await _localNotificationsPlugin.initialize(
-      const InitializationSettings(
+      InitializationSettings(
         android: LocalNotificationConfig.androidInitializationSettings,
         iOS: LocalNotificationConfig.iosInitializationSettings
       ),
@@ -73,10 +88,12 @@ class LocalNotificationManager {
   }
 
   void _handleReceiveNotificationResponse(NotificationResponse response) {
-    log('LocalNotificationManager::handleReceiveNotificationResponse():payload: ${response.payload}');
-    if (response.notificationResponseType == NotificationResponseType.selectedNotification) {
+    if (response.notificationResponseType == NotificationResponseType.selectedNotification ||
+        NumberInboxMailAction.fromId(response.actionId) != null) {
       if (!localNotificationsController.isClosed) {
-        localNotificationsController.add(response);
+        if (!localNotificationsController.hasListener && NumberInboxNotificationTarget.decode(response.payload) != null) {
+          holdNumberInboxResponse(response);
+        } else { localNotificationsController.add(response); }
       }
     }
   }
@@ -141,7 +158,24 @@ class LocalNotificationManager {
     EmailAddress? emailAddress,
     String? payload,
     String? groupId,
+    bool numberInboxLayout = false,
+    bool omitLargeIcon = false,
+    NumberInboxNotificationTarget? mailTarget,
+    Future<bool> Function()? canDisplay,
   }) async {
+    final presentation = numberInboxLayout ? NumberInboxMailPresentation(subject: title, preview: message, sender: emailAddress) : null;
+    final avatar = presentation == null ? null : await NumberInboxSenderAvatar.render(
+      presentation.name.isNotEmpty ? presentation.name : presentation.address).timeout(_avatarBudget, onTimeout: () => null);
+    if (canDisplay != null && !await canDisplay()) throw StateError('notification session ended');
+    final strings = AppLocalizations();
+    final actions = mailTarget == null ? null : <AndroidNotificationAction>[
+      for (final entry in <NumberInboxMailAction, String>{
+        NumberInboxMailAction.markRead: strings.mark_as_read,
+        NumberInboxMailAction.archive: strings.archiveMessage,
+        NumberInboxMailAction.reply: strings.reply,
+      }.entries)
+        AndroidNotificationAction(entry.key.id, entry.value, showsUserInterface: true, cancelNotification: false),
+    ];
     final inboxStyleInformation = buildInboxStyleInformation(
       title: title,
       message: message,
@@ -150,11 +184,15 @@ class LocalNotificationManager {
 
     await _localNotificationsPlugin.show(
       id.hashCode,
-      title,
-      message,
+      presentation?.title ?? title,
+      presentation?.collapsedText ?? message,
       LocalNotificationConfig.instance.generateNotificationDetails(
-        styleInformation: inboxStyleInformation,
+        styleInformation: presentation?.style ?? inboxStyleInformation,
         groupId: groupId,
+        largeIcon: presentation != null ? (avatar == null ? null : ByteArrayAndroidBitmap(avatar)) :
+          (omitLargeIcon ? null : const DrawableResourceAndroidBitmap('ic_large_notification')),
+        actions: actions,
+        categoryIdentifier: mailTarget == null ? null : NumberInboxNotificationTarget.category,
         silent: silent
       ),
       payload: payload);
@@ -192,12 +230,14 @@ class LocalNotificationManager {
     return showPushNotification(
       id: emailId,
       title: 'NumberInbox',
+      omitLargeIcon: true,
       message: 'You have new mail',
       payload: NotificationPayload(emailId: EmailId(Id(emailId))).encodeToString,
     );
   }
 
   Future<void> cancelAll() async {
+    _pendingNumberInboxResponse = null;
     try {
       await _localNotificationsPlugin.cancelAll().timeout(const Duration(seconds: 2));
     } catch (_) {
@@ -225,7 +265,7 @@ class LocalNotificationManager {
     return listActiveNotificationByGroup.length;
   }
 
-  Future<void> groupPushNotificationOnAndroid({required String groupId, required int countNotifications}) async {
+  Future<void> groupPushNotificationOnAndroid({required String groupId, required int countNotifications, bool silent = false}) async {
     log('LocalNotificationManager::groupPushNotificationOnAndroid:groupId = $groupId');
     final inboxStyleInformation = InboxStyleInformation(
       [''],
@@ -241,6 +281,8 @@ class LocalNotificationManager {
       null,
       LocalNotificationConfig.instance.generateNotificationDetails(
         setAsGroup: true,
+        silent: silent,
+        largeIcon: null,
         styleInformation: inboxStyleInformation,
         groupId: groupId
       ),

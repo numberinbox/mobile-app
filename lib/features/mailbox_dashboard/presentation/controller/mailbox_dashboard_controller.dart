@@ -1,3 +1,10 @@
+import 'package:tmail_ui_user/features/login/domain/state/get_stored_token_oidc_state.dart';
+import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
+import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
+import 'package:tmail_ui_user/features/mailbox/domain/repository/mailbox_repository.dart';
+import 'package:tmail_ui_user/features/thread/domain/repository/thread_repository.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_mail_action_executor.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -773,6 +780,12 @@ class MailboxDashBoardController extends ReloadableController
 
   void _registerPendingCurrentEmailIdInNotification() {
     _iosNotificationManager = getBinding<IOSNotificationManager>();
+    _numberInboxIOSActionSubscription = _iosNotificationManager?.pendingNumberInboxResponse.listen((response) {
+      if (response != null && sessionCurrent != null && accountId.value != null) {
+        _iosNotificationManager?.clearPendingNumberInboxResponse();
+        _handleClickLocalNotificationOnForeground(response);
+      }
+    });
     _currentEmailIdInNotificationIOSStreamSubscription = _iosNotificationManager
         ?.pendingCurrentEmailIdInNotification.stream
         .listen((emailId) {
@@ -798,6 +811,9 @@ class MailboxDashBoardController extends ReloadableController
     _registerDownloadUIActionListener();
   }
 
+  final _numberInboxNotificationActions = NumberInboxNotificationActions();
+  StreamSubscription<NotificationResponse?>? _numberInboxIOSActionSubscription;
+
   void _registerLocalNotificationStreamListener() {
     _notificationManager.localNotificationStream.listen(_handleClickLocalNotificationOnForeground);
   }
@@ -817,7 +833,16 @@ class MailboxDashBoardController extends ReloadableController
   Future<void> _handleClickNotificationOnAndroidInTerminated() async {
     _notificationManager.activatedNotificationClickedOnTerminate = true;
     final notificationResponse = await _notificationManager.getCurrentNotificationResponse();
-    log('MailboxDashBoardController::_handleClickLocalNotificationOnTerminated():payload: ${notificationResponse?.payload}');
+    log('MailboxDashBoardController: startup notification received');
+    if (notificationResponse != null) {
+      final pushedByNumberInbox = NumberInboxMailAction.fromId(notificationResponse.actionId) != null ||
+          NumberInboxNotificationTarget.decode(notificationResponse.payload) != null;
+      if (pushedByNumberInbox && numberInboxStartNeedsListScreen(
+          actionId: notificationResponse.actionId, payload: notificationResponse.payload)) {
+        dispatchRoute(DashboardRoutes.thread);
+      }
+      if (await _handleNumberInboxNotificationResponse(notificationResponse)) return;
+    }
     _handleMessageFromNotification(notificationResponse?.payload, onForeground: false);
   }
 
@@ -871,6 +896,13 @@ class MailboxDashBoardController extends ReloadableController
       _handleComposerCache();
     }
 
+    final pending = _notificationManager.takeNumberInboxResponse();
+    if (pending != null) _handleClickLocalNotificationOnForeground(pending);
+    final pendingIOS = _iosNotificationManager?.pendingNumberInboxResponse.valueOrNull;
+    if (pendingIOS != null) {
+      _iosNotificationManager?.clearPendingNumberInboxResponse();
+      _handleClickLocalNotificationOnForeground(pendingIOS);
+    }
     unawaited(checkAndRestoreComposerOnMobile());
 
     if (PlatformInfo.isAndroid && !_notificationManager.isNotificationClickedOnTerminate) {
@@ -2417,8 +2449,89 @@ class MailboxDashBoardController extends ReloadableController
 
   void _handleClickLocalNotificationOnForeground(NotificationResponse? response) {
     _notificationManager.activatedNotificationClickedOnTerminate = true;
-    log('MailboxDashBoardController::_handleClickLocalNotificationOnForeground():payload: ${response?.payload}');
-    _handleMessageFromNotification(response?.payload);
+    if (response == null) return;
+    unawaited(() async {
+      if (await _handleNumberInboxNotificationResponse(response)) return;
+      if (response.notificationResponseType == NotificationResponseType.selectedNotification) {
+        _handleMessageFromNotification(response.payload);
+      }
+    }());
+  }
+
+  /// Returns true for a NumberInbox payload even when refused, preventing a
+  /// malformed/stale account-bound action from falling through to a legacy tap.
+  Future<bool> _handleNumberInboxNotificationResponse(NotificationResponse response) async {
+    final target = NumberInboxNotificationTarget.decode(response.payload);
+    if (target == null) {
+      if (response.notificationResponseType == NotificationResponseType.selectedNotificationAction) return true;
+      try {
+        final decoded = jsonDecode(response.payload ?? '');
+        return decoded is Map && (decoded.containsKey('niVersion') || decoded.containsKey('niAccountId'));
+      }
+      catch (_) { return false; }
+    }
+    final selectedAccount = accountId.value;
+    final selectedSession = sessionCurrent;
+    if (selectedAccount == null || selectedSession == null) {
+      _notificationManager.holdNumberInboxResponse(response);
+      return true;
+    }
+    Future<bool> active() async {
+      if (isClosed || accountId.value != selectedAccount || !identical(sessionCurrent, selectedSession) ||
+          target.accountId != selectedAccount.id.value) { return false; }
+      final interactor = getBinding<GetAuthenticatedAccountInteractor>();
+      if (interactor == null) return false;
+      try {
+        final state = await interactor.execute().last;
+        return state.fold((_) => false, (value) {
+          if (value is GetCredentialViewState) return value.personalAccount.accountId == selectedAccount;
+          if (value is GetStoredTokenOidcSuccess) return value.personalAccount.accountId == selectedAccount;
+          return false;
+        }) && !isClosed && accountId.value == selectedAccount && identical(sessionCurrent, selectedSession);
+      } catch (_) { return false; }
+    }
+    final action = NumberInboxMailAction.fromId(response.actionId);
+    if (action == null) {
+      if (response.notificationResponseType == NotificationResponseType.selectedNotification && await active()) {
+        _handleNotificationMessageFromEmailId(EmailId(Id(target.emailId)));
+      }
+      return true;
+    }
+    // Repeated delivery/taps while the first request is running are not errors.
+    if (_numberInboxNotificationActions.isProcessing(action, target)) return true;
+    var archiveMissing = false;
+    final succeeded = await _numberInboxNotificationActions.run(action: action, target: target, isActive: active,
+      perform: (canContinue) => NumberInboxMailActionExecutor(Get.find<ThreadRepository>(), Get.find<MailboxRepository>(),
+        _markAsEmailReadInteractor, _moveToMailboxInteractor).perform(action: action, target: target,
+        session: selectedSession, accountId: selectedAccount, canContinue: canContinue,
+        openReply: (email) => openComposer(ComposerArguments.replyEmail(
+          presentationEmail: email, content: null, inlineImages: null,
+          messageId: email.messageId, references: email.references)),
+        onArchiveUnavailable: () {
+          archiveMissing = true;
+          if (currentContext != null && currentOverlayContext != null) {
+            appToast.showToastErrorMessage(currentOverlayContext!,
+              AppLocalizations.of(currentContext!).notificationArchiveUnavailable);
+          }
+        }),
+      dismiss: () async {
+        if (PlatformInfo.isIOS) {
+          await _iosNotificationManager?.removeMailNotification(target.accountId, target.emailId);
+        } else {
+          await _notificationManager.removeNotification(target.emailId);
+        }
+        if (PlatformInfo.isAndroid) {
+          final group = selectedSession.username.value;
+          final count = await _notificationManager.getCountActiveNotificationByGroupOnAndroid(groupId: group);
+          if (count == 0) { await _notificationManager.removeNotification(group); }
+          else { await _notificationManager.groupPushNotificationOnAndroid(groupId: group, countNotifications: count, silent: true); }
+        }
+      });
+    if (succeeded && action != NumberInboxMailAction.reply && await active()) refreshActionWhenBackToApp();
+    if (!succeeded && !archiveMissing && accountId.value == selectedAccount && currentContext != null && currentOverlayContext != null) {
+      appToast.showToastErrorMessage(currentOverlayContext!, AppLocalizations.of(currentContext!).unknownError);
+    }
+    return true;
   }
 
   void _handleMessageFromNotification(String? payload, {bool onForeground = true}) async {
@@ -3424,6 +3537,7 @@ class MailboxDashBoardController extends ReloadableController
       listSearchFilterScrollController?.dispose();
     }
     if (PlatformInfo.isIOS) {
+      _numberInboxIOSActionSubscription?.cancel();
       _iosNotificationManager?.dispose();
       _currentEmailIdInNotificationIOSStreamSubscription?.cancel();
     }

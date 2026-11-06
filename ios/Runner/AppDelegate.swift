@@ -8,6 +8,7 @@ import flutter_local_notifications
 
     var notificationInteractionChannel: FlutterMethodChannel?
     var fcmMethodChannel: FlutterMethodChannel?
+    private var pendingNumberInboxInteraction: [String: Any]?
     var currentEmailId: String?
     
     override func application(
@@ -15,6 +16,7 @@ import flutter_local_notifications
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
         if let payload = launchOptions?[.remoteNotification] as? [AnyHashable : Any],
+           payload["niAccountId"] == nil,
            let emailId = payload[JmapConstants.EMAIL_ID] as? String,
            !emailId.isEmpty {
             currentEmailId = emailId
@@ -148,13 +150,28 @@ import flutter_local_notifications
     }
     
     override func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
-        TwakeLogger.shared.log(message: "AppDelegate::userNotificationCenter::didReceive::response: \(response)")
+        TwakeLogger.shared.log(message: "AppDelegate: Notification interaction")
         let currentBadgeCount = UIApplication.shared.applicationIconBadgeNumber
         let newBadgeCount = currentBadgeCount > 0 ? currentBadgeCount - 1 : 0
         updateAppBadger(newBadgeCount: newBadgeCount)
         
         
         let userInfo = response.notification.request.content.userInfo
+        if response.notification.request.content.categoryIdentifier == NumberInboxPushPayload.notificationCategory {
+            let actionId = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "" : response.actionIdentifier
+            if let interaction = NumberInboxPushPayload.notificationInteraction(actionId: actionId, userInfo: userInfo) {
+                pendingNumberInboxInteraction = interaction
+                notificationInteractionChannel?.invokeMethod("numberinbox_notification_action", arguments: interaction) { result in
+                    if result as? Bool == true,
+                       let pending = self.pendingNumberInboxInteraction,
+                       NSDictionary(dictionary: interaction).isEqual(to: pending) {
+                        self.pendingNumberInboxInteraction = nil
+                    }
+                }
+            }
+            completionHandler()
+            return
+        }
         
         if let emailId = userInfo[JmapConstants.EMAIL_ID] as? String, !emailId.isEmpty {
             self.notificationInteractionChannel?.invokeMethod(
@@ -192,6 +209,23 @@ extension AppDelegate {
         
         self.notificationInteractionChannel?.setMethodCallHandler { (call, result) in
             switch call.method {
+            case "remove_numberinbox_mail_notification":
+                guard let args = call.arguments as? [String: String],
+                      let account = args["niAccountId"], let email = args["emailId"] else {
+                    result(FlutterError(code: "invalid_target", message: "Invalid notification target", details: nil))
+                    return
+                }
+                UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
+                    let ids = notifications.filter {
+                        $0.request.content.userInfo["niAccountId"] as? String == account &&
+                        $0.request.content.userInfo[JmapConstants.EMAIL_ID] as? String == email
+                    }.map { $0.request.identifier }
+                    UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
+                    DispatchQueue.main.async { result(nil) }
+                }
+            case "get_pending_numberinbox_notification_action":
+                result(self.pendingNumberInboxInteraction)
+                self.pendingNumberInboxInteraction = nil
             case CoreUtils.CURRENT_EMAIL_ID_IN_NOTIFICATION_CLICK_WHEN_APP_TERMINATED:
                 result(self.currentEmailId)
                 self.currentEmailId = nil

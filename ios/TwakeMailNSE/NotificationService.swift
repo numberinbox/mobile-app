@@ -11,6 +11,7 @@ class NotificationService: UNNotificationServiceExtension {
     // A client per service keeps concurrent pushes from mixing fetch state.
     private let platformJmapClient = JmapClient()
 
+    private var platformAccountId: String?
     private var isPlatformPush = false
     private var originalPlatformContent: UNMutableNotificationContent?
 
@@ -77,6 +78,7 @@ class NotificationService: UNNotificationServiceExtension {
     }
     
     private func handlePlatformPush(_ push: NumberInboxPushPayload) {
+        platformAccountId = push.stalwartAccountId;
         guard let session = keychainController.retrieveSharingSessionFromKeychain(accountId: push.stalwartAccountId),
               session.tokenOIDC != nil || session.basicAuth?.isEmpty == false,
               let state = session.emailDeliveryState ?? session.emailState else {
@@ -218,7 +220,7 @@ class NotificationService: UNNotificationServiceExtension {
                                               subtitle: email.subject,
                                               body: email.preview,
                                               badgeCount: emails.count,
-                                              userInfo: [JmapConstants.EMAIL_ID : email.id])
+                                              userInfo: self.mailNotificationUserInfo(emailId: email.id))
                 return self.notify()
             } else {
                 self.showNewNotification(title: email.getSenderName(),
@@ -226,11 +228,20 @@ class NotificationService: UNNotificationServiceExtension {
                                          body: email.preview,
                                          badgeCount: emails.count,
                                          notificationId: email.id,
-                                         userInfo: [JmapConstants.EMAIL_ID : email.id])
+                                         userInfo: self.mailNotificationUserInfo(emailId: email.id))
             }
         }
     }
     
+    private func mailNotificationUserInfo(emailId: String) -> [String: Any] {
+        var info: [String: Any] = [JmapConstants.EMAIL_ID: emailId]
+        if let account = platformAccountId {
+            info["niVersion"] = 1
+            info["niAccountId"] = account
+        }
+        return info
+    }
+
     private func showDefaultNotification(message: String) {
         self.modifiedContent?.title = InfoPlistReader(bundle: .app).bundleDisplayName
         self.modifiedContent?.body = message
@@ -249,6 +260,7 @@ class NotificationService: UNNotificationServiceExtension {
         self.modifiedContent?.badge = NSNumber(value: badgeCount)
         self.modifiedContent?.sound = .default
         self.modifiedContent?.userInfo = userInfo
+        if platformAccountId != nil { self.modifiedContent?.categoryIdentifier = NumberInboxPushPayload.notificationCategory }
     }
     
     private func showNewNotification(title: String?,
@@ -265,6 +277,7 @@ class NotificationService: UNNotificationServiceExtension {
         content.sound = .default
         content.badge = NSNumber(value: badgeCount)
         content.userInfo = userInfo
+        if platformAccountId != nil { content.categoryIdentifier = NumberInboxPushPayload.notificationCategory }
 
         // Create a notification trigger
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)
@@ -306,6 +319,7 @@ class NotificationService: UNNotificationServiceExtension {
         modifiedContent = nil
         originalPlatformContent = nil
         isPlatformPush = false
+        platformAccountId = nil
     }
     
     deinit {

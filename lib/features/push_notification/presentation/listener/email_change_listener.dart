@@ -1,3 +1,4 @@
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
 import 'dart:async';
 
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
@@ -381,7 +382,13 @@ class EmailChangeListener extends ChangeListener {
       title: presentationEmail.subject ?? '',
       message: presentationEmail.preview,
       emailAddress: presentationEmail.firstFromAddress,
-      payload: NotificationPayload(emailId: presentationEmail.id).encodeToString,
+      payload: _accountId != null && presentationEmail.id != null
+        ? NumberInboxNotificationTarget(accountId: _accountId!.id.value, emailId: presentationEmail.id!.id.value).encode()
+        : NotificationPayload(emailId: presentationEmail.id).encodeToString,
+      numberInboxLayout: PlatformInfo.isAndroid,
+      canDisplay: _isPlatformPushAccountActive,
+      mailTarget: _accountId != null && presentationEmail.id != null
+        ? NumberInboxNotificationTarget(accountId: _accountId!.id.value, emailId: presentationEmail.id!.id.value) : null,
       groupId: userName.value,
       silent: silent
     );

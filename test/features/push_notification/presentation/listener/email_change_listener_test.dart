@@ -524,10 +524,11 @@ void main() {
           final shown = showCalls.where((call) => call.method == 'show').toList();
           expect(shown, hasLength(2)); // mail and group summary
           final mail = shown.first.arguments as Map;
-          expect(mail['title'], discoveredEmail.subject);
-          expect(mail['body'], discoveredEmail.preview);
+          expect(mail['title'], 'attacker@evil.example');
+          expect(mail['body'], discoveredEmail.subject);
           final style = (mail['platformSpecifics'] as Map)['styleInformation'] as Map;
-          expect(style['summaryText'], contains('attacker@evil.example'));
+          expect(style['summaryText'], isNull);
+          expect(style['bigText'], contains(discoveredEmail.preview));
           verify(mockGetEmailChangesToPushNotificationInteractor.execute(
             SessionFixtures.aliceSession,
             AccountFixtures.aliceAccountId,
