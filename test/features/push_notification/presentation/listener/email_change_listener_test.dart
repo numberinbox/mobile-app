@@ -468,7 +468,7 @@ void main() {
     final PresentationEmail discoveredEmail = PresentationEmail(
       id: EmailId(Id('e6948d51214629057f63c03d50e19d31')),
       subject: 'Your one-time password',
-      preview: 'Your code is 551144',
+      preview: 'Hi,\nTested from iPhone\nManish',
       from: {EmailAddress('IT department', 'attacker@evil.example')},
     );
 
@@ -528,7 +528,8 @@ void main() {
           expect(mail['body'], discoveredEmail.subject);
           final style = (mail['platformSpecifics'] as Map)['styleInformation'] as Map;
           expect(style['summaryText'], isNull);
-          expect(style['bigText'], contains(discoveredEmail.preview));
+          expect(style['bigText'],
+              'IT department<br>Your one-time password<br>Hi,<br>Tested from iPhone<br>Manish');
           verify(mockGetEmailChangesToPushNotificationInteractor.execute(
             SessionFixtures.aliceSession,
             AccountFixtures.aliceAccountId,

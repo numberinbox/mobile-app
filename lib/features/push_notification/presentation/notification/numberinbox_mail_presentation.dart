@@ -11,9 +11,17 @@ class NumberInboxMailPresentation {
     String? preview,
     EmailAddress? sender,
   }) : subject = subject.sanitizedBidiForDisplay,
-       preview = (preview ?? '').sanitizedBidiForDisplay,
+       preview = _normalizePreview(preview ?? ''),
        address = (sender?.email ?? '').sanitizedBidiForDisplay.trim(),
        name = (sender?.name ?? '').sanitizedBidiForDisplay.trim();
+
+  // Preserve meaningful separators before filtering unsafe controls per line.
+  static String _normalizePreview(String value) => value
+      .replaceAll(RegExp(r'\r\n|[\r\u2028\u2029]'), '\n')
+      .replaceAll('\t', ' ')
+      .split('\n')
+      .map((line) => line.sanitizedBidiForDisplay)
+      .join('\n');
 
   final String subject;
   final String preview;
@@ -28,14 +36,16 @@ class NumberInboxMailPresentation {
 
   /// The one line shown when collapsed: the subject, or the preview when the
   /// mail has no subject.
-  String get collapsedText => subject.trim().isNotEmpty ? subject : preview;
+  String get collapsedText => subject.trim().isNotEmpty
+      ? subject
+      : preview.replaceAll(RegExp(r'\s+'), ' ').trim();
 
   BigTextStyleInformation get style {
     const escape = HtmlEscape(HtmlEscapeMode.element);
     final lines = [
       if (address.isNotEmpty && name.isNotEmpty && address != name) name,
       if (subject.isNotEmpty) subject,
-      if (preview.isNotEmpty) preview,
+      if (preview.isNotEmpty) ...preview.split('\n'),
     ];
     return BigTextStyleInformation(
       lines.map(escape.convert).join('<br>'),

@@ -27,43 +27,129 @@ void main() {
       );
     },
   );
-  test('collapsed text falls back to the preview when the subject is empty', () {
-    final mail = NumberInboxMailPresentation(
-      subject: '  ',
-      preview: 'only a preview',
-      sender: EmailAddress(null, 'a@example.com'),
-    );
-    expect(mail.collapsedText, 'only a preview');
-    expect(
-      NumberInboxMailPresentation(
-        subject: 'Hello',
-        preview: 'preview',
+  test(
+    'collapsed text falls back to the preview when the subject is empty',
+    () {
+      final mail = NumberInboxMailPresentation(
+        subject: '  ',
+        preview: 'only a preview',
         sender: EmailAddress(null, 'a@example.com'),
-      ).collapsedText,
-      'Hello',
-    );
-    expect(
-      NumberInboxMailPresentation(
+      );
+      expect(mail.collapsedText, 'only a preview');
+      expect(
+        NumberInboxMailPresentation(
+          subject: 'Hello',
+          preview: 'preview',
+          sender: EmailAddress(null, 'a@example.com'),
+        ).collapsedText,
+        'Hello',
+      );
+      expect(
+        NumberInboxMailPresentation(
+          subject: '',
+          preview: '',
+          sender: EmailAddress(null, 'a@example.com'),
+        ).collapsedText,
+        isEmpty,
+      );
+    },
+  );
+  group('preview spacing', () {
+    for (final separator in ['\n', '\r\n', '\r', '\u2028', '\u2029']) {
+      test('preserves line boundary ${separator.codeUnits}', () {
+        final mail = NumberInboxMailPresentation(
+          subject: 'Test',
+          preview: ['Hi,', 'Tested from iPhone', 'Manish'].join(separator),
+        );
+        expect(
+          mail.style.bigText,
+          'Test<br>Hi,<br>Tested from iPhone<br>Manish',
+        );
+      });
+    }
+
+    test('preserves tabs as spaces and supplied blank lines', () {
+      final mail = NumberInboxMailPresentation(
         subject: '',
-        preview: '',
-        sender: EmailAddress(null, 'a@example.com'),
-      ).collapsedText,
-      isEmpty,
+        preview: 'Hello\tManish\n\nRegards',
+      );
+      expect(mail.style.bigText, 'Hello Manish<br><br>Regards');
+    });
+
+    test('collapsed fallback flattens whitespace without joining words', () {
+      final mail = NumberInboxMailPresentation(
+        subject: '',
+        preview: '  Hi,\n\nTested\t from iPhone\r\nManish  ',
+      );
+      expect(mail.collapsedText, 'Hi, Tested from iPhone Manish');
+      expect(
+        NumberInboxMailPresentation(
+          subject: 'Subject',
+          preview: 'a\nb',
+        ).collapsedText,
+        'Subject',
+      );
+    });
+
+    test('escapes each line once and removes unsafe controls', () {
+      final mail = NumberInboxMailPresentation(
+        subject: '',
+        preview: '<br>&\n<script>x</script>\u202E\u2066\u0000',
+      );
+      expect(
+        mail.style.bigText,
+        '&lt;br&gt;&amp;<br>&lt;script&gt;x&lt;/script&gt;',
+      );
+    });
+
+    test(
+      'does not reconstruct flat previews and accepts absent or Unicode text',
+      () {
+        for (final preview in <String?>[
+          null,
+          '',
+          'Hi,Tested from iPhoneManish',
+          'สวัสดี Manish',
+        ]) {
+          final mail = NumberInboxMailPresentation(
+            subject: '',
+            preview: preview,
+          );
+          expect(mail.style.bigText, preview ?? '');
+          expect(mail.collapsedText, preview ?? '');
+        }
+      },
     );
   });
+
   test('a closed-app start shows the list unless it opens one valid mail', () {
     final valid = const NumberInboxNotificationTarget(
       accountId: 'account',
       emailId: 'email',
     ).encode();
-    expect(numberInboxStartNeedsListScreen(actionId: null, payload: valid), isFalse);
-    expect(numberInboxStartNeedsListScreen(actionId: '', payload: valid), isFalse);
-    for (final action in ['mark_read', 'archive', 'reply', 'unknown']) {
-      expect(numberInboxStartNeedsListScreen(actionId: action, payload: valid), isTrue);
-    }
-    expect(numberInboxStartNeedsListScreen(actionId: null, payload: null), isTrue);
     expect(
-      numberInboxStartNeedsListScreen(actionId: null, payload: '{"niVersion":1}'),
+      numberInboxStartNeedsListScreen(actionId: null, payload: valid),
+      isFalse,
+    );
+    expect(
+      numberInboxStartNeedsListScreen(actionId: '', payload: valid),
+      isFalse,
+    );
+    for (final action in ['mark_read', 'archive', 'reply', 'unknown']) {
+      expect(
+        numberInboxStartNeedsListScreen(actionId: action, payload: valid),
+        isTrue,
+      );
+    }
+    expect(
+      numberInboxStartNeedsListScreen(actionId: null, payload: null),
+      isTrue,
+    );
+    expect(
+      numberInboxStartNeedsListScreen(
+        actionId: null,
+        payload: '{"niVersion":1}',
+      ),
       isTrue,
     );
   });
