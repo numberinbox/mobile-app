@@ -1,3 +1,4 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'dart:async';
 import 'package:dartz/dartz.dart' as dartz;
 import 'package:core/presentation/state/failure.dart';
@@ -611,7 +612,7 @@ void main() {
           actionIcon: anyNamed('actionIcon'),
           leadingSVGIcon: imagePaths.icMailboxDraftsAction,
           leadingSVGIconColor: anyNamed('leadingSVGIconColor'),
-          backgroundColor: anyNamed('backgroundColor'),
+          backgroundGradient: NumberInboxPalette.primaryActionGradient,
           textColor: anyNamed('textColor'),
         ),
       ).called(1);
@@ -635,7 +636,7 @@ void main() {
           any,
           leadingSVGIcon: imagePaths.icMailboxDraftsAction,
           leadingSVGIconColor: anyNamed('leadingSVGIconColor'),
-          backgroundColor: anyNamed('backgroundColor'),
+          backgroundGradient: NumberInboxPalette.primaryActionGradient,
           textColor: anyNamed('textColor'),
         ),
       ).called(1);

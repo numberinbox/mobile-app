@@ -12,6 +12,7 @@ class TMailToast {
     Duration? toastDuration,
     ToastPosition? toastPosition,
     Color? backgroundColor,
+    Gradient? backgroundGradient,
     TextStyle? textStyle,
     double toastBorderRadius = 10.0,
     Border? border,
@@ -36,6 +37,7 @@ class TMailToast {
       padding,
       textAlign,
       toastDuration: toastDuration,
+      backgroundGradient: backgroundGradient,
     );
   }
 }
@@ -62,7 +64,7 @@ class ToastView {
     double maxWidth,
     EdgeInsets? padding,
     TextAlign? textAlign,
-    {Duration? toastDuration}
+    {Duration? toastDuration, Gradient? backgroundGradient}
   ) async {
     overlayState = Overlay.of(context, rootOverlay: false);
     final Widget child = Center(
@@ -71,7 +73,8 @@ class ToastView {
         child: Container(
           constraints: BoxConstraints(maxWidth: maxWidth),
           decoration: BoxDecoration(
-            color: backgroundColor ?? Colors.white,
+            color: backgroundGradient == null ? (backgroundColor ?? Colors.white) : null,
+            gradient: backgroundGradient,
             borderRadius: BorderRadius.circular(toastBorderRadius),
             border: border,
             boxShadow: const [

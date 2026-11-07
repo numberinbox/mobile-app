@@ -1,5 +1,5 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 
-import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/presentation/utils/keyboard_utils.dart';
@@ -565,7 +565,7 @@ class SearchMailboxController extends BaseMailboxController with MailboxActionHa
         },
         leadingSVGIconColor: Colors.white,
         leadingSVGIcon: imagePaths.icFolderMailbox,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo)
       );
@@ -719,7 +719,7 @@ class SearchMailboxController extends BaseMailboxController with MailboxActionHa
         },
         leadingSVGIconColor: Colors.white,
         leadingSVGIcon: imagePaths.icFolderMailbox,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo),
       );

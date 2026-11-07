@@ -1,3 +1,4 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
@@ -45,7 +46,7 @@ class AppToast {
     showToastMessage(
       context,
       message,
-      backgroundColor: AppColor.toastSuccessBackgroundColor,
+      backgroundGradient: NumberInboxPalette.primaryActionGradient,
       textColor: Colors.white,
       leadingSVGIconColor: leadingSVGIconColor ?? (leadingSVGIcon == null ? Colors.white : null),
       leadingSVGIcon: leadingSVGIcon ?? imagePaths.icToastSuccessMessage,
@@ -87,6 +88,7 @@ class AppToast {
       double? maxWidth,
       bool infinityToast = false,
       Color? backgroundColor,
+      Gradient? backgroundGradient,
       Color? textColor,
       Color? textActionColor,
       TextStyle? textStyle,
@@ -176,6 +178,7 @@ class AppToast {
         color: textColor ?? AppColor.primaryColor
       ),
       backgroundColor: backgroundColor ?? Colors.white,
+      backgroundGradient: backgroundGradient,
       trailing: trailingWidget,
       leading: leadingWidget,
       padding: padding,
@@ -201,6 +204,7 @@ class AppToast {
       double? maxWidth,
       bool infinityToast = false,
       Color? backgroundColor,
+      Gradient? backgroundGradient,
       Color? textColor,
       Color? textActionColor,
       TextStyle? textStyle,
@@ -294,6 +298,7 @@ class AppToast {
         color: textColor ?? AppColor.primaryColor
       ),
       backgroundColor: backgroundColor ?? Colors.white,
+      backgroundGradient: backgroundGradient,
       trailing: Row(children: trailingWidgets),
       leading: leadingWidget,
       padding: padding,

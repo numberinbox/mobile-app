@@ -1,5 +1,5 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 
-import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/controller/mailbox_dashboard_controller.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
@@ -15,7 +15,7 @@ extension HandleSaveEmailAsDraftExtension on MailboxDashBoardController {
       AppLocalizations.of(currentContext!).drafts_saved,
       leadingSVGIcon: imagePaths.icMailboxDraftsAction,
       leadingSVGIconColor: Colors.white,
-      backgroundColor: AppColor.toastSuccessBackgroundColor,
+      backgroundGradient: NumberInboxPalette.primaryActionGradient,
       textColor: Colors.white,
     );
   }

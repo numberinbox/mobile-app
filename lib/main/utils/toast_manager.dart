@@ -1,8 +1,8 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'dart:io';
 
 import 'package:core/domain/exceptions/file_exception.dart';
 import 'package:core/domain/exceptions/web_session_exception.dart';
-import 'package:core/presentation/extensions/color_extension.dart';
 import 'package:core/presentation/resources/image_paths.dart';
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
@@ -367,7 +367,7 @@ class ToastManager {
         onActionClick: onActionCallback,
         leadingSVGIcon: imagePaths.icFolderMailbox,
         leadingSVGIconColor: Colors.white,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo),
       );

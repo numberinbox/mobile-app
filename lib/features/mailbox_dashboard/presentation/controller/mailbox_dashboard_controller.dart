@@ -1,3 +1,4 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:tmail_ui_user/features/login/domain/state/get_stored_token_oidc_state.dart';
 import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/get_authenticated_account_interactor.dart';
@@ -1128,7 +1129,7 @@ class MailboxDashBoardController extends ReloadableController
         onActionClick: () => _discardEmail(success.emailId, success.draftMailboxId),
         leadingSVGIcon: imagePaths.icMailboxDraftsAction,
         leadingSVGIconColor: Colors.white,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo));
     }
@@ -1179,7 +1180,7 @@ class MailboxDashBoardController extends ReloadableController
         },
         leadingSVGIcon: imagePaths.icFolderMailbox,
         leadingSVGIconColor: Colors.white,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo));
     }
@@ -1343,7 +1344,7 @@ class MailboxDashBoardController extends ReloadableController
           markAsEmailRead(success.emailId, undoAction, MarkReadAction.undo, success.mailboxId);
         },
         leadingSVGIcon: imagePaths.icToastSuccessMessage,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo),
       );
@@ -1656,7 +1657,7 @@ class MailboxDashBoardController extends ReloadableController
         },
         leadingSVGIconColor: Colors.white,
         leadingSVGIcon: imagePaths.icFolderMailbox,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo),
       );
@@ -3324,7 +3325,7 @@ class MailboxDashBoardController extends ReloadableController
           onActionClick: () => openMailboxAction(success.recoveredMailbox!.toPresentationMailbox()),
           leadingSVGIcon: imagePaths.icRecoverDeletedMessages,
           leadingSVGIconColor: Colors.white,
-          backgroundColor: AppColor.toastSuccessBackgroundColor,
+          backgroundGradient: NumberInboxPalette.primaryActionGradient,
           textColor: Colors.white,
           actionIcon: SvgPicture.asset(
             imagePaths.icFolderMailbox,

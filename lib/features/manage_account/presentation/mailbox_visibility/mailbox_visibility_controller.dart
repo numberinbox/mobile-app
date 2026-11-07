@@ -1,4 +1,4 @@
-import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/utils/app_logger.dart';
 import 'package:dartz/dartz.dart';
@@ -208,7 +208,7 @@ class MailboxVisibilityController extends BaseMailboxController {
         ),
         leadingSVGIconColor: Colors.white,
         leadingSVGIcon: imagePaths.icFolderMailbox,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo),
       );

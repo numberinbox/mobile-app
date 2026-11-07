@@ -42,3 +42,14 @@ The small gray profile-popover icon override remains effective.
 
 See [the migration checklist](../brand/interactive-accent-verification.md)
 for source coverage, tests, and validation limits.
+
+## Success toast gradient
+
+On 2026-11-07 the owner selected the Brand gradient toast mockup. Success toasts,
+including draft saves and success feedback with Undo/Discard actions, use
+`primaryActionGradient` with existing white foregrounds. Optional
+`backgroundGradient` forwarding in the existing toast helpers and decoration is
+the only shared rendering extension. Other callers retain their solid rendering;
+error, warning and neutral toast colors remain unchanged. The old solid success
+constant remains for compatibility, but no active success-toast caller uses it.
+Toast geometry, placement, timers, callbacks and dismissal are unchanged.

@@ -1,3 +1,4 @@
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'dart:async';
 
 import 'package:collection/collection.dart';
@@ -1186,7 +1187,7 @@ class MailboxController extends BaseMailboxController
           },
           leadingSVGIcon: imagePaths.icFolderMailbox,
           leadingSVGIconColor: Colors.white,
-          backgroundColor: AppColor.toastSuccessBackgroundColor,
+          backgroundGradient: NumberInboxPalette.primaryActionGradient,
           textColor: Colors.white,
           actionIcon: SvgPicture.asset(imagePaths.icUndo));
     }
@@ -1493,7 +1494,7 @@ class MailboxController extends BaseMailboxController
         ),
         leadingSVGIcon: imagePaths.icFolderMailbox,
         leadingSVGIconColor: Colors.white,
-        backgroundColor: AppColor.toastSuccessBackgroundColor,
+        backgroundGradient: NumberInboxPalette.primaryActionGradient,
         textColor: Colors.white,
         actionIcon: SvgPicture.asset(imagePaths.icUndo));
     }
