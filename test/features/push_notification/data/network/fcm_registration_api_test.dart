@@ -56,6 +56,85 @@ void main() {
     );
 
     test(
+      'WHEN the platform is given\n'
+      'THEN the registration body carries it, so the backend can tell iOS from Android',
+      () async {
+        for (final platform in ['ios', 'android']) {
+          dioAdapter.onPost(
+            '/v1/fcm-registrations',
+            (server) => server.reply(
+              202,
+              {
+                'registrationId': '9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb',
+                'expiresAt': '2026-11-17T00:00:00Z',
+              },
+            ),
+            data: {
+              'token': 'fcm-token-abc',
+              'deviceClientId': '43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5',
+              'type': 'email',
+              'platform': platform,
+            },
+            headers: {
+              'Authorization':
+                  'Basic bWFpbGJveEBudW1iZXJpbmJveC5jb206cGFzc3dvcmQ=',
+            },
+          );
+
+          final registration = await api.register(
+            token: 'fcm-token-abc',
+            deviceClientId: '43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5',
+            username: 'mailbox@numberinbox.com',
+            password: 'password',
+            platform: platform,
+          );
+
+          expect(registration.registrationId,
+              equals('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb'),
+              reason: 'body with platform=$platform must match the mock');
+        }
+      },
+    );
+
+    test(
+      'WHEN the host is neither iOS nor Android and no platform is given\n'
+      'THEN the body has no platform key, which the backend stores as unknown',
+      () async {
+        // The unit-test host is a desktop: the helper resolves no platform, and
+        // the exact-body mock below fails if a platform key were sent anyway.
+        dioAdapter.onPost(
+          '/v1/fcm-registrations',
+          (server) => server.reply(
+            202,
+            {
+              'registrationId': '9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb',
+              'expiresAt': '2026-11-17T00:00:00Z',
+            },
+          ),
+          data: {
+            'token': 'fcm-token-abc',
+            'deviceClientId': '43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5',
+            'type': 'email',
+          },
+          headers: {
+            'Authorization':
+                'Basic bWFpbGJveEBudW1iZXJpbmJveC5jb206cGFzc3dvcmQ=',
+          },
+        );
+
+        final registration = await api.register(
+          token: 'fcm-token-abc',
+          deviceClientId: '43b5cf0a-7c1c-4a11-b1c5-2f35e2a3a4b5',
+          username: 'mailbox@numberinbox.com',
+          password: 'password',
+        );
+
+        expect(registration.registrationId,
+            equals('9b2d6bd2-fa01-4ec7-aad7-c976a6d3cecb'));
+      },
+    );
+
+    test(
       'WHEN the mailbox cannot receive push yet\n'
       'THEN throws FcmRegistrationException with the backend error code',
       () async {

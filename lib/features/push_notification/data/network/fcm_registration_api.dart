@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:core/utils/platform_info.dart';
 import 'package:dio/dio.dart';
 
 /// FCM token accepted by the backend, paired with the server-assigned
@@ -32,18 +33,32 @@ class FcmRegistrationApi {
 
   final Dio _dio;
 
+  /// `ios` or `android` for the running device, or null on any other host.
+  ///
+  /// Sent so the backend can tell an iOS-only fault (an APNs key, the
+  /// notification extension) from an Android one. A null is simply omitted:
+  /// the backend stores a missing platform as `unknown` and never rejects it.
+  static String? get hostPlatform {
+    if (PlatformInfo.isIOS) return 'ios';
+    if (PlatformInfo.isAndroid) return 'android';
+    return null;
+  }
+
   Future<FcmRegistrationPayload> register({
     required String token,
     required String deviceClientId,
     required String username,
     required String password,
+    String? platform,
   }) async {
+    final resolvedPlatform = platform ?? hostPlatform;
     final response = await _post(
       '/v1/fcm-registrations',
       data: {
         'token': token,
         'deviceClientId': deviceClientId,
         'type': typeEmail,
+        if (resolvedPlatform != null) 'platform': resolvedPlatform,
       },
       authorization: _basicHeader(username, password),
     );
