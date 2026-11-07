@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 // integration_test/numberinbox depends on these keys; renaming one breaks the release gate.
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/resources/image_paths.dart';
@@ -102,6 +103,9 @@ void main() {
   Future<void> pumpPhase(
     WidgetTester tester, {
     required void Function(TwakeWelcomeController) configure,
+    double scale = 1,
+    double keyboard = 0,
+    TextDirection direction = TextDirection.ltr,
   }) async {
     registerStubs();
     final controller = TwakeWelcomeController(authClient: client);
@@ -109,11 +113,21 @@ void main() {
     Get.put<TwakeWelcomeController>(controller);
 
     await tester.pumpWidget(
-      MaterialApp(theme: testTheme, home: const TwakeWelcomeView()),
+      MaterialApp(
+        theme: testTheme,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: TextScaler.linear(scale),
+            viewInsets: EdgeInsets.only(bottom: keyboard),
+          ),
+          child: Directionality(textDirection: direction, child: child!),
+        ),
+        home: const TwakeWelcomeView(),
+      ),
     );
     await tester.runAsync(
       () => precacheImage(
-        const AssetImage('assets/images/numberinbox_mark.png'),
+        const AssetImage('assets/splash/numberinbox_splash_mark.png'),
         tester.element(find.byType(TwakeWelcomeView)),
       ),
     );
@@ -175,16 +189,121 @@ void main() {
     );
   }
 
-  BoxDecoration ctaDecoration(WidgetTester tester, Key key) => tester
-      .widget<DecoratedBox>(
-        find
-            .ancestor(of: find.byKey(key), matching: find.byType(DecoratedBox))
-            .first,
-      )
-      .decoration as BoxDecoration;
+  BoxDecoration ctaDecoration(WidgetTester tester, Key key) =>
+      tester
+              .widget<DecoratedBox>(
+                find
+                    .ancestor(
+                      of: find.byKey(key),
+                      matching: find.byType(DecoratedBox),
+                    )
+                    .first,
+              )
+              .decoration
+          as BoxDecoration;
 
-  testWidgets('phone phase shows the brand CTA and the phone field',
+  for (final phase in OtpPhase.values) {
+    testWidgets('$phase logo has the same visible size as the splash', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await pumpPhase(tester, configure: (c) => c.phase = phase);
+      final logoFinder = find.byType(Image).first;
+      final logo = tester.widget<Image>(logoFinder);
+      final asset = logo.image as AssetImage;
+      final visibleWidth = await tester.runAsync(() async {
+        final bytes = await rootBundle.load(asset.assetName);
+        final codec = await ui.instantiateImageCodec(
+          bytes.buffer.asUint8List(bytes.offsetInBytes, bytes.lengthInBytes),
+        );
+        final frame = await codec.getNextFrame();
+        final pixels = (await frame.image.toByteData(
+          format: ui.ImageByteFormat.rawRgba,
+        ))!;
+        var left = frame.image.width;
+        var right = -1;
+        for (var y = 0; y < frame.image.height; y++) {
+          for (var x = 0; x < frame.image.width; x++) {
+            if (pixels.getUint8((y * frame.image.width + x) * 4 + 3) > 16) {
+              if (x < left) left = x;
+              if (x > right) right = x;
+            }
+          }
+        }
+        final result =
+            (right - left + 1) /
+            frame.image.width *
+            tester.getSize(logoFinder).width;
+        frame.image.dispose();
+        codec.dispose();
+        return result;
+      });
+      expect(visibleWidth, closeTo(100, 1));
+      expect(asset.assetName, 'assets/splash/numberinbox_splash_mark.png');
+      expect(tester.getSize(logoFinder), const Size(256, 256));
+      expect(
+        tester.getSize(find.byKey(const Key('welcome_brand_mark_slot'))),
+        const Size(104, 104),
+      );
+    });
+  }
+
+  testWidgets('OTP shows six decorative boxes and one editable code field', (
+    tester,
+  ) async {
+    await pumpPhase(tester, configure: (c) => c.phase = OtpPhase.code);
+    for (var i = 0; i < 6; i++) {
+      expect(find.byKey(ValueKey('otp_digit_box_$i')), findsOneWidget);
+    }
+    expect(find.byType(EditableText), findsOneWidget);
+    expect(
+      tester
+          .widget<TextField>(find.byKey(const Key('otp_code_field')))
+          .decoration
+          ?.labelText,
+      'Verification code',
+    );
+  });
+
+  for (final width in [320.0, 900.0]) {
+    testWidgets(
+      'OTP layout fits width $width with keyboard, RTL and large text',
       (tester) async {
+        await tester.binding.setSurfaceSize(Size(width, 700));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await pumpPhase(
+          tester,
+          scale: 2,
+          keyboard: 260,
+          direction: TextDirection.rtl,
+          configure: (c) {
+            c.phase = OtpPhase.code;
+            c.error = 'Invalid code. Please check the message and try again.';
+          },
+        );
+        expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.byKey(const Key('otp_code_field')));
+        await tester.enterText(
+          find.byKey(const Key('otp_code_field')),
+          '001234',
+        );
+        await tester.pump();
+        expect(
+          Get.find<TwakeWelcomeController>().codeController.text,
+          '001234',
+        );
+        expect(tester.takeException(), isNull);
+        await tester.ensureVisible(find.byKey(const Key('otp_verify_cta')));
+        await tester.pumpAndSettle();
+        expect(find.byKey(const Key('otp_verify_cta')), findsOneWidget);
+      },
+    );
+  }
+
+  testWidgets('phone phase shows the brand CTA and the phone field', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     await pumpPhase(tester, configure: (_) {});
 
@@ -231,8 +350,9 @@ void main() {
     expect(find.byKey(const Key('otp_send_cta')), findsNothing);
   });
 
-  testWidgets('error state shows the message in the error colour',
-      (tester) async {
+  testWidgets('error state shows the message in the error colour', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     await pumpPhase(
       tester,

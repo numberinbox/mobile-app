@@ -1,3 +1,4 @@
+import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/verification_code_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -37,10 +38,21 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                         const Spacer(flex: 2),
                         Padding(
                           padding: const EdgeInsets.only(bottom: 12),
-                          child: Image.asset(
-                            'assets/images/numberinbox_mark.png',
+                          child: SizedBox(
+                            key: const Key('welcome_brand_mark_slot'),
                             width: 104,
                             height: 104,
+                            // The same padded 256-unit canvas as HomeView;
+                            // only its ~100-unit artwork occupies this slot.
+                            child: OverflowBox(
+                              minWidth: 256, maxWidth: 256,
+                              minHeight: 256, maxHeight: 256,
+                              child: Image.asset(
+                                'assets/splash/numberinbox_splash_mark.png',
+                                width: 256, height: 256,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
                           ),
                         ),
                         SvgPicture.asset(
@@ -174,18 +186,10 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
   }
 
   Widget _buildCodeField(BuildContext context, TwakeWelcomeController ctrl) {
-    return TextField(
-      key: const Key('otp_code_field'),
+    return VerificationCodeField(
       controller: ctrl.codeController,
-      keyboardType: TextInputType.number,
-      maxLength: 6,
-      decoration: const InputDecoration(
-        labelText: 'Verification code',
-        hintText: '123456',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.all(Radius.circular(14)),
-        ),
-      ),
+      hasError: ctrl.error != null,
+      onSubmitted: ctrl.verifyCode,
     );
   }
 
