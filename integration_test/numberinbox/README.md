@@ -13,10 +13,9 @@ The runner selects these exact targets in order:
 3. `numberinbox_phone_recipient_test.dart`: on the preserved session, a full
    international number typed into the composer becomes a canonical
    `+E164@numberinbox.com` recipient and the message sends. The disposable stack
-   only hosts `numberinbox.test`, so delivery is not asserted. The test runs in
-   `tag_editor_race_guard.dart`, which drops one known debug-only assertion from
-   the inherited tag editor package (a debounced search firing after the composer
-   closed); every other error still fails the test.
+   only hosts `numberinbox.test`, so delivery is not asserted. The test waits for the
+   recipient lookup to finish before it commits the number; a lookup still running
+   when the field is removed makes the inherited tag editor assert in debug builds.
 4. `numberinbox_deletion_test.dart`: a separate account, seeded mail, deletion,
    recreation and an empty mailbox.
 
