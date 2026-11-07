@@ -12,54 +12,52 @@ import 'package:tmail_ui_user/main/main_entry.dart';
 import '../robots/composer_recipient_robot.dart';
 import '../robots/composer_robot.dart';
 import '../robots/thread_robot.dart';
+import 'tag_editor_race_guard.dart';
 
 const testNumber = String.fromEnvironment('SMOKE_TEST_NUMBER');
 const subject = 'Phone recipient smoke';
 
 void main() {
   patrolTest('a phone number becomes a NumberInbox recipient and sends', ($) async {
-    // Runs on the session the relaunch stage preserved: the boot resumes the
-    // mailbox directly, so no phone or OTP prompt is involved here.
-    await runTmail();
-    final composeButton = find.byWidgetPredicate(
-      (w) => w is ScrollingFloatingButtonAnimated,
-      description: 'scrolling compose button',
-    );
-    await $(composeButton).waitUntilVisible(timeout: const Duration(seconds: 60));
+    // Sending closes the composer right after the recipient field changed, which
+    // trips a debug-only assertion in the tag editor package; see the guard.
+    await ignoringTagEditorDisposedNotifier(() async {
+      // Runs on the session the relaunch stage preserved: the boot resumes the
+      // mailbox directly, so no phone or OTP prompt is involved here.
+      await runTmail();
+      final composeButton = find.byWidgetPredicate(
+        (w) => w is ScrollingFloatingButtonAnimated,
+        description: 'scrolling compose button',
+      );
+      await $(composeButton).waitUntilVisible(timeout: const Duration(seconds: 60));
 
-    await ThreadRobot($).openComposer();
-    await $(ComposerView).waitUntilVisible(timeout: const Duration(seconds: 30));
+      await ThreadRobot($).openComposer();
+      await $(ComposerView).waitUntilVisible(timeout: const Duration(seconds: 30));
 
-    final composer = ComposerRobot($);
-    await composer.grantContactPermission();
+      final composer = ComposerRobot($);
+      await composer.grantContactPermission();
 
-    // A full international number resolves without asking for a country; a
-    // local-format number would open the country picker instead. The chip must
-    // carry the canonical address, not the raw digits.
-    await ComposerRecipientRobot($).enterRecipient(PrefixEmailAddress.to, testNumber);
-    const resolved = '$testNumber@numberinbox.com';
-    await $(RecipientTagItemWidget)
-        .which<RecipientTagItemWidget>(
-          (chip) => chip.currentEmailAddress.email == resolved,
-        )
-        .waitUntilVisible(timeout: const Duration(seconds: 15));
+      // A full international number resolves without asking for a country; a
+      // local-format number would open the country picker instead. The chip must
+      // carry the canonical address, not the raw digits.
+      await ComposerRecipientRobot($).enterRecipient(PrefixEmailAddress.to, testNumber);
+      const resolved = '$testNumber@numberinbox.com';
+      await $(RecipientTagItemWidget)
+          .which<RecipientTagItemWidget>(
+            (chip) => chip.currentEmailAddress.email == resolved,
+          )
+          .waitUntilVisible(timeout: const Duration(seconds: 15));
 
-    // Typing started a debounced contact lookup. If the composer closes while
-    // it is still in flight, the tag editor package touches a disposed
-    // notifier and the debug build's assertion fails the test, although
-    // release builds are unaffected. Let the lookup finish before sending.
-    await Future<void>.delayed(const Duration(seconds: 5));
-    await $.pumpAndTrySettle();
+      await composer.addSubject(subject);
+      await composer.sendEmail(ImagePaths());
+      await $.pumpAndSettle();
 
-    await composer.addSubject(subject);
-    await composer.sendEmail(ImagePaths());
-    await $.pumpAndSettle();
-
-    // The disposable stack only hosts numberinbox.test, so the message cannot
-    // land in this mailbox: the proof is that the composer accepted the
-    // recipient and closed back to the inbox with no unresolved-number prompt.
-    await $(composeButton).waitUntilVisible(timeout: const Duration(seconds: 60));
-    expect($(ComposerView), findsNothing);
-    expect($(#country_search), findsNothing);
+      // The disposable stack only hosts numberinbox.test, so the message cannot
+      // land in this mailbox: the proof is that the composer accepted the
+      // recipient and closed back to the inbox with no unresolved-number prompt.
+      await $(composeButton).waitUntilVisible(timeout: const Duration(seconds: 60));
+      expect($(ComposerView), findsNothing);
+      expect($(#country_search), findsNothing);
+    });
   });
 }
