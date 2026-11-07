@@ -53,3 +53,64 @@ the only shared rendering extension. Other callers retain their solid rendering;
 error, warning and neutral toast colors remain unchanged. The old solid success
 constant remains for compatibility, but no active success-toast caller uses it.
 Toast geometry, placement, timers, callbacks and dismissal are unchanged.
+
+## About product-story screen
+
+On 2026-11-07 the owner approved the Product story mockup with the clearer
+Simple and useful wording, then removed the repeated login tagline. About keeps
+its existing Settings entry and app-bar title; the content uses the existing
+78-unit full-color mark, “Your number. / Your inbox.” headline, an SMS sign-in
+introduction, and three unboxed rows for everyday email, no ads/data selling,
+and account choices. The footer reads “Email that starts with you.”
+
+The sole action, “Explore numberinbox.com”, opens the existing fixed homepage
+through AppUtils.launchLink. It uses primaryActionGradient and white foreground
+with a 14-unit radius and a 54-unit minimum (not fixed) height. Text can wrap and
+the page scrolls at large text sizes. This is a local NumberInbox presentation
+change; no shared button API, navigation, website, dependency or backend change.
+
+### Implementation verification
+
+Baseline: `f0cecc0980f1463da1e2fcba6cce54f5fd9f38f1`. Preserve unrelated iOS
+project, version, FCM registration and Claude outputs work. Leave uncommitted.
+
+RED: `flutter test --no-pub test/branding/about_attribution_test.dart` against
+unchanged production code failed six tests. Intended assertions found the
+obsolete standalone NumberInbox heading and no FilledButton/shared gradient.
+Log: `/tmp/ni-about-red.log`.
+
+Initial GREEN development run passed 13 tests; one URL test attempted to tap
+the now-below-viewport button. The harness was corrected to scroll it into view
+before tapping; the exact URL assertion remains unchanged. The final test
+matrix includes content, appearance, button semantics, excluded decorative
+icons, keyboard activation, back navigation, 320/900 widths, 100%/200% text,
+and LTR/RTL.
+
+GREEN/regression: `flutter test --no-pub test/branding
+ test/features/manage_account/presentation/menu/settings/settings_first_level_view_contract_test.dart`
+passed 145 tests. The existing opt-in splash frame test was skipped because its
+device-recording environment variables were unset. Log:
+`/tmp/ni-about-regression.log`. All 14 About cases passed in this run.
+
+Android API 37 isolated preview: visually inspected the real About layout,
+content and shared-gradient action; screenshot `/tmp/ni-about-android.png`. The
+footer is reached by scrolling. No authentication/backend calls are involved in
+this preview. Enlarged-text and RTL behavior is exercised by widget tests, not
+claimed as a physical-device screen-reader check.
+
+iPhone 17 Pro, iOS 26.5: visually inspected the real About screen in an isolated
+preview using the existing app theme. All feature rows, the button and footer
+fit; the accessibility tree exposes the content and named website button.
+The preview intentionally starts at About rather than through Settings; route
+return is covered separately by the widget navigation test. No backend call.
+
+`flutter analyze --no-pub` completed with 75 informational diagnostics, zero
+warnings/errors; the diagnostic set exactly matches the preceding baseline
+(`/tmp/ni-otp-final-analysis.log`). Log: `/tmp/ni-about-analysis.log`.
+`git diff --check` passes.
+
+Manual simulator large-text/RTL scrolling and physical-device screen-reader
+acceptance were not performed; these layout paths are covered by the explicit
+widget matrix. No full root test suite or private integration CI is claimed.
+Normal Android and iOS application builds replace the temporary previews without
+clearing app data; temporary preview entrypoints are outside the repository.
