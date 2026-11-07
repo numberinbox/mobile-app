@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:core/presentation/views/floating_button/scrolling_floating_button_animated.dart';
+import 'package:flutter/material.dart' show FilledButton;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
@@ -30,7 +31,9 @@ Future<String?> fetchOtp(String e164) async {
   final client = HttpClient();
   try {
     final request = await client
-        .getUrl(Uri.parse('$otpHelperUrl/otp?e164=${Uri.encodeComponent(e164)}'))
+        .getUrl(
+          Uri.parse('$otpHelperUrl/otp?e164=${Uri.encodeComponent(e164)}'),
+        )
         .timeout(const Duration(seconds: 90));
     final response = await request.close().timeout(const Duration(seconds: 30));
     if (response.statusCode != 200) return null;
@@ -127,11 +130,15 @@ Future<void> signIn(PatrolTester $, String e164) async {
 
   await $(#otp_code_field).enterText(code!);
   await $(#otp_verify_cta).tap();
-  await $(#mobileMailboxMenuButton).waitUntilVisible(timeout: const Duration(seconds: 60));
+  await $(
+    #mobileMailboxMenuButton,
+  ).waitUntilVisible(timeout: const Duration(seconds: 60));
 }
 
 void main() {
-  patrolTest('deletes the account and the next mailbox starts empty', ($) async {
+  patrolTest('deletes the account and the next mailbox starts empty', (
+    $,
+  ) async {
     // Native automation does not show the app on its own: the driver must
     // boot it explicitly, otherwise the tree stays empty and every selector
     // times out. Stage three cleared app data, so the boot lands on welcome.
@@ -140,12 +147,15 @@ void main() {
 
     // A fresh, disposable account: this one has one message, delivered by the
     // runner immediately before this stage.
-    await $(find.byWidgetPredicate(
-      (w) => w is ScrollingFloatingButtonAnimated,
-      description: 'scrolling compose button',
-    )).waitUntilVisible(timeout: const Duration(seconds: 30));
-    await $(find.textContaining(seededSubject))
-        .waitUntilVisible(timeout: const Duration(seconds: 60));
+    await $(
+      find.byWidgetPredicate(
+        (w) => w is ScrollingFloatingButtonAnimated,
+        description: 'scrolling compose button',
+      ),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
+    await $(
+      find.textContaining(seededSubject),
+    ).waitUntilVisible(timeout: const Duration(seconds: 60));
 
     // On mobile the avatar lives in the mailbox drawer's app bar, not on the
     // thread list screen, so open the drawer through its own control first.
@@ -161,29 +171,45 @@ void main() {
     await $.pumpAndSettle();
 
     await $(#deletion_phone_field).enterText(testNumber);
+    // The page keeps Continue disabled while it restores state from secure
+    // storage, which is slow on a loaded emulator; a tap on the disabled button
+    // does nothing and the confirmation never opens. Wait until it is enabled.
+    await $(#deletion_submit)
+        .which<FilledButton>((button) => button.enabled)
+        .waitUntilVisible(timeout: const Duration(seconds: 60));
     await $(#deletion_submit).tap();
     await $.pumpAndSettle();
+    await $(
+      find.text('Delete permanently'),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
     await $(find.text('Delete permanently')).tap();
 
     // A pending or retryable deletion must not be read as completion, so this
     // waits for the phone screen itself rather than for an absence of widgets.
-    await $(#otp_phone_field).waitUntilVisible(timeout: const Duration(seconds: 180));
+    await $(
+      #otp_phone_field,
+    ).waitUntilVisible(timeout: const Duration(seconds: 180));
 
     // Signing back in must issue a NEW code and yield a NEW mailbox.
     await signIn($, testNumber);
-    await $(find.byWidgetPredicate(
-      (w) => w is ScrollingFloatingButtonAnimated,
-      description: 'scrolling compose button',
-    )).waitUntilVisible(timeout: const Duration(seconds: 30));
+    await $(
+      find.byWidgetPredicate(
+        (w) => w is ScrollingFloatingButtonAnimated,
+        description: 'scrolling compose button',
+      ),
+    ).waitUntilVisible(timeout: const Duration(seconds: 30));
 
     // Wait for the freshly created mailbox to finish loading before asserting
     // absence: an empty-state widget proves the list resolved, so the missing
     // message is a real result and not a list that never arrived.
-    await $(find.byKey(const Key(UiKeys.emptyThreadView))).waitUntilVisible(
-      timeout: const Duration(seconds: 60),
-    );
+    await $(
+      find.byKey(const Key(UiKeys.emptyThreadView)),
+    ).waitUntilVisible(timeout: const Duration(seconds: 60));
 
-    expect(find.textContaining(seededSubject), findsNothing,
-        reason: 'a recreated mailbox must not show earlier mail');
+    expect(
+      find.textContaining(seededSubject),
+      findsNothing,
+      reason: 'a recreated mailbox must not show earlier mail',
+    );
   });
 }
