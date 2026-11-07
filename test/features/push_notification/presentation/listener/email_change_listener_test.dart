@@ -524,12 +524,13 @@ void main() {
           final shown = showCalls.where((call) => call.method == 'show').toList();
           expect(shown, hasLength(2)); // mail and group summary
           final mail = shown.first.arguments as Map;
-          expect(mail['title'], 'attacker@evil.example');
-          expect(mail['body'], discoveredEmail.subject);
+          expect(mail['title'], discoveredEmail.subject);
+          expect(mail['body'], discoveredEmail.preview);
           final style = (mail['platformSpecifics'] as Map)['styleInformation'] as Map;
-          expect(style['summaryText'], isNull);
-          expect(style['bigText'],
-              'IT department<br>Your one-time password<br>Hi,<br>Tested from iPhone<br>Manish');
+          expect(style['summaryText'], '<b>attacker@evil.example (IT department)</b>');
+          expect(style['lines'], ['<p style="color:#6D7885;">Hi,\nTested from iPhone\nManish</p>']);
+          expect((mail['platformSpecifics'] as Map)['largeIcon'], 'ic_large_notification');
+          expect((mail['platformSpecifics'] as Map)['actions'], isNull);
           verify(mockGetEmailChangesToPushNotificationInteractor.execute(
             SessionFixtures.aliceSession,
             AccountFixtures.aliceAccountId,

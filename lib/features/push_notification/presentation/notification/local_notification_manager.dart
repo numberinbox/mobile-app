@@ -1,6 +1,4 @@
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_mail_presentation.dart';
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_sender_avatar.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 import 'dart:async';
 import 'dart:convert';
 
@@ -30,10 +28,6 @@ class LocalNotificationManager {
   static LocalNotificationManager get instance => _instance;
 
   final _localNotificationsPlugin = FlutterLocalNotificationsPlugin();
-
-  /// The avatar is optional, so it never delays the notification for long, but
-  /// a cold start needs more than a warm app to draw the first bitmap.
-  static const _avatarBudget = Duration(milliseconds: 500);
 
   NotificationResponse? _pendingNumberInboxResponse;
   void holdNumberInboxResponse(NotificationResponse response) => _pendingNumberInboxResponse = response;
@@ -79,7 +73,7 @@ class LocalNotificationManager {
 
   Future<bool?> _initLocalNotification() async {
     return await _localNotificationsPlugin.initialize(
-      InitializationSettings(
+      const InitializationSettings(
         android: LocalNotificationConfig.androidInitializationSettings,
         iOS: LocalNotificationConfig.iosInitializationSettings
       ),
@@ -88,8 +82,8 @@ class LocalNotificationManager {
   }
 
   void _handleReceiveNotificationResponse(NotificationResponse response) {
-    if (response.notificationResponseType == NotificationResponseType.selectedNotification ||
-        NumberInboxMailAction.fromId(response.actionId) != null) {
+    if (response.notificationResponseType == NotificationResponseType.selectedNotification &&
+        (response.actionId == null || response.actionId!.isEmpty)) {
       if (!localNotificationsController.isClosed) {
         if (!localNotificationsController.hasListener && NumberInboxNotificationTarget.decode(response.payload) != null) {
           holdNumberInboxResponse(response);
@@ -158,41 +152,24 @@ class LocalNotificationManager {
     EmailAddress? emailAddress,
     String? payload,
     String? groupId,
-    bool numberInboxLayout = false,
     bool omitLargeIcon = false,
-    NumberInboxNotificationTarget? mailTarget,
     Future<bool> Function()? canDisplay,
   }) async {
-    final presentation = numberInboxLayout ? NumberInboxMailPresentation(subject: title, preview: message, sender: emailAddress) : null;
-    final avatar = presentation == null ? null : await NumberInboxSenderAvatar.render(
-      presentation.name.isNotEmpty ? presentation.name : presentation.address).timeout(_avatarBudget, onTimeout: () => null);
-    if (canDisplay != null && !await canDisplay()) throw StateError('notification session ended');
-    final strings = AppLocalizations();
-    final actions = mailTarget == null ? null : <AndroidNotificationAction>[
-      for (final entry in <NumberInboxMailAction, String>{
-        NumberInboxMailAction.markRead: strings.mark_as_read,
-        NumberInboxMailAction.archive: strings.archiveMessage,
-        NumberInboxMailAction.reply: strings.reply,
-      }.entries)
-        AndroidNotificationAction(entry.key.id, entry.value, showsUserInterface: true, cancelNotification: false),
-    ];
     final inboxStyleInformation = buildInboxStyleInformation(
       title: title,
       message: message,
       emailAddress: emailAddress,
     );
 
+    if (canDisplay != null && !await canDisplay()) throw StateError('notification session ended');
     await _localNotificationsPlugin.show(
       id.hashCode,
-      presentation?.title ?? title,
-      presentation?.collapsedText ?? message,
+      title,
+      message,
       LocalNotificationConfig.instance.generateNotificationDetails(
-        styleInformation: presentation?.style ?? inboxStyleInformation,
+        styleInformation: inboxStyleInformation,
         groupId: groupId,
-        largeIcon: presentation != null ? (avatar == null ? null : ByteArrayAndroidBitmap(avatar)) :
-          (omitLargeIcon ? null : const DrawableResourceAndroidBitmap('ic_large_notification')),
-        actions: actions,
-        categoryIdentifier: mailTarget == null ? null : NumberInboxNotificationTarget.category,
+        largeIcon: omitLargeIcon ? null : const DrawableResourceAndroidBitmap('ic_large_notification'),
         silent: silent
       ),
       payload: payload);

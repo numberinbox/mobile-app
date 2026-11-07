@@ -1,3 +1,15 @@
+import 'dart:async';
+import 'package:dartz/dartz.dart' as dartz;
+import 'package:core/presentation/state/failure.dart';
+import 'package:core/presentation/state/success.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:model/account/password.dart';
+import 'package:model/account/personal_account.dart';
+import 'package:model/account/authentication_type.dart';
+import 'package:tmail_ui_user/features/login/domain/state/get_credential_state.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/dashboard_routes.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/local_notification_manager.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 import 'dart:io';
 
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
@@ -447,6 +459,91 @@ void main() {
       storeEmailSortOrderInteractor,
       getStoredEmailSortOrderInteractor,
     );
+  });
+
+  group('NumberInbox notification body taps', () {
+    const channel = MethodChannel('dexterous.com/flutter/local_notifications');
+    final manager = LocalNotificationManager.instance;
+
+    Future<void> deliver({String? payload, String? action, bool actionResponse = false}) async {
+      manager.localNotificationsController.add(NotificationResponse(
+        notificationResponseType: actionResponse
+            ? NotificationResponseType.selectedNotificationAction
+            : NotificationResponseType.selectedNotification,
+        actionId: action, payload: payload));
+      await pumpEventQueue();
+    }
+
+    setUp(() async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (_) async => null);
+      mailboxDashboardController.sessionCurrent = testSession;
+      mailboxDashboardController.accountId.value = testAccountId;
+      when(getEmailByIdInteractor.execute(any, any, any,
+        properties: anyNamed('properties'))).thenAnswer((_) => const Stream.empty());
+      await mailboxDashboardController.injectFCMBindings(testSession, testAccountId);
+      clearInteractions(getEmailByIdInteractor);
+    });
+    tearDown(() async {
+      await manager.localNotificationsController.close();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null);
+    });
+
+    String target(String account) => NumberInboxNotificationTarget(
+      accountId: account, emailId: 'synthetic-mail').encode();
+    GetCredentialViewState credentials() => GetCredentialViewState(
+      google, UserName('data'), Password('synthetic'),
+      PersonalAccount('test', AuthenticationType.basic, isSelected: true, accountId: testAccountId));
+
+    test('matching account opens mail through the existing interactor', () async {
+      when(getAuthenticatedAccountInteractor.execute()).thenAnswer((_) =>
+        Stream.value(dartz.Right<Failure, Success>(credentials())));
+      await deliver(payload: target('123'));
+      verify(getEmailByIdInteractor.execute(testSession, testAccountId,
+        EmailId(Id('synthetic-mail')), properties: anyNamed('properties'))).called(1);
+    });
+    test('wrong account and malformed targets do not open mail', () async {
+      for (final payload in [target('other'), '{"niVersion":1}', '{"niAccountId":"x","emailId":"e"}']) {
+        await deliver(payload: payload);
+      }
+      verifyNever(getEmailByIdInteractor.execute(any, any, any, properties: anyNamed('properties')));
+    });
+    test('old buttons and nonempty identifiers never open or mutate mail', () async {
+      for (final action in ['mark_read', 'archive', 'reply', 'unknown']) {
+        await deliver(payload: target('123'), action: action, actionResponse: true);
+        await deliver(payload: target('123'), action: action);
+      }
+      verifyNever(getEmailByIdInteractor.execute(any, any, any, properties: anyNamed('properties')));
+      verifyZeroInteractions(markAsEmailReadInteractor);
+      verifyZeroInteractions(moveToMailboxInteractor);
+    });
+    test('malformed targets and JSON return to the mailbox rather than loading', () async {
+      for (final payload in ['{"niVersion":1}', '{']) {
+        mailboxDashboardController.dashboardRoute.value = DashboardRoutes.waiting;
+        await deliver(payload: payload);
+        expect(mailboxDashboardController.dashboardRoute.value, DashboardRoutes.thread);
+      }
+    });
+    test('signed-out body tap is buffered and logout clears it', () async {
+      mailboxDashboardController.sessionCurrent = null;
+      mailboxDashboardController.accountId.value = null;
+      await deliver(payload: target('123'));
+      expect(manager.takeNumberInboxResponse()?.payload, target('123'));
+      await deliver(payload: target('123'));
+      await manager.cancelAll();
+      expect(manager.takeNumberInboxResponse(), isNull);
+      verifyNever(getEmailByIdInteractor.execute(any, any, any, properties: anyNamed('properties')));
+    });
+    test('account change during authentication prevents opening', () async {
+      final gate = Completer<dartz.Either<Failure, Success>>();
+      when(getAuthenticatedAccountInteractor.execute()).thenAnswer((_) => Stream.fromFuture(gate.future));
+      await deliver(payload: target('123'));
+      mailboxDashboardController.accountId.value = AccountId(Id('other'));
+      gate.complete(dartz.Right<Failure, Success>(credentials()));
+      await pumpEventQueue();
+      verifyNever(getEmailByIdInteractor.execute(any, any, any, properties: anyNamed('properties')));
+    });
   });
 
   group('PaywallLauncher navigation', () {

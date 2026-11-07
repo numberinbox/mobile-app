@@ -36,14 +36,16 @@ final class NumberInboxPushPayloadTests: XCTestCase {
 
     func testLocalActionInteractionIsAccountBoundAndContentFree() {
         let info: [AnyHashable: Any] = ["niVersion": 1, "niAccountId": "account", "email_id": "mail", "subject": "private"]
-        for action in ["", "mark_read", "archive", "reply"] {
+        for action in [""] {
             let result = NumberInboxPushPayload.notificationInteraction(actionId: action, userInfo: info)
             XCTAssertEqual(result?["actionId"] as? String, action)
             XCTAssertEqual(result?["niAccountId"] as? String, "account")
             XCTAssertEqual(result?.count, 4)
             XCTAssertNil(result?["subject"])
         }
-        XCTAssertNil(NumberInboxPushPayload.notificationInteraction(actionId: "delete", userInfo: info))
+        for action in ["mark_read", "archive", "reply", "delete"] {
+            XCTAssertNil(NumberInboxPushPayload.notificationInteraction(actionId: action, userInfo: info))
+        }
         XCTAssertNil(NumberInboxPushPayload.notificationInteraction(actionId: "reply", userInfo: ["email_id": "mail"]))
     }
 

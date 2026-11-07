@@ -3,11 +3,9 @@ import Foundation
 /// Versioned platform event. Mail content is fetched with the keychain session;
 /// it is never accepted from this untrusted push payload.
 struct NumberInboxPushPayload {
-    static let notificationCategory = "numberinbox_mail_v1"
-    static let actionIds: Set<String> = ["mark_read", "archive", "reply"]
 
     static func notificationInteraction(actionId: String, userInfo: [AnyHashable: Any]) -> [String: Any]? {
-        guard actionId.isEmpty || actionIds.contains(actionId),
+        guard actionId.isEmpty,
               userInfo["niVersion"] as? Int == 1,
               let account = userInfo["niAccountId"] as? String, !account.isEmpty,
               let email = userInfo["email_id"] as? String, !email.isEmpty else { return nil }

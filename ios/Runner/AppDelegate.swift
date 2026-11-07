@@ -17,6 +17,7 @@ import flutter_local_notifications
     ) -> Bool {
         if let payload = launchOptions?[.remoteNotification] as? [AnyHashable : Any],
            payload["niAccountId"] == nil,
+           payload["niVersion"] == nil,
            let emailId = payload[JmapConstants.EMAIL_ID] as? String,
            !emailId.isEmpty {
             currentEmailId = emailId
@@ -157,7 +158,12 @@ import flutter_local_notifications
         
         
         let userInfo = response.notification.request.content.userInfo
-        if response.notification.request.content.categoryIdentifier == NumberInboxPushPayload.notificationCategory {
+        // Earlier builds registered mail actions. They must never become body taps.
+        guard response.actionIdentifier == UNNotificationDefaultActionIdentifier else {
+            completionHandler()
+            return
+        }
+        if userInfo["niAccountId"] != nil || userInfo["niVersion"] != nil {
             let actionId = response.actionIdentifier == UNNotificationDefaultActionIdentifier ? "" : response.actionIdentifier
             if let interaction = NumberInboxPushPayload.notificationInteraction(actionId: actionId, userInfo: userInfo) {
                 pendingNumberInboxInteraction = interaction
@@ -209,20 +215,6 @@ extension AppDelegate {
         
         self.notificationInteractionChannel?.setMethodCallHandler { (call, result) in
             switch call.method {
-            case "remove_numberinbox_mail_notification":
-                guard let args = call.arguments as? [String: String],
-                      let account = args["niAccountId"], let email = args["emailId"] else {
-                    result(FlutterError(code: "invalid_target", message: "Invalid notification target", details: nil))
-                    return
-                }
-                UNUserNotificationCenter.current().getDeliveredNotifications { notifications in
-                    let ids = notifications.filter {
-                        $0.request.content.userInfo["niAccountId"] as? String == account &&
-                        $0.request.content.userInfo[JmapConstants.EMAIL_ID] as? String == email
-                    }.map { $0.request.identifier }
-                    UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: ids)
-                    DispatchQueue.main.async { result(nil) }
-                }
             case "get_pending_numberinbox_notification_action":
                 result(self.pendingNumberInboxInteraction)
                 self.pendingNumberInboxInteraction = nil

@@ -1,5 +1,9 @@
 # Notification preview spacing verification
 
+Historical report: its custom layout/actions or formatter have been superseded by
+[ADR 0124](../adr/0124-upstream-notification-presentation.md). Original verification
+evidence below is retained as history.
+
 Base revision: `f992b66f000965ea47bc69b00a18c204b690c808`.
 Changes remain uncommitted. Existing iOS project, version, and Claude outputs changes were preserved.
 

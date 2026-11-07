@@ -1,6 +1,6 @@
 import 'dart:convert';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 
 import 'dart:async';
 
@@ -28,11 +28,11 @@ class IOSNotificationManager {
   void _acceptNumberInboxInteraction(dynamic arguments) {
     if (arguments is! Map || pendingNumberInboxResponse.isClosed) return;
     final action = arguments['actionId'];
-    if (action is! String || (action.isNotEmpty && NumberInboxMailAction.fromId(action) == null)) return;
+    if (action is! String || action.isNotEmpty) return;
     final payload = jsonEncode({'niVersion': arguments['niVersion'], 'niAccountId': arguments['niAccountId'], 'emailId': arguments['emailId']});
     if (NumberInboxNotificationTarget.decode(payload) == null) return;
     pendingNumberInboxResponse.add(NotificationResponse(
-      notificationResponseType: action.isEmpty ? NotificationResponseType.selectedNotification : NotificationResponseType.selectedNotificationAction,
+      notificationResponseType: NotificationResponseType.selectedNotification,
       actionId: action, payload: payload));
   }
 
@@ -93,10 +93,6 @@ class IOSNotificationManager {
       _pendingCurrentEmailIdInNotification.add(null);
     }
   }
-
-  Future<void> removeMailNotification(String accountId, String emailId) =>
-    _notificationInteractionChannel.invokeMethod<void>('remove_numberinbox_mail_notification',
-      {'niAccountId': accountId, 'emailId': emailId});
 
   void dispose() {
     pendingNumberInboxResponse.close();

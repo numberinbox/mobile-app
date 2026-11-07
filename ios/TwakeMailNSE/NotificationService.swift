@@ -260,7 +260,7 @@ class NotificationService: UNNotificationServiceExtension {
         self.modifiedContent?.badge = NSNumber(value: badgeCount)
         self.modifiedContent?.sound = .default
         self.modifiedContent?.userInfo = userInfo
-        if platformAccountId != nil { self.modifiedContent?.categoryIdentifier = NumberInboxPushPayload.notificationCategory }
+        if platformAccountId != nil { self.modifiedContent?.categoryIdentifier = "" }
     }
     
     private func showNewNotification(title: String?,
@@ -277,7 +277,7 @@ class NotificationService: UNNotificationServiceExtension {
         content.sound = .default
         content.badge = NSNumber(value: badgeCount)
         content.userInfo = userInfo
-        if platformAccountId != nil { content.categoryIdentifier = NumberInboxPushPayload.notificationCategory }
+        if platformAccountId != nil { content.categoryIdentifier = "" }
 
         // Create a notification trigger
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 2, repeats: false)

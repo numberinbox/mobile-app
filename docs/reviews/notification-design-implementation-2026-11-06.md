@@ -1,5 +1,9 @@
 # Notification design implementation verification
 
+Historical report: its custom layout/actions or formatter have been superseded by
+[ADR 0124](../adr/0124-upstream-notification-presentation.md). Original verification
+evidence below is retained as history.
+
 Date: 2026-11-06. Base: `338855be07f498e48e624121934a9c9585f95ca4`.
 Branch: `master` (this repository's default/main branch). Intentionally uncommitted.
 

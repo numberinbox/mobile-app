@@ -1,6 +1,10 @@
 # ADR 0123: NumberInbox mail notification presentation and actions
 
-Date: 2026-11-06. Status: implemented for review; device acceptance pending.
+Date: 2026-11-06. Status: superseded by ADR 0124.
+
+The custom sender-first layout, initials avatars, and notification action buttons
+below describe historical behavior. The owner selected upstream presentation with
+NumberInbox branding instead. Account-safe taps and platform delivery remain.
 
 The owner authorized the complete notification-design plan, including its later
 avatar/action phases, on the default branch with no commit. This is an explicit

@@ -19,11 +19,7 @@ class AppLocalizations {
     });
   }
 
-  String get notificationUnknownSender => Intl.message('Unknown sender', name: 'notificationUnknownSender');
 
-  String get notificationArchiveUnavailable => Intl.message(
-    'This account has no Archive folder yet.',
-    name: 'notificationArchiveUnavailable');
 
   String get initializing_data {
     return Intl.message('Initializing data...',

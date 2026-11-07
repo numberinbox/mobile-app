@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_actions.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/foundation.dart';
@@ -120,6 +120,9 @@ void main() {
   });
 
   group('LocalNotificationConfig.generateNotificationDetails', () {
+    test('registers no custom iOS categories', () {
+      expect(LocalNotificationConfig.iosInitializationSettings.notificationCategories, isEmpty);
+    });
     test('uses private lock-screen visibility on Android', () {
       expect(
         LocalNotificationConfig.instance.generateNotificationDetails().android?.visibility,
@@ -180,7 +183,7 @@ void main() {
       expect(completed, isTrue);
     });
 
-    test('recognized action responses reach the existing stream and unknown actions are ignored', () async {
+    test('all obsolete action responses are ignored', () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       final manager = LocalNotificationManager.instance;
       final received = <NotificationResponse>[];
@@ -198,7 +201,7 @@ void main() {
           await completed.future;
         }
         await pumpEventQueue();
-        expect(received.map((response) => response.actionId), ['mark_read', 'archive', 'reply']);
+        expect(received, isEmpty);
       } finally { await subscription.cancel(); debugDefaultTargetPlatformOverride = null; }
     });
 
