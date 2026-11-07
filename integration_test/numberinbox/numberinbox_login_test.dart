@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:patrol_finders/patrol_finders.dart';
 import 'package:tmail_ui_user/main/main_entry.dart';
+import 'numberinbox_test_config.dart';
 
 const otpHelperUrl = String.fromEnvironment('OTP_HELPER_URL');
 const testNumber = String.fromEnvironment('SMOKE_TEST_NUMBER');
@@ -197,5 +198,5 @@ void main() {
     expect($(#otp_phone_field), findsNothing);
     expect($(#otp_code_field), findsNothing);
     expect($(#otp_verify_cta), findsNothing);
-  });
+  }, config: slowStackConfig);
 }

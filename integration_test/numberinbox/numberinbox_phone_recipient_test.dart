@@ -15,6 +15,7 @@ import '../extensions/patrol_finder_extension.dart';
 import '../robots/composer_robot.dart';
 import '../robots/thread_robot.dart';
 import '../utils/wait_for_condition.dart';
+import 'numberinbox_test_config.dart';
 
 const testNumber = String.fromEnvironment('SMOKE_TEST_NUMBER');
 const subject = 'Phone recipient smoke';
@@ -92,5 +93,5 @@ void main() {
       composeButton,
     ).waitUntilVisible(timeout: const Duration(seconds: 60));
     expect($(#country_search), findsNothing);
-  });
+  }, config: slowStackConfig);
 }

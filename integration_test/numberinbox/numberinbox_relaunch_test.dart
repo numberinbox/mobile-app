@@ -4,6 +4,7 @@ import 'package:core/presentation/views/floating_button/scrolling_floating_butto
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:tmail_ui_user/main/main_entry.dart';
+import 'numberinbox_test_config.dart';
 
 void main() {
   patrolTest('opens the mailbox without a phone or OTP prompt', ($) async {
@@ -22,5 +23,5 @@ void main() {
     expect($(#otp_phone_field), findsNothing);
     expect($(#otp_code_field), findsNothing);
     expect($(#otp_send_cta), findsNothing);
-  });
+  }, config: slowStackConfig);
 }

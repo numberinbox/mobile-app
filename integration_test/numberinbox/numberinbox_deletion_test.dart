@@ -11,6 +11,7 @@ import 'package:patrol/patrol.dart';
 import 'package:patrol_finders/patrol_finders.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/main/main_entry.dart';
+import 'numberinbox_test_config.dart';
 
 const otpHelperUrl = String.fromEnvironment('OTP_HELPER_URL');
 const testNumber = String.fromEnvironment('SMOKE_TEST_NUMBER');
@@ -211,5 +212,5 @@ void main() {
       findsNothing,
       reason: 'a recreated mailbox must not show earlier mail',
     );
-  });
+  }, config: slowStackConfig);
 }
