@@ -14,6 +14,7 @@ import 'package:tmail_ui_user/main/main_entry.dart';
 import '../extensions/patrol_finder_extension.dart';
 import '../robots/composer_robot.dart';
 import '../robots/thread_robot.dart';
+import '../utils/wait_for_condition.dart';
 
 const testNumber = String.fromEnvironment('SMOKE_TEST_NUMBER');
 const subject = 'Phone recipient smoke';
@@ -73,15 +74,23 @@ void main() {
 
     await composer.addSubject(subject);
     await composer.sendEmail(ImagePaths());
-    await $.pumpAndSettle();
 
     // The disposable stack only hosts numberinbox.test, so the message cannot
     // land in this mailbox: the proof is that the composer accepted the
     // recipient and closed back to the inbox with no unresolved-number prompt.
+    // Sending takes a while on a slow stack, and the compose button is visible
+    // under the composer the whole time, so wait for the composer itself to go.
+    await waitForCondition(
+      () async {
+        await $.pump(const Duration(milliseconds: 200));
+        return !$(ComposerView).exists;
+      },
+      timeout: const Duration(seconds: 120),
+      reason: 'the composer closes after sending',
+    );
     await $(
       composeButton,
     ).waitUntilVisible(timeout: const Duration(seconds: 60));
-    expect($(ComposerView), findsNothing);
     expect($(#country_search), findsNothing);
   });
 }
