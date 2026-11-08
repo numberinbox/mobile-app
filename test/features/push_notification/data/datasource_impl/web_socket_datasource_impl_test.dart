@@ -222,6 +222,17 @@ void main() {
       },
     );
 
+    test('emulator host alias does not bypass plaintext socket policy', () async {
+      await expectLater(
+        datasourceWith().getWebSocketChannel(
+          _sessionForWebSocket(Uri.parse('ws://10.0.2.2/jmap/ws')),
+          AccountFixtures.aliceAccountId,
+        ),
+        throwsA(isA<WebSocketInsecureSchemeException>()),
+      );
+      expect(authorizationInterceptors.headerReads, 0);
+    });
+
     test(
       'WHEN the capability advertises a loopback ws:// URL and no ticket exists\n'
       'THEN the connection is allowed (test/local server capability)\n'
@@ -229,7 +240,11 @@ void main() {
       () async {
         final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
         final authorizationHeaders = <String?>[];
+        final requestUris = <Uri>[];
+        final offeredProtocols = <String?>[];
         server.listen((request) async {
+          requestUris.add(request.uri);
+          offeredProtocols.add(request.headers.value('sec-websocket-protocol'));
           authorizationHeaders.add(
             request.headers.value(HttpHeaders.authorizationHeader),
           );
@@ -253,6 +268,10 @@ void main() {
 
         await _waitUntil(() => authorizationHeaders.isNotEmpty);
         expect(authorizationHeaders.single, _basicAuthHeader);
+        expect(offeredProtocols.single, 'jmap');
+        expect(channel.protocol, 'jmap');
+        expect(requestUris.single.path, '/jmap/ws');
+        expect(requestUris.single.queryParameters, isNot(contains('ticket')));
       },
     );
   });

@@ -159,3 +159,11 @@ Private CI runs the inherited Android-tagged suite against a disposable backend,
 - Credentials reach tests only via dart-define on a disposable backend. Keep them out of logs, artifacts and shell tracing.
 - Assert the `sessionUrl` origin equals the configured JMAP origin. Do not weaken the app's origin validation to make tests pass.
 - No private CI details, backend configuration or credentials belong in this repository. `workflow-policy.test.mjs` must stay green.
+
+## 2026-11-08: Stalwart live-push compatibility
+
+[ADR 0126](../adr/0126-jmap-push-without-ticket.md) records the approved narrow
+application gate change allowing native Basic-auth WebSocket push without the
+Linagora ticket extension. It preserves ticket servers and inherited integration
+assertions. The folder and trash scenarios are validation targets, not tests to
+weaken or skip.

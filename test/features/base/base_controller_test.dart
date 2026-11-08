@@ -63,10 +63,25 @@ import 'package:tmail_ui_user/features/composer/presentation/composer_view_web.d
 import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/repository/composer_cache_repository.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/remove_all_composer_cache_interactor.dart';
+import 'package:jmap_dart_client/jmap/core/capability/websocket_capability.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/repository/web_socket_repository.dart';
+import 'package:tmail_ui_user/features/push_notification/domain/usecases/connect_web_socket_interactor.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/controller/web_socket_controller.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
+import '../../fixtures/web_socket_session_fixtures.dart';
 
 import '../../fixtures/account_fixtures.dart';
 import '../../fixtures/session_fixtures.dart';
 import 'base_controller_test.mocks.dart';
+
+class _RefusingWebSocketRepository implements WebSocketRepository {
+  int calls = 0;
+  @override
+  Future<WebSocketChannel> getWebSocketChannel(Session session, AccountId accountId) {
+    calls++;
+    return Future.error(StateError('synthetic connection refusal'));
+  }
+}
 
 class MockBaseController extends BaseController {
 
@@ -738,6 +753,45 @@ void main() {
 
       verify(mockAppToast.showToastErrorMessage(any, "This link can't be opened")).called(1);
     });
+  });
+
+  group('BaseController::WebSocket with Stalwart and ticket servers', () {
+    setUp(() {
+      dotenv.testLoad(mergeWith: {'PLATFORM': 'other'});
+      addTearDown(() async {
+        WebSocketController.instance.onClose();
+        WebSocketController.instance.accountId = null;
+        WebSocketController.instance.session = null;
+        Get.reset();
+        dotenv.clean();
+      });
+    });
+
+    for (final c in [
+      (name: 'Stalwart Basic', ticket: false, basic: true, registered: true),
+      (name: 'Stalwart OIDC without ticket', ticket: false, basic: false, registered: false),
+      (name: 'Twake OIDC with ticket', ticket: true, basic: false, registered: true),
+    ]) {
+      test('${c.name} chooses the supported push authentication path', () async {
+        when(mockAuthorizationInterceptors.basicAuthorizationHeader)
+            .thenReturn(c.basic ? 'Basic c3ludGhldGljOnRlc3Q=' : null);
+        when(mockAuthorizationInterceptors.authenticationType)
+            .thenReturn(c.basic ? AuthenticationType.basic : AuthenticationType.oidc);
+        final repository = _RefusingWebSocketRepository();
+        Get.put<WebSocketRepository>(repository);
+        expect(Get.isRegistered<ConnectWebSocketInteractor>(), isFalse);
+        mockBaseController.injectWebSocket(
+          session: pushSession(ticket: c.ticket, accountWebSocket: c.ticket
+              ? WebSocketCapability(supportsPush: true, url: Uri.parse('ws://localhost/jmap/ws'))
+              : null),
+          accountId: AccountFixtures.aliceAccountId,
+        );
+        expect(Get.isRegistered<ConnectWebSocketInteractor>(), c.registered);
+        // Let the synthetic refusal exhaust the inherited bounded retries.
+        await Future<void>.delayed(Duration.zero);
+        expect(repository.calls > 0, c.registered);
+      });
+    }
   });
 
   // NumberInbox runs on a Stalwart server that never advertises the Twake

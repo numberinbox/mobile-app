@@ -10,7 +10,6 @@ import 'package:forward/forward/capability_forward.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'package:jmap_dart_client/jmap/core/capability/capability_identifier.dart';
-import 'package:jmap_dart_client/jmap/core/capability/websocket_capability.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:model/model.dart';
 import 'package:rule_filter/rule_filter/capability_rule_filter.dart';
@@ -40,6 +39,7 @@ import 'package:tmail_ui_user/features/manage_account/domain/state/log_out_oidc_
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/email_rules/bindings/email_rules_interactor_bindings.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/forward/bindings/forwarding_interactors_bindings.dart';
+import 'package:tmail_ui_user/features/push_notification/data/extensions/web_socket_push_availability_extension.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/fcm_exception.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/exceptions/web_socket_exceptions.dart';
 import 'package:tmail_ui_user/features/push_notification/domain/state/destroy_firebase_registration_state.dart';
@@ -429,18 +429,11 @@ abstract class BaseController extends GetxController
   }) {
     try {
       log('$runtimeType::injectWebSocket: isLabelAvailable is $isLabelAvailable');
-      requireCapability(
-        session!,
+      if (!session!.canStartWebSocketPush(
         accountId!,
-        [
-          CapabilityIdentifier.jmapWebSocket,
-          CapabilityIdentifier.jmapWebSocketTicket
-        ]
-      );
-      final wsCapability = session.getCapabilityProperties<WebSocketCapability>(
-        accountId,
-        CapabilityIdentifier.jmapWebSocket);
-      if (wsCapability?.supportsPush != true) {
+        hasBasicCredentials: authorizationInterceptors.basicAuthorizationHeader != null,
+        isWeb: PlatformInfo.isWeb,
+      )) {
         throw WebSocketPushNotSupportedException();
       }
       WebSocketInteractorBindings().dependencies();
