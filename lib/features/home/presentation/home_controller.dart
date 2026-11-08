@@ -99,6 +99,12 @@ class HomeController extends ReloadableController {
   }
 
   Future<void> _handleNavigateToScreen() async {
+    // Upstream integration tests seed their credentials into storage right after
+    // the app boots. The hold they rely on is kept for them alone, so a real
+    // launch no longer waits two seconds before it checks for a signed-in account.
+    if (PlatformInfo.isIntegrationTesting) {
+      await Future.delayed(2.seconds);
+    }
     final arguments = Get.arguments;
     if (arguments is LoginNavigateArguments) {
       _handleLoginNavigateArguments(arguments);
