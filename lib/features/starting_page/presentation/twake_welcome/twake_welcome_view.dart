@@ -112,7 +112,7 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                                   style: TextStyle(
                                     fontSize: 14,
                                     fontWeight: FontWeight.w500,
-                                    color: NumberInboxPalette.actionBlue,
+                                    color: NumberInboxPalette.interactiveAccent,
                                   ),
                                 ),
                               ),

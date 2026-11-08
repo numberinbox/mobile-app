@@ -301,6 +301,14 @@ void main() {
     );
   }
 
+  for (final phase in OtpPhase.values) {
+    testWidgets('$phase privacy link uses the shared teal accent', (tester) async {
+      await pumpPhase(tester, configure: (c) => c.phase = phase);
+      final label = tester.widget<Text>(find.text('Privacy policy'));
+      expect(label.style!.color, NumberInboxPalette.interactiveAccent);
+    });
+  }
+
   testWidgets('phone phase shows the brand CTA and the phone field', (
     tester,
   ) async {

@@ -1,4 +1,6 @@
 import 'package:core/data/model/preview_attachment.dart';
+import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/utils/preview_eml_file_utils.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:html/parser.dart';
@@ -35,6 +37,17 @@ void main() {
       listAttachment: listAttachment,
     );
   }
+
+  test('generated EML attachment icons use the shared teal accent', () {
+    final document = parse(generate(listAttachment: [
+      PreviewAttachment(iconBase64Data: '', name: 'notes.txt', size: '1 KB'),
+    ]));
+    final styles = document.querySelectorAll('style').map((e) => e.text).join('\n');
+    final iconRule = RegExp(r'\.attachment-item \.icon\s*\{([^}]+)\}').firstMatch(styles);
+    expect(iconRule, isNotNull);
+    expect(iconRule!.group(1), contains('color: ${NumberInboxPalette.interactiveAccent.toHexTriplet()};'));
+    expect(document.querySelector('.file-name')!.text, 'notes.txt');
+  });
 
   group('PreviewEmlFileUtils.generatePreviewEml — header escaping', () {
     test('SHOULD NOT turn the sender address into markup', () {

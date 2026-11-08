@@ -1,5 +1,7 @@
 
 import 'package:core/presentation/constants/constants_ui.dart';
+import 'package:core/presentation/extensions/color_extension.dart';
+import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:flutter/material.dart';
 
 class HtmlTemplate {
@@ -122,7 +124,7 @@ class HtmlTemplate {
     }
   ''';
 
-  static const String previewEMLFileCssStyle = '''
+  static final String previewEMLFileCssStyle = '''
     <style> 
       $fontFaceStyle
 
@@ -267,7 +269,7 @@ class HtmlTemplate {
         justify-content: center;
         background-color: #f2f2f2;
         border-radius: 50%;
-        color: #007bff;
+        color: ${NumberInboxPalette.interactiveAccent.toHexTriplet()};
       }
   
       .attachment-item .file-details {

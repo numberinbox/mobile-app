@@ -114,3 +114,40 @@ acceptance were not performed; these layout paths are covered by the explicit
 widget matrix. No full root test suite or private integration CI is claimed.
 Normal Android and iOS application builds replace the temporary previews without
 clearing app data; temporary preview entrypoints are outside the repository.
+
+## Remaining link and EML preview accents (2026-11-08)
+
+The owner approved bringing the welcome Privacy policy link and the inherited
+EML attachment-preview icon into the solid-teal policy. Both now consume
+interactiveAccent. EML CSS is initialized from the existing toHexTriplet helper
+rather than copying a hexadecimal color; selectors and preview behavior remain
+unchanged. The upstream HTML template change is limited to imports, runtime
+palette interpolation and the affected CSS color. Secondary theme blue and
+multicolor artwork remain unchanged.
+
+TDD baseline: `82488d73bbd3f9cd75f8cea844169c99d13f38ce`. RED: both phone/code
+welcome widget tests observed actionBlue rather than interactiveAccent; a
+generated EML preview test observed #007bff rather than #0B7A94. Logs:
+`/tmp/ni-brand-links-red.log`, `/tmp/ni-brand-eml-red.log`.
+
+The startup-timing source check was stale after the integration-only hold was
+restored. Its focused source check now requires the retained hold to be inside the positive
+PlatformInfo.isIntegrationTesting branch and rejects unguarded, differently
+guarded and else-branch delays. No startup production code changed.
+
+GREEN: `flutter test --no-pub test/branding test/features/starting_page
+ test/features/home/presentation/home_view_test.dart` passed 249 tests, with the
+existing opt-in splash capture skipped for absent capture inputs. Core command
+`flutter test --no-pub test/utils/preview_eml_file_utils_test.dart
+ test/utils/html/html_template_font_test.dart test/utils/html_transform_text_plain_test.dart`
+passed 55 tests including inherited HTML/font/escaping checks. Logs:
+`/tmp/ni-brand-cleanup-green.log`, `/tmp/ni-brand-eml-green.log`.
+No simulator/device reinspection or full root suite is claimed for these
+two color-only corrections.
+
+Final touched-file analysis: no issues found
+(`/tmp/ni-brand-cleanup-analysis-final.log`). The first startup guard test used
+an analyzer import available only through an override; that test-only approach
+was replaced without a dependency change by a narrow exemption for the exact
+integration branch. Its three final checks passed
+(`/tmp/ni-brand-startup-final.log`). `git diff --check` passed.
