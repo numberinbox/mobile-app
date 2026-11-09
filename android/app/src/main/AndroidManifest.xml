@@ -59,7 +59,7 @@
             received while the app is backgrounded land on the fallback
             "Miscellaneous" channel and lose the lock screen privacy setting. -->
        <meta-data
-           android:name="com.google.firebase.messaging.default_notification_channel"
+           android:name="com.google.firebase.messaging.default_notification_channel_id"
            android:value="New Email" />
 
         <activity
