@@ -192,6 +192,7 @@ void main() {
     await $.pumpAndSettle();
     expect($(#sendEmailButton), findsOneWidget);
     expect($(#closeComposerButton), findsOneWidget);
+    await waitForComposerEditor($);
     await $(#closeComposerButton).tap();
     await $.pumpAndSettle();
     expect($(#otp_phone_field), findsNothing);

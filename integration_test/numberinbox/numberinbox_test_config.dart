@@ -1,6 +1,7 @@
 import 'dart:io' show Platform;
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_test/flutter_test.dart' show find;
 import 'package:patrol/patrol.dart' show PatrolIntegrationTester, IOSSelector;
 import 'package:patrol_finders/patrol_finders.dart' show PatrolTesterConfig;
 import 'package:tmail_ui_user/main/main_entry.dart';
@@ -65,4 +66,20 @@ Future<void> allowContactsIfAsked(PatrolIntegrationTester $) async {
       return;
     }
   }
+}
+
+/// Waits until the composer's HTML editor has been created and had time to start.
+///
+/// The editor is a webview created after the composer route opens. Closing the
+/// composer while it is still starting can dispose its controller twice, which
+/// the webview plugin reports as "used after being disposed" and which fails the
+/// test although every step succeeded. The type is matched by name because the
+/// plugin is not a direct dependency of the application.
+Future<void> waitForComposerEditor(PatrolIntegrationTester $) async {
+  await $(find.byWidgetPredicate(
+    (w) => w.runtimeType.toString() == 'InAppWebView',
+    description: 'composer editor webview',
+  )).waitUntilVisible(timeout: const Duration(seconds: 30));
+  await $.pump(const Duration(seconds: 3));
+  await $.pumpAndSettle();
 }
