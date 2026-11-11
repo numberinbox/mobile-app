@@ -3,7 +3,6 @@
 import 'package:core/presentation/views/floating_button/scrolling_floating_button_animated.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
-import 'package:tmail_ui_user/main/main_entry.dart';
 import 'numberinbox_test_config.dart';
 
 void main() {
@@ -12,7 +11,7 @@ void main() {
     // boot it explicitly. The boot resumes the stored session, so the mailbox
     // appears directly; a boot that instead lands back on the welcome fields
     // is exactly the regression this stage exists to catch.
-    await runTmail();
+    await startNumberInbox();
     await $(find.byWidgetPredicate(
       (w) => w is ScrollingFloatingButtonAnimated,
       description: 'scrolling compose button',

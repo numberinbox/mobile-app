@@ -8,7 +8,6 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:patrol_finders/patrol_finders.dart';
-import 'package:tmail_ui_user/main/main_entry.dart';
 import 'numberinbox_test_config.dart';
 
 const otpHelperUrl = String.fromEnvironment('OTP_HELPER_URL');
@@ -116,8 +115,8 @@ void main() {
   patrolTest('signs in with a real OTP and uses the mailbox', ($) async {
     // Native automation does not show the app on its own: the driver must
     // boot it explicitly, otherwise the tree stays empty and every selector
-    // times out. runTmail() mounts /twake_welcome within ~15s on this build.
-    await runTmail();
+    // times out. startNumberInbox() mounts /twake_welcome within ~15s on this build.
+    await startNumberInbox();
     await selectThailand($);
 
     await $(#otp_phone_field).enterText(testNumber.replaceFirst('+66', '0'));

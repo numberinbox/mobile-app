@@ -10,7 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:patrol/patrol.dart';
 import 'package:patrol_finders/patrol_finders.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
-import 'package:tmail_ui_user/main/main_entry.dart';
 import 'numberinbox_test_config.dart';
 
 const otpHelperUrl = String.fromEnvironment('OTP_HELPER_URL');
@@ -143,7 +142,7 @@ void main() {
     // Native automation does not show the app on its own: the driver must
     // boot it explicitly, otherwise the tree stays empty and every selector
     // times out. Stage three cleared app data, so the boot lands on welcome.
-    await runTmail();
+    await startNumberInbox();
     await signIn($, testNumber);
 
     // A fresh, disposable account: this one has one message, delivered by the

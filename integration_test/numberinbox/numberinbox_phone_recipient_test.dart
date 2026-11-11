@@ -9,7 +9,6 @@ import 'package:tmail_ui_user/features/composer/presentation/composer_view.dart'
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_composer_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_suggestion_item_widget.dart';
 import 'package:tmail_ui_user/features/composer/presentation/widgets/recipient_tag_item_widget.dart';
-import 'package:tmail_ui_user/main/main_entry.dart';
 
 import '../extensions/patrol_finder_extension.dart';
 import '../robots/composer_robot.dart';
@@ -26,7 +25,7 @@ void main() {
   ) async {
     // Runs on the session the relaunch stage preserved: the boot resumes the
     // mailbox directly, so no phone or OTP prompt is involved here.
-    await runTmail();
+    await startNumberInbox();
     final composeButton = find.byWidgetPredicate(
       (w) => w is ScrollingFloatingButtonAnimated,
       description: 'scrolling compose button',
@@ -41,7 +40,7 @@ void main() {
     ).waitUntilVisible(timeout: const Duration(seconds: 30));
 
     final composer = ComposerRobot($);
-    await composer.grantContactPermission();
+    await allowContactsIfAsked($);
 
     // A full international number resolves without asking for a country; a
     // local-format number would open the country picker instead. The chip must
