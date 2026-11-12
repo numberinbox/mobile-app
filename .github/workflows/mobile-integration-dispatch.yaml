@@ -1,0 +1,55 @@
+name: Queue mobile integration
+on:
+  workflow_run:
+    workflows: [Analyze and test]
+    types: [completed]
+    branches: [master]
+permissions: {}
+jobs:
+  dispatch:
+    if: >-
+      github.repository == 'numberinbox/mobile-app' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: mobile-integration-dispatch
+    steps:
+      - name: Validate dispatch configuration
+        env:
+          APP_CLIENT_ID: ${{ vars.MOBILE_INTEGRATION_APP_CLIENT_ID }}
+          TARGET_REPOSITORY: ${{ secrets.MOBILE_INTEGRATION_REPOSITORY }}
+          MOBILE_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$APP_CLIENT_ID" || ! "$TARGET_REPOSITORY" =~ ^[A-Za-z0-9_.-]+$ ||
+                ! "$MOBILE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "::error::Mobile integration dispatch configuration or source revision is invalid."
+            exit 1
+          fi
+      - name: Create dispatch token
+        id: app-token
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          client-id: ${{ vars.MOBILE_INTEGRATION_APP_CLIENT_ID }}
+          private-key: ${{ secrets.MOBILE_INTEGRATION_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ secrets.MOBILE_INTEGRATION_REPOSITORY }}
+          permission-actions: write
+      - name: Queue device tests for the checked revision
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          TARGET_REPOSITORY: ${{ secrets.MOBILE_INTEGRATION_REPOSITORY }}
+          MOBILE_SHA: ${{ github.event.workflow_run.head_sha }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! gh api --method POST \
+              "repos/$GITHUB_REPOSITORY_OWNER/$TARGET_REPOSITORY/actions/workflows/mobile-integration.yml/dispatches" \
+              -f ref=main -f "inputs[mobile_sha]=$MOBILE_SHA" --silent 2>/dev/null; then
+            echo "::error::Could not queue the private mobile integration workflow."
+            exit 1
+          fi
+          echo "Queued mobile integration for $MOBILE_SHA."
