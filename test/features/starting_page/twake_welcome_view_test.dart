@@ -286,6 +286,57 @@ void main() {
       expect(find.byKey(const Key('otp_verify_cta')), findsOneWidget);
     });
 
+    testWidgets('shows the SMS destination and lets users correct it', (tester) async {
+      const first = '+66812345678';
+      const second = '+66812345679';
+      for (final number in [first, second]) {
+        adapter.onPost('/v1/otp/start',
+            (server) => server.reply(200, {'ok': true}),
+            data: {'e164': number});
+        adapter.onPost('/v1/otp/verify',
+            (server) => server.reply(401, {'error': 'otp_invalid'}),
+            data: {'e164': number, 'code': '123456'});
+      }
+      await pumpScreenAsThailand(tester);
+      final ctrl = Get.find<TwakeWelcomeController>();
+      final phone = find.byKey(const Key('otp_phone_field'));
+      final code = find.byKey(const Key('otp_code_field'));
+      final send = find.byKey(const Key('otp_send_cta'));
+      final verify = find.byKey(const Key('otp_verify_cta'));
+      final change = find.text('Change phone number');
+
+      await tester.enterText(phone, '812345678');
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+      expect(find.text('+66 81 234 5678'), findsOneWidget);
+      expect(tester.getBottomLeft(change).dy, lessThan(tester.getTopLeft(code).dy));
+
+      await tester.enterText(code, '123456');
+      await tester.tap(verify);
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid code. Try again.'), findsOneWidget);
+      await tester.ensureVisible(change);
+      await tester.tap(change);
+      await tester.pumpAndSettle();
+
+      expect(ctrl.selectedCountry.code, 'TH');
+      expect(tester.widget<TextField>(phone).controller!.text, '812345678');
+      expect(ctrl.codeController.text, isEmpty);
+      expect(find.byKey(const Key('otp_error')), findsNothing);
+      expect(code, findsNothing);
+      expect(tester.testTextInput.isVisible, isFalse);
+
+      await tester.enterText(phone, '812345679');
+      await tester.tap(send);
+      await tester.pumpAndSettle();
+      expect(find.text('+66 81 234 5679'), findsOneWidget);
+      expect(ctrl.codeController.text, isEmpty);
+      await tester.enterText(code, '123456');
+      await tester.tap(verify);
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid code. Try again.'), findsOneWidget);
+    });
+
     testWidgets('server error shows friendly message', (tester) async {
       adapter.onPost('/v1/otp/start',
           (server) => server.reply(500, {'error': 'internal'}),
@@ -405,6 +456,12 @@ void main() {
         reason: 'the button must not be tappable while sign-in is in flight',
       );
 
+      final change = find.byKey(const Key('otp_change_phone_number'));
+      expect(tester.widget<TextButton>(change).onPressed, isNull);
+      controller.changePhoneNumber();
+      expect(controller.phase, OtpPhase.code);
+      expect(controller.otpDestination, '+66812345678');
+
       // A session failure restores a usable button.
       session.fail(GetSessionFailure(Exception('session unavailable')));
       for (var i = 0; i < 20; i++) {
@@ -421,6 +478,8 @@ void main() {
         isNotNull,
       );
       expect(find.text('Verify'), findsOneWidget);
+      expect(tester.widget<TextButton>(change).onPressed, isNotNull);
+      expect(controller.otpDestination, '+66812345678');
     });
   });
 

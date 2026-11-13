@@ -24,6 +24,7 @@ import 'package:tmail_ui_user/features/login/domain/usecases/update_account_cach
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
+import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/twake_welcome_controller.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/twake_welcome_view.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/branded_action_button.dart';
@@ -278,11 +279,21 @@ void main() {
           keyboard: 260,
           direction: TextDirection.rtl,
           configure: (c) {
+            c.onCountrySelected(countryForRegionCode('TH'));
+            c.phoneController.text = '812345678';
             c.phase = OtpPhase.code;
             c.error = 'Invalid code. Please check the message and try again.';
           },
         );
         expect(tester.takeException(), isNull);
+        final destination = find.text('+66 81 234 5678');
+        final change = find.byKey(const Key('otp_change_phone_number'));
+        await tester.ensureVisible(destination);
+        expect(tester.widget<Text>(destination).textDirection, TextDirection.ltr);
+        expect(destination.hitTestable(), findsOneWidget);
+        await tester.ensureVisible(change);
+        expect(change.hitTestable(), findsOneWidget);
+        expect(find.byType(EditableText), findsOneWidget);
         await tester.ensureVisible(find.byKey(const Key('otp_code_field')));
         await tester.enterText(
           find.byKey(const Key('otp_code_field')),
@@ -300,6 +311,29 @@ void main() {
       },
     );
   }
+
+  testWidgets('change phone number exposes a button and supports keyboard activation', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await pumpPhase(tester, configure: (controller) {
+      controller.onCountrySelected(countryForRegionCode('TH'));
+      controller.phoneController.text = '812345678';
+      controller.phase = OtpPhase.code;
+    });
+    final change = find.byKey(const Key('otp_change_phone_number'));
+    await tester.ensureVisible(change);
+    final node = tester.getSemantics(change).getSemanticsData();
+    expect(node.label, 'Change phone number');
+    expect(node.hasAction(ui.SemanticsAction.tap), isTrue);
+    semantics.dispose();
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('otp_phone_field')), findsOneWidget);
+  });
 
   for (final phase in OtpPhase.values) {
     testWidgets('$phase privacy link uses the shared teal accent', (tester) async {

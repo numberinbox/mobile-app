@@ -1,3 +1,4 @@
+import 'package:dlibphonenumber/dlibphonenumber.dart';
 import 'package:tmail_ui_user/features/starting_page/presentation/twake_welcome/widgets/verification_code_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -77,10 +78,14 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (ctrl.phase == OtpPhase.phone) ...[
+                                _buildPhaseHeading('Enter your phone number'),
+                                const SizedBox(height: 16),
                                 _buildPhoneRow(context, ctrl),
                                 const SizedBox(height: 16),
                                 _buildSendCodeButton(context, ctrl),
                               ] else ...[
+                                _buildVerificationDestination(context, ctrl),
+                                const SizedBox(height: 12),
                                 _buildCodeField(context, ctrl),
                                 const SizedBox(height: 16),
                                 _buildVerifyButton(context, ctrl),
@@ -130,6 +135,78 @@ class TwakeWelcomeView extends GetWidget<TwakeWelcomeController> {
         ),
       ),
     );
+  }
+
+  Widget _buildPhaseHeading(String title) {
+    return Text(
+      title,
+      textAlign: TextAlign.center,
+      style: const TextStyle(
+        color: NumberInboxPalette.navy,
+        fontSize: 22,
+        fontWeight: FontWeight.w700,
+      ),
+    );
+  }
+
+  Widget _buildVerificationDestination(
+    BuildContext context,
+    TwakeWelcomeController ctrl,
+  ) {
+    final destination = ctrl.otpDestination;
+    return Column(
+      children: [
+        _buildPhaseHeading('Verify your number'),
+        if (destination != null) ...[
+          const SizedBox(height: 8),
+          const Text(
+            'We sent a 6-digit code to',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: NumberInboxPalette.navy),
+          ),
+          Text(
+            _formatDestination(destination),
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.ltr,
+            style: const TextStyle(
+              color: NumberInboxPalette.navy,
+              fontSize: 20,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+        TextButton(
+          key: const Key('otp_change_phone_number'),
+          style: TextButton.styleFrom(
+            foregroundColor: NumberInboxPalette.interactiveAccent,
+            minimumSize: const Size(0, 48),
+          ),
+          onPressed: ctrl.verifying
+              ? null
+              : () {
+                  FocusScope.of(context).unfocus();
+                  ctrl.changePhoneNumber();
+                },
+          child: const Text(
+            'Change phone number',
+            textAlign: TextAlign.center,
+            style: TextStyle(decoration: TextDecoration.underline),
+          ),
+        ),
+      ],
+    );
+  }
+
+  String _formatDestination(String e164) {
+    try {
+      final phoneUtil = PhoneNumberUtil.instance;
+      return phoneUtil.format(
+        phoneUtil.parse(e164, ''),
+        PhoneNumberFormat.international,
+      );
+    } on NumberParseException {
+      return e164;
+    }
   }
 
   Widget _buildPhoneRow(BuildContext context, TwakeWelcomeController ctrl) {

@@ -106,6 +106,8 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
   Object? verifyError;
   Object? startOtpError;
   int startOtpCalls = 0;
+  Completer<void>? startPending;
+  Completer<void>? verifyPending;
   OtpSession? session;
 
   /// E.164 numbers sent to [startOtp], in order, for gate assertions.
@@ -120,12 +122,14 @@ class ScriptedAuthClient extends NumberInboxAuthClient {
     startOtpNumbers.add(rawE164);
     final error = startOtpError;
     if (error != null) throw error;
+    await startPending?.future;
   }
 
   @override
   Future<OtpSession> verifyOtp(String rawE164, String code, {String? deviceId}) async {
     verifyCalls++;
     verifyNumbers.add(rawE164);
+    await verifyPending?.future;
     final error = verifyError;
     if (error != null) throw error;
     final url = sessionUrl;
@@ -401,6 +405,91 @@ void main() {
   });
 
   group('sendCode', () {
+    test('ignores duplicate starts and keeps the captured destination', () async {
+      final pending = Completer<void>();
+      final auth = ScriptedAuthClient()
+        ..startPending = pending
+        ..verifyError = OtpInvalidException();
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      addTearDown(ctrl.dispose);
+      ctrl.onCountrySelected(countryForRegionCode('TH'));
+      ctrl.phoneController.text = '812345678';
+
+      final first = ctrl.sendCode();
+      final duplicate = ctrl.sendCode();
+      ctrl.phoneController.text = '812345679';
+      pending.complete();
+      await Future.wait([first, duplicate]);
+
+      ctrl.codeController.text = '123456';
+      await ctrl.verifyCode();
+      expect(auth.startOtpNumbers, ['+66812345678']);
+      expect(auth.verifyNumbers, ['+66812345678']);
+    });
+
+    test('does not verify a six-digit code in the phone phase', () async {
+      final auth = ScriptedAuthClient()..verifyError = OtpInvalidException();
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      addTearDown(ctrl.dispose);
+      ctrl.onCountrySelected(countryForRegionCode('TH'));
+      ctrl.phoneController.text = '812345678';
+      ctrl.codeController.text = '123456';
+
+      await ctrl.verifyCode();
+
+      expect(auth.verifyCalls, 0);
+    });
+
+    test('failed send after editing leaves the new draft ready to retry', () async {
+      final auth = ScriptedAuthClient();
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      addTearDown(ctrl.dispose);
+      ctrl.onCountrySelected(countryForRegionCode('TH'));
+      ctrl.phoneController.text = '812345678';
+      await ctrl.sendCode();
+      ctrl.codeController.text = '123456';
+
+      ctrl.changePhoneNumber();
+      expect(auth.startOtpNumbers, ['+66812345678']);
+      expect(ctrl.otpDestination, isNull);
+      expect(ctrl.codeController.text, isEmpty);
+
+      ctrl.phoneController.text = '812345679';
+      auth.startOtpError = RateLimitedException();
+      await ctrl.sendCode();
+      expect(auth.startOtpNumbers, ['+66812345678', '+66812345679']);
+      expect(ctrl.phase, OtpPhase.phone);
+      expect(ctrl.phoneController.text, '812345679');
+      expect(ctrl.otpDestination, isNull);
+      expect(ctrl.sending, isFalse);
+      expect(ctrl.error, 'Too many attempts. Try again later.');
+    });
+
+    test('phone correction is refused while OTP verification is pending', () async {
+      final pending = Completer<void>();
+      final auth = ScriptedAuthClient()
+        ..verifyPending = pending
+        ..verifyError = OtpInvalidException();
+      final ctrl = TwakeWelcomeController(authClient: auth);
+      addTearDown(ctrl.dispose);
+      ctrl.onCountrySelected(countryForRegionCode('TH'));
+      ctrl.phoneController.text = '812345678';
+      await ctrl.sendCode();
+      ctrl.codeController.text = '123456';
+
+      final verification = ctrl.verifyCode();
+      ctrl.changePhoneNumber();
+      expect(ctrl.phase, OtpPhase.code);
+      expect(ctrl.codeController.text, '123456');
+      pending.complete();
+      await verification;
+
+      expect(ctrl.otpDestination, '+66812345678');
+      ctrl.changePhoneNumber();
+      expect(ctrl.phase, OtpPhase.phone);
+      expect(ctrl.error, isNull);
+    });
+
     test('verification keeps the number that received the OTP', () async {
       final auth = ScriptedAuthClient()..verifyError = OtpInvalidException();
       final ctrl = TwakeWelcomeController(authClient: auth);
@@ -413,7 +502,7 @@ void main() {
       await ctrl.verifyCode();
       expect(auth.startOtpNumbers, ['+66661234567']);
       expect(auth.verifyNumbers, auth.startOtpNumbers);
-      ctrl.phase = OtpPhase.phone;
+      ctrl.changePhoneNumber();
       await ctrl.sendCode();
       expect(auth.startOtpNumbers.last, '+919123456789');
       ctrl.dispose();
@@ -654,6 +743,7 @@ void main() {
 
       final ctrl = TwakeWelcomeController(authClient: auth ?? ScriptedAuthClient());
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
       return ctrl;
@@ -740,6 +830,8 @@ void main() {
     });
 
     test('clears verifying when the code length is invalid', () async {
+      controller.phoneController.text = '812345678';
+      controller.phase = OtpPhase.code;
       controller.codeController.text = '123';
       await controller.verifyCode();
 
@@ -884,6 +976,7 @@ void main() {
       Get.replace<GetSessionInteractor>(session);
       final ctrl = TwakeWelcomeController(authClient: auth);
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
 
@@ -909,6 +1002,7 @@ void main() {
       Get.replace<GetSessionInteractor>(session);
       final ctrl = TwakeWelcomeController(authClient: ScriptedAuthClient());
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
 
@@ -939,6 +1033,7 @@ void main() {
       Get.replace<GetSessionInteractor>(session);
       final ctrl = TwakeWelcomeController(authClient: ScriptedAuthClient());
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
 
@@ -971,6 +1066,7 @@ void main() {
       Get.replace<GetSessionInteractor>(session);
       final ctrl = TwakeWelcomeController(authClient: auth);
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
       return ctrl;
@@ -1102,6 +1198,7 @@ void main() {
       Get.replace<GetSessionInteractor>(session);
       final ctrl = TwakeWelcomeController(authClient: auth);
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
       return ctrl;
@@ -1233,6 +1330,7 @@ void main() {
         authClient: ScriptedAuthClient()..session = newSession,
       );
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
       return (controller: ctrl, store: store);
@@ -1305,6 +1403,7 @@ void main() {
         authClient: ScriptedAuthClient()..session = newSession,
       );
       ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
       ctrl.phase = OtpPhase.code;
       ctrl.codeController.text = '123456';
 

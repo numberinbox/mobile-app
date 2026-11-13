@@ -30,3 +30,27 @@ controller refactor or automatic focus is introduced.
 
 Platform editing-value tests verify the autofill input path, not SMS delivery.
 Physical-device autofill and screen-reader acceptance remain device checks.
+
+## OTP destination and phone correction
+
+The verification phase displays the formatted international destination from the
+successful OTP start. Verification uses that same E.164 value. The draft and
+country picker are preserved when Change phone number returns to phone entry.
+The action dismisses the code field, clears the local code and error, and leaves
+the next SMS request to Send code. It is disabled throughout sign-in. Backend
+expiry and rate limits still govern earlier codes.
+
+### Verification
+
+Baseline revision: `46fc264e4`.
+
+- RED: `flutter test --no-pub test/features/starting_page/twake_welcome_view_test.dart test/features/starting_page/twake_welcome_controller_test.dart --name 'shows the SMS destination|ignores duplicate starts|does not verify a six-digit' --reporter expanded`.
+  Three expected failures showed a missing destination, two OTP start requests
+  for repeated Send, and one Verify request from phone entry.
+- GREEN: `flutter test --no-pub test/features/starting_page test/features/numberinbox/phone_number_parser_test.dart test/branding/primary_action_palette_test.dart --reporter expanded`.
+  All 123 tests passed, including correction, loading, keyboard activation, and
+  large-text/RTL coverage.
+- `flutter analyze --no-pub` reported 75 informational diagnostics and no
+  warnings or errors. `git diff --check` passed.
+- The owner reported the flow works. Separate Android and iOS simulator
+  walkthroughs were not completed by Codex for this revision.

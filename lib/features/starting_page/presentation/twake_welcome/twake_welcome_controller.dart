@@ -49,12 +49,14 @@ class TwakeWelcomeController extends ReloadableController {
 
   String? _otpNumber;
 
-  String get fullE164 => _selectedCountry.parseE164(phoneController.text.trim()) ?? '';
+  String? get otpDestination => _otpNumber;
 
   @visibleForTesting
   set phase(OtpPhase value) {
     _phase = value;
-    _otpNumber = value == OtpPhase.code ? fullE164 : null;
+    _otpNumber = value == OtpPhase.code
+        ? _selectedCountry.parseE164(phoneController.text.trim())
+        : null;
     update();
   }
 
@@ -69,7 +71,19 @@ class TwakeWelcomeController extends ReloadableController {
     update();
   }
 
+  void changePhoneNumber() {
+    if (_phase != OtpPhase.code || _verifying) return;
+
+    codeController.clear();
+    _error = null;
+    _otpNumber = null;
+    _phase = OtpPhase.phone;
+    update();
+  }
+
   Future<void> sendCode() async {
+    if (_phase != OtpPhase.phone || _sending) return;
+
     final phone = phoneController.text.trim();
     if (phone.isEmpty) {
       _error = 'Enter your phone number';
@@ -90,7 +104,6 @@ class TwakeWelcomeController extends ReloadableController {
       await authClient.startOtp(e164);
       _otpNumber = e164;
       _phase = OtpPhase.code;
-      _sending = false;
     } on InvalidE164Exception {
       _error = 'Invalid phone number format';
     } on RateLimitedException {
@@ -108,7 +121,8 @@ class TwakeWelcomeController extends ReloadableController {
   Future<void> verifyCode() async {
     // A second tap while the first sign-in is still in flight must not start a
     // parallel OTP request and session fetch.
-    if (_verifying) return;
+    final destination = _otpNumber;
+    if (_phase != OtpPhase.code || destination == null || _verifying) return;
 
     final code = codeController.text.trim();
     if (code.length != 6) {
@@ -131,7 +145,7 @@ class TwakeWelcomeController extends ReloadableController {
       try {
         deviceId = await Get.find<DeviceManager>().getDeviceId();
       } catch (_) {}
-      final otpSession = await authClient.verifyOtp(_otpNumber ?? fullE164, code, deviceId: deviceId);
+      final otpSession = await authClient.verifyOtp(destination, code, deviceId: deviceId);
       sessionStarted = await _onOtpVerified(otpSession);
     } on OtpInvalidException {
       _error = 'Invalid code. Try again.';
