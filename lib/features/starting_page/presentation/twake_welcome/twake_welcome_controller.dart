@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:core/presentation/state/failure.dart';
 import 'package:core/presentation/state/success.dart';
 import 'package:core/utils/app_logger.dart';
@@ -19,6 +21,7 @@ import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
 import 'package:tmail_ui_user/main/routes/app_routes.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
+import 'package:tmail_ui_user/main/exceptions/remote/network_exception.dart';
 import 'package:tmail_ui_user/main/routes/route_utils.dart';
 
 enum OtpPhase { phone, code }
@@ -27,7 +30,14 @@ class TwakeWelcomeController extends ReloadableController {
   TwakeWelcomeController({
     required this.authClient,
     JmapSessionManager? sessionManager,
+    this.sessionTimeout = const Duration(seconds: 30),
   }) : _sessionManager = sessionManager ?? JmapSessionManager();
+
+  /// How long sign-in waits for the JMAP session fetch before reporting a
+  /// retryable failure. The shared network client sets no timeout of its own,
+  /// so a stalled connection would otherwise leave Verify spinning forever.
+  final Duration sessionTimeout;
+  Timer? _sessionTimer;
 
   final NumberInboxAuthClient authClient;
   final JmapSessionManager _sessionManager;
@@ -211,9 +221,31 @@ class TwakeWelcomeController extends ReloadableController {
       return false;
     }
 
+    _sessionTimer?.cancel();
+    _sessionTimer = Timer(sessionTimeout, _onSessionTimeout);
     getSessionAction();
     return true;
   }
+
+  void _onSessionTimeout() {
+    if (!_verifying) return;
+    logError(
+      'TwakeWelcomeController::_onSessionTimeout: '
+      'event=sign_in_failed | category=session_timeout',
+    );
+    _verifying = false;
+    _error = _noConnectionMessage;
+    update();
+  }
+
+  static const _noConnectionMessage =
+      'No connection. Check your network and try again.';
+  static const _signInFailedMessage = 'Failed to sign in. Please try again.';
+
+  static bool _isConnectionProblem(Object? exception) =>
+      exception is NoNetworkError ||
+      exception is ConnectionError ||
+      exception is ConnectionTimeout;
 
   /// Stores the OTP-issued credentials.
   ///
@@ -331,6 +363,7 @@ class TwakeWelcomeController extends ReloadableController {
 
   @override
   void handleReloaded(Session session) {
+    _sessionTimer?.cancel();
     log('TwakeWelcomeController::handleReloaded: session fetched');
     pushAndPopAll(
       RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
@@ -340,18 +373,27 @@ class TwakeWelcomeController extends ReloadableController {
 
   @override
   void onDataFailureViewState(Failure failure) {
-    // Clearing here rather than in handleFailureViewState also covers the
-    // urgent branch: BaseController.onDataFailureViewState sends urgent
-    // exceptions straight to handleUrgentException and never reaches
-    // handleFailureViewState, which would otherwise leave the spinner running.
+    // Handled here rather than in handleFailureViewState because
+    // BaseController.onDataFailureViewState sends urgent exceptions (no
+    // network, connection error, bad credentials) straight to
+    // handleUrgentException and never reaches handleFailureViewState. Without
+    // a message and a rebuild the user would be left on the Verify screen with
+    // no explanation.
     if (failure is GetSessionFailure) {
+      _sessionTimer?.cancel();
       _verifying = false;
+      _error = _isConnectionProblem(failure.exception)
+          ? _noConnectionMessage
+          : _signInFailedMessage;
+      update();
+      if (validateUrgentException(failure.exception)) {
+        _logSignInFailed(failure);
+      }
     }
     super.onDataFailureViewState(failure);
   }
 
-  @override
-  void handleFailureViewState(Failure failure) {
+  void _logSignInFailed(Failure failure) {
     // Fixed event name plus the failure *type*, never the failure itself.
     // `GetSessionFailure` wraps whatever the JMAP session request threw, which
     // can be a response body, an Authorization header or a URL carrying
@@ -361,9 +403,16 @@ class TwakeWelcomeController extends ReloadableController {
       'TwakeWelcomeController::handleFailureViewState: '
       'event=sign_in_failed | category=${failure.runtimeType}',
     );
+  }
+
+  @override
+  void handleFailureViewState(Failure failure) {
+    _logSignInFailed(failure);
     if (failure is GetSessionFailure) {
       // Generic and retryable: the user has to be able to try the code again.
-      _error = 'Failed to sign in. Please try again.';
+      _error = _isConnectionProblem(failure.exception)
+          ? _noConnectionMessage
+          : _signInFailedMessage;
       update();
     } else {
       super.handleFailureViewState(failure);
@@ -378,6 +427,7 @@ class TwakeWelcomeController extends ReloadableController {
 
   @override
   void onClose() {
+    _sessionTimer?.cancel();
     phoneController.dispose();
     codeController.dispose();
     super.onClose();

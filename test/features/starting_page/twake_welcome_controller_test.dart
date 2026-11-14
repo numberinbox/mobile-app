@@ -882,6 +882,98 @@ void main() {
       ctrl.dispose();
     });
 
+    for (final entry in <String, Object>{
+      'NoNetworkError': const NoNetworkError(),
+      'ConnectionError': const ConnectionError(),
+      'ConnectionTimeout': const ConnectionTimeout(),
+    }.entries) {
+      test('shows a connection message for a ${entry.key} session failure',
+          () async {
+        final session = ControllableGetSessionInteractor();
+        addTearDown(session.close);
+        final ctrl = await arrangeOnCodeScreen(session: session);
+
+        final pending = ctrl.verifyCode();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        var notified = 0;
+        ctrl.addListener(() => notified++);
+
+        session.fail(GetSessionFailure(entry.value));
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        await pending;
+
+        expect(ctrl.verifying, isFalse);
+        expect(ctrl.error, 'No connection. Check your network and try again.');
+        expect(notified, greaterThan(0),
+            reason: 'the screen must rebuild, or the spinner and message '
+                'never change');
+        ctrl.dispose();
+      });
+    }
+
+    test('shows the generic message for a non-network session failure',
+        () async {
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final ctrl = await arrangeOnCodeScreen(session: session);
+
+      final pending = ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      session.fail(GetSessionFailure(Exception('boom')));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await pending;
+
+      expect(ctrl.error, 'Failed to sign in. Please try again.');
+      ctrl.dispose();
+    });
+
+    test('reports an urgent session failure as an error event by category '
+        'only', () async {
+      final logs = _CapturingLogHandler();
+      final secret = 'Bearer s3cr3t-token';
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      final ctrl = await arrangeOnCodeScreen(session: session);
+      final pending = ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      AppLoggerRegistry.instance.registerHandler(logs);
+      addTearDown(AppLoggerRegistry.instance.resetForTesting);
+      session.fail(GetSessionFailure(ConnectionError(message: secret)));
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await pending;
+
+      expect(logs.records.where((r) => r.level == Level.error), isNotEmpty);
+      expect(logs.everything, contains('GetSessionFailure'));
+      expect(logs.everything, isNot(contains(secret)));
+      ctrl.dispose();
+    });
+
+    test('ends a stalled session fetch with a retryable message', () async {
+      final session = ControllableGetSessionInteractor();
+      addTearDown(session.close);
+      Get.replace<GetSessionInteractor>(session);
+      final ctrl = TwakeWelcomeController(
+        authClient: ScriptedAuthClient(),
+        sessionTimeout: const Duration(milliseconds: 100),
+      );
+      ctrl.onCountrySelected(countries.firstWhere((c) => c.code == 'TH'));
+      ctrl.phoneController.text = '812345678';
+      ctrl.phase = OtpPhase.code;
+      ctrl.codeController.text = '123456';
+
+      final pending = ctrl.verifyCode();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      expect(ctrl.verifying, isTrue);
+
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      await pending;
+
+      expect(ctrl.verifying, isFalse);
+      expect(ctrl.error, 'No connection. Check your network and try again.');
+      ctrl.dispose();
+    });
+
     test('keeps verifying through the account-cache update', () async {
       final session = ControllableGetSessionInteractor();
       addTearDown(session.close);
