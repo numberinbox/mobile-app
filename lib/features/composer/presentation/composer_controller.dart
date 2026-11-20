@@ -18,6 +18,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
+import 'package:jmap_dart_client/jmap/core/capability/capability_identifier.dart';
 import 'package:jmap_dart_client/jmap/core/error/method/error_method_response.dart';
 import 'package:jmap_dart_client/jmap/core/error/set_error.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
@@ -77,7 +78,6 @@ import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_k
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_message_failure_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_recipients_collapsed_extensions.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/invalid_recipients_extension.dart';
-import 'package:tmail_ui_user/features/composer/presentation/extensions/list_identities_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/sanitize_signature_in_email_content_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_attachments_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_content_extension.dart';
@@ -141,6 +141,7 @@ import 'package:tmail_ui_user/features/upload/domain/usecases/local_image_picker
 import 'package:tmail_ui_user/features/upload/presentation/controller/upload_controller.dart';
 import 'package:tmail_ui_user/features/upload/presentation/providers/upload_from_url_providers.dart';
 import 'package:tmail_ui_user/features/upload/presentation/validator/attachment_upload_validation_service.dart';
+import 'package:tmail_ui_user/main/error/capability_validator.dart';
 import 'package:tmail_ui_user/main/exceptions/remote/authentication_exception.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
@@ -154,6 +155,7 @@ import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attac
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_oversize_attachment_recovery.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/concurrency_gate.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_transfer_runner.dart';
+import 'package:tmail_ui_user/features/composer/presentation/utils/composer_web_body_cache.dart';
 import 'package:tmail_ui_user/main/utils/app_config.dart';
 import 'package:tmail_ui_user/main/utils/toast_manager.dart';
 import 'package:workplace/presentation/model/drive_pick_state.dart';
@@ -394,7 +396,7 @@ class ComposerController extends BaseController
   final ScrollController scrollControllerIdentities = ScrollController();
 
   List<Attachment> initialAttachments = <Attachment>[];
-  String? _textEditorWeb;
+  final ComposerWebBodyCache _webBodyCache = ComposerWebBodyCache();
   double? maxWithEditor;
   EmailId? emailIdEditing;
   bool isAttachmentCollapsed = false;
@@ -435,11 +437,18 @@ class ComposerController extends BaseController
 
   TransformHtmlEmailContentInteractor get transformHtmlEmailContentInteractor => _transformHtmlEmailContentInteractor;
 
-  String get ownEmailAddress =>
-      mailboxDashBoardController.ownEmailAddress.value;
+  String get ownEmailAddress => mailboxDashBoardController.ownerEmailAddress;
+
+  Set<String> get ownerEmailAddresses =>
+      mailboxDashBoardController.ownerEmailAddresses;
 
   late Worker uploadInlineImageWorker;
   late bool _isEmailBodyLoaded;
+  // Recipient FocusScopes keep focus when a chip menu takes it from their text field.
+  final Set<PrefixEmailAddress> _focusedRecipientScopes = {};
+
+  // An unmounted focused recipient FocusScope never reports its blur.
+  void clearFocusedRecipientScopes() => _focusedRecipientScopes.clear();
 
   void registerReloadCacheAction(ComposerReloadCacheAction action) =>
       _reloadCacheAction = action;
@@ -511,7 +520,7 @@ class ComposerController extends BaseController
     _phoneResolutionGeneration++;
     _isResolvingPickerPhones = false;
     _reloadCacheAction = null;
-    _textEditorWeb = null;
+    _webBodyCache.setTrusted(null);
     savedActionType = null;
     _savedEmailDraftHash = null;
     currentEmailActionType = null;
@@ -688,7 +697,7 @@ class ComposerController extends BaseController
   Future<CreateEmailRequest?> _generateCreateEmailRequestToSaveAsCache({String? htmlContent}) async {
     final arguments = composerArguments.value;
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
 
     if (arguments == null || session == null || accountId == null) {
       log('ComposerController::_generateCreateEmailRequest: SESSION or ACCOUNT_ID or ARGUMENTS is NULL');
@@ -813,12 +822,13 @@ class ComposerController extends BaseController
   void _injectBinding() {
     injectAutoCompleteBindings(
       mailboxDashBoardController.sessionCurrent,
-      mailboxDashBoardController.accountId.value,
+      mailboxDashBoardController.activeAccountId,
     );
   }
 
   Future<void> setupComposer() async {
     _isEmailBodyLoaded = false;
+    _focusedRecipientScopes.clear();
     final arguments = PlatformInfo.isWeb ? composerArgs : Get.arguments;
 
     if (arguments is! ComposerArguments) return;
@@ -868,7 +878,7 @@ class ComposerController extends BaseController
 
   void _getAllIdentities() {
     log('ComposerController::_getAllIdentities: Fetch again identity !');
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
     final session = mailboxDashBoardController.sessionCurrent;
     if (accountId != null && session != null) {
       consumeState(_getAllIdentitiesInteractor.execute(session, accountId));
@@ -876,10 +886,7 @@ class ComposerController extends BaseController
   }
 
   void _handleGetAllIdentitiesSuccess(GetAllIdentitiesSuccess success) {
-    final listIdentitiesMayDeleted = success.identities?.toListMayDeleted() ?? [];
-    if (listIdentitiesMayDeleted.isNotEmpty) {
-      listFromIdentities.value = listIdentitiesMayDeleted;
-    }
+    applyFromPickerIdentities(success.identities);
   }
 
   void initEmailAddress({
@@ -887,15 +894,17 @@ class ComposerController extends BaseController
     required EmailActionType actionType,
     String? listPost,
   }) {
-    final senderEmailAddress = ownEmailAddress;
+    final shownAddresses = mailboxDashBoardController.ownerEmailAddresses;
     final isSender = presentationEmail.from
       .asList()
-      .any((element) => element.emailAddress.isNotEmpty && element.emailAddress == senderEmailAddress);
+      .any((element) =>
+          element.emailAddress.isNotEmpty &&
+          shownAddresses.contains(element.emailAddress));
 
     final recipients = presentationEmail.generateRecipientsEmailAddressForComposer(
       emailActionType: actionType,
       isSender: isSender,
-      userName: senderEmailAddress,
+      shownAddresses: shownAddresses,
       listPost: listPost,
     );
 
@@ -933,6 +942,15 @@ class ComposerController extends BaseController
     }
   }
 
+  /// A refused EmailSubmission leaves the created copy in Outbox, so a mailbox without send rights stops here.
+  bool get _isSubmissionAvailableOnShownAccount {
+    final session = mailboxDashBoardController.sessionCurrent;
+    final accountId = mailboxDashBoardController.activeAccountId;
+    return session != null &&
+        accountId != null &&
+        CapabilityIdentifier.jmapSubmission.isSupported(session, accountId);
+  }
+
   void handleClickSendButton(BuildContext context) async {
     if (_sendButtonState == ButtonState.disabled) {
       log('ComposerController::handleClickSendButton: SENDING EMAIL');
@@ -958,6 +976,19 @@ class ComposerController extends BaseController
     }
 
     final appLocalizations = AppLocalizations.of(context);
+
+    if (!_isSubmissionAvailableOnShownAccount) {
+      MessageDialogActionManager().showConfirmDialogAction(
+        context,
+        appLocalizations.sendingNotAllowedFromThisMailbox,
+        appLocalizations.got_it,
+        title: appLocalizations.sending_failed,
+        showAsBottomSheet: true,
+        hasCancelButton: false,
+        dialogMargin: MediaQuery.paddingOf(context).add(const EdgeInsets.only(bottom: 12)),
+      ).whenComplete(() => _sendButtonState = ButtonState.enabled);
+      return;
+    }
 
     if (isEditedEmailContentLoadFailed) {
       MessageDialogActionManager().showConfirmDialogAction(
@@ -1085,7 +1116,7 @@ class ComposerController extends BaseController
   Future<String> getContentInEditor() async {
     try {
       final htmlTextEditor = PlatformInfo.isWeb
-        ? _textEditorWeb
+        ? textEditorWeb
         : await htmlEditorApi?.getText();
       return htmlTextEditor?.isNotEmpty == true
         ? htmlTextEditor!.removeEditorStartTag()
@@ -1099,7 +1130,7 @@ class ComposerController extends BaseController
   Future<void> _prepareToSendMessages(BuildContext context) async {
     final arguments = composerArguments.value;
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
 
     if (arguments == null || session == null || accountId == null) {
       log('ComposerController::_handleSendMessages: SESSION or ACCOUNT_ID or ARGUMENTS is NULL');
@@ -1295,7 +1326,7 @@ class ComposerController extends BaseController
       return DriveAttachmentTransferRunner.notStartedOutcome;
     }
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
     final uploadUri = session?.getUploadFromUrlUri(
       accountId,
       jmapUrl: jmapUrl,
@@ -1448,14 +1479,17 @@ class ComposerController extends BaseController
 
   Future<List<EmailAddress>> getAutoCompleteSuggestion(String queryString, {int? limit}) async {
     log('ComposerController::getAutoCompleteSuggestion():queryString = $queryString | limit = $limit | $_contactSuggestionSource');
-    _getAllAutoCompleteInteractor = getBinding<GetAllAutoCompleteInteractor>();
-    _getAutoCompleteInteractor = getBinding<GetAutoCompleteInteractor>();
+    final shownAccountId = mailboxDashBoardController.activeAccountId;
+    final tmailContactsAvailable = mailboxDashBoardController.sessionCurrent
+        ?.supportsTMailContactAutocomplete(shownAccountId) == true;
+    _getAllAutoCompleteInteractor = tmailContactsAvailable ? getBinding<GetAllAutoCompleteInteractor>() : null;
+    _getAutoCompleteInteractor = tmailContactsAvailable ? getBinding<GetAutoCompleteInteractor>() : null;
     _getDeviceContactSuggestionsInteractor = getBinding<GetDeviceContactSuggestionsInteractor>();
 
     final autoCompletePattern = AutoCompletePattern(
       word: queryString,
       limit: limit,
-      accountId: mailboxDashBoardController.accountId.value);
+      accountId: shownAccountId);
 
     if (_contactSuggestionSource == ContactSuggestionSource.all) {
       if (_getAllAutoCompleteInteractor != null) {
@@ -1564,7 +1598,7 @@ class ComposerController extends BaseController
 
   void uploadAttachmentsAction({required List<FileInfo> pickedFiles}) {
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
     if (session != null && accountId != null) {
       try {
         final uploadUri = session.getUploadUri(accountId, jmapUrl: dynamicUrlInterceptors.jmapUrl);
@@ -1660,7 +1694,7 @@ class ComposerController extends BaseController
 
     final arguments = composerArguments.value;
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
 
     if (arguments == null ||
         session == null ||
@@ -1736,7 +1770,7 @@ class ComposerController extends BaseController
   Future<void> handleClickSaveAsTemplateButton(BuildContext context) async {
     if (composerArguments.value == null ||
         mailboxDashBoardController.sessionCurrent == null ||
-        mailboxDashBoardController.accountId.value == null
+        mailboxDashBoardController.activeAccountId == null
     ) {
       log('ComposerController::handleClickSaveAsTemplateButton: SESSION or ACCOUNT_ID or ARGUMENTS is NULL');
       return;
@@ -1844,11 +1878,13 @@ class ComposerController extends BaseController
     if (screenDisplayMode.value.isNotContentVisible()) {
       _isEmailBodyLoaded = false;
     }
-    if (richTextWebController != null && !screenDisplayMode.value.isNotContentVisible()) {
+    if (richTextWebController?.isCodeViewBusy == false && !screenDisplayMode.value.isNotContentVisible()) {
       final textCurrent = await richTextWebController!.editorController.getText();
-      richTextWebController!.editorController.setText(textCurrent);
+      if (richTextWebController?.isCodeViewBusy != true) {
+        richTextWebController!.editorController.setText(textCurrent);
+      }
     }
-    screenDisplayMode.value = displayMode;
+    setScreenDisplayMode(displayMode);
     updateDisplayModeForComposerQueue(displayMode);
 
     await Future.delayed(
@@ -1879,6 +1915,8 @@ class ComposerController extends BaseController
   }
 
   void deleteEmailAddressType(PrefixEmailAddress prefixEmailAddress) {
+    // The removed row's FocusScope is disposed without reporting a blur.
+    _focusedRecipientScopes.remove(prefixEmailAddress);
     updateListEmailAddress(prefixEmailAddress, <EmailAddress>[]);
     switch(prefixEmailAddress) {
       case PrefixEmailAddress.to:
@@ -2109,6 +2147,7 @@ class ComposerController extends BaseController
 
   void onEmailAddressFocusChange(PrefixEmailAddress prefixEmailAddress, bool isFocus) {
     if (isFocus) {
+      _focusedRecipientScopes.add(prefixEmailAddress);
       _closeSuggestionBox();
       if (PlatformInfo.isMobile
           && currentContext != null
@@ -2116,6 +2155,7 @@ class ComposerController extends BaseController
         richTextMobileTabletController?.richTextController.hideRichTextView();
       }
     } else {
+      _focusedRecipientScopes.remove(prefixEmailAddress);
       switch(prefixEmailAddress) {
         case PrefixEmailAddress.to:
           final inputToEmail = toEmailAddressController.text;
@@ -2237,7 +2277,7 @@ class ComposerController extends BaseController
       final resultState = await _transformHtmlEmailContentInteractor
           .execute(signature, TransformConfiguration.forComposerSignature())
           .last;
-      return resultState.fold(
+      return resultState.fold<String?>(
         (failure) => _noSignatureInserted('sanitizing failed: $failure'),
         (success) {
           if (success is! TransformHtmlEmailContentSuccess) {
@@ -2269,10 +2309,17 @@ class ComposerController extends BaseController
   }
 
   Future<void> _removeSignature() async {
-    if (PlatformInfo.isWeb) {
-      richTextWebController?.editorController.removeSignature();
-    } else {
-      await htmlEditorApi?.removeSignature();
+    try {
+      if (PlatformInfo.isWeb) {
+        // The script reports the new body through the editor's own change event.
+        richTextWebController?.editorController
+            .evaluateJavascriptWeb(HtmlUtils.removeAllSignatures.name);
+      } else {
+        await htmlEditorApi?.webViewController
+            .evaluateJavascript(source: HtmlUtils.removeAllSignatures.script);
+      }
+    } catch (e) {
+      logWarning('ComposerController::_removeSignature: $e');
     }
   }
 
@@ -2306,7 +2353,7 @@ class ComposerController extends BaseController
     } catch (e) {
       logWarning('ComposerController::_handleUploadInlineSuccess(): $e');
     }
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
 
     if (baseDownloadUrl != null && accountId != null) {
       final imageUrl = uploadState.attachment.getDownloadUrl(baseDownloadUrl, accountId);
@@ -2401,7 +2448,7 @@ class ComposerController extends BaseController
   }
 
   Future<void> _autoFocusFieldWhenLauncher() async {
-    if (await _hasInputFieldFocused()) {
+    if (await hasInputFieldFocused()) {
       log('ComposerController::_autoFocusFieldWhenLauncher: INPUT_FIELD_FOCUS = true');
       return;
     }
@@ -2421,16 +2468,19 @@ class ComposerController extends BaseController
     }
   }
 
-  Future<bool> _hasInputFieldFocused() async {
+  @visibleForTesting
+  Future<bool> hasInputFieldFocused() async {
     if (PlatformInfo.isWeb) {
-      return toAddressFocusNode?.hasFocus == true ||
+      return _focusedRecipientScopes.isNotEmpty ||
+        toAddressFocusNode?.hasFocus == true ||
         ccAddressFocusNode?.hasFocus == true ||
         bccAddressFocusNode?.hasFocus == true ||
         replyToAddressFocusNode?.hasFocus == true ||
         subjectEmailInputFocusNode?.hasFocus == true;
     } else if (PlatformInfo.isMobile) {
       final isEditorFocused = (await richTextMobileTabletController?.isEditorFocused) ?? false;
-      return toAddressFocusNode?.hasFocus == true ||
+      return _focusedRecipientScopes.isNotEmpty ||
+        toAddressFocusNode?.hasFocus == true ||
         ccAddressFocusNode?.hasFocus == true ||
         bccAddressFocusNode?.hasFocus == true ||
         replyToAddressFocusNode?.hasFocus == true ||
@@ -2536,14 +2586,14 @@ class ComposerController extends BaseController
 
   bool get isNetworkConnectionAvailable => networkConnectionController.isNetworkConnectionAvailable();
 
-  String? get textEditorWeb => _textEditorWeb;
+  String? get textEditorWeb => _webBodyCache.read();
 
-  void setTextEditorWeb(String value) => _textEditorWeb = value;
+  void setTextEditorWeb(String value) => _webBodyCache.setTrusted(value);
 
   HtmlEditorApi? get htmlEditorApi => richTextMobileTabletController?.htmlEditorApi;
 
   void onChangeTextEditorWeb(String? text) {
-    _textEditorWeb = text;
+    _webBodyCache.onEditorChange(text, inCodeView: richTextWebController?.codeViewEnabled ?? false);
 
     if (restoringSignatureButton ||
         (_isNewComposition && !synchronizeInitDraftHash)) {
@@ -2725,7 +2775,7 @@ class ComposerController extends BaseController
   void _handleSaveMessageToDraft(BuildContext context) async {
     final arguments = composerArguments.value;
     final session = mailboxDashBoardController.sessionCurrent;
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = mailboxDashBoardController.activeAccountId;
 
     if (arguments == null ||
         session == null ||
@@ -2859,7 +2909,7 @@ class ComposerController extends BaseController
       child: SavingTemplateDialogView(
         createEmailRequest: CreateEmailRequest(
           session: mailboxDashBoardController.sessionCurrent!,
-          accountId: mailboxDashBoardController.accountId.value!,
+          accountId: mailboxDashBoardController.activeAccountId!,
           emailActionType: composerArguments.value!.emailActionType,
           ownEmailAddress: ownEmailAddress,
           subject: subjectEmail.value ?? '',
@@ -2972,7 +3022,7 @@ class ComposerController extends BaseController
   @override
   Future<void> onBeforeReconnect() async {
     if (!PlatformInfo.isWeb) return;
-    if (mailboxDashBoardController.accountId.value != null &&
+    if (mailboxDashBoardController.activeAccountId != null &&
         mailboxDashBoardController.sessionCurrent?.username != null
     ) {
       await _saveComposerSessionCache();

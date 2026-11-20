@@ -22,10 +22,10 @@ class GetEmailChangesToPushNotificationInteractor {
     Session session,
     AccountId accountId,
     UserName userName,
-    jmap.State currentState,
-    {
+    jmap.State currentState, {
       Properties? propertiesCreated,
-      Properties? propertiesUpdated
+      Properties? propertiesUpdated,
+      jmap.State? deliveryState,
     }
   ) async* {
     try {
@@ -52,6 +52,7 @@ class GetEmailChangesToPushNotificationInteractor {
         // The delivery cursor must be the Email/changes state: the Email/get
         // state can move past changes that were not processed yet.
         newState: emailsResponse.emailChangeResponse?.newStateChanges,
+        deliveryState: deliveryState,
       ));
     } catch (e) {
       yield Left<Failure, Success>(GetEmailChangesToPushNotificationFailure(

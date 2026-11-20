@@ -42,11 +42,11 @@ void main() {
 
   group('web bootstrap', () {
     test('no two-second runApp timers', () {
-      final lines = File('web/index.html').readAsLinesSync();
+      final lines = File('web/flutter_bootstrap.js').readAsLinesSync();
       final violations = <String>[];
       for (var i = 0; i < lines.length; i++) {
         if (lines[i].contains('}, 2000);')) {
-          violations.add('web/index.html:${i + 1}: ${lines[i].trim()}');
+          violations.add('web/flutter_bootstrap.js:${i + 1}: ${lines[i].trim()}');
         }
       }
       expect(

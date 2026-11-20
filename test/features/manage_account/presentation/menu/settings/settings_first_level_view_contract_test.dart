@@ -13,6 +13,8 @@ import 'package:tmail_ui_user/features/manage_account/presentation/manage_accoun
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/settings_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/settings_first_level_view.dart';
 import 'package:tmail_ui_user/main/utils/twake_app_manager.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/menu/manage_account_menu_controller.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/model/account_menu_item.dart';
 
 class _Dashboard extends GetxController implements ManageAccountDashBoardController {
   final supported = false.obs;
@@ -42,6 +44,13 @@ class _Dashboard extends GetxController implements ManageAccountDashBoardControl
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+class _Menu extends GetxController implements ManageAccountMenuController {
+  @override
+  final listAccountMenuItem = <AccountMenuItem>[].obs;
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   tearDown(Get.reset);
   testWidgets('mobile settings exposes the tappable deletion selector', (tester) async {
@@ -53,6 +62,7 @@ void main() {
     Get.put(ResponsiveUtils());
     Get.put(ImagePaths());
     Get.put(SettingsController());
+    Get.put<ManageAccountMenuController>(_Menu());
     await tester.pumpWidget(const MaterialApp(localizationsDelegates: [AppLocalizationsDelegate(), GlobalMaterialLocalizations.delegate, GlobalWidgetsLocalizations.delegate, GlobalCupertinoLocalizations.delegate], home: Scaffold(body: SettingsFirstLevelView())));
     await tester.pumpAndSettle();
     final finder = find.byKey(const Key('setting_delete_account'));

@@ -134,16 +134,21 @@ void main() {
     test('fetches translations once and applies them before the app starts', () {
       final translater = File('web/i18n/translater.js').readAsStringSync();
       final indexHtml = File('web/index.html').readAsStringSync();
+      final bootstrap = File('web/flutter_bootstrap.js').readAsStringSync();
 
       expect(
         indexHtml,
+        contains('src="flutter_bootstrap.js"'),
+      );
+      expect(
+        bootstrap,
         contains('initializeLocalizedApp(initialTmailApp)'),
         reason: 'startup must go through the single chained entry point',
       );
       expect(
-        indexHtml,
+        bootstrap,
         isNot(contains('loadLanguageResources().finally')),
-        reason: 'the inline script must not fetch translations separately',
+        reason: 'the bootstrap script must not fetch translations separately',
       );
       expect(
         translater,

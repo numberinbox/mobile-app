@@ -19,7 +19,8 @@ class DesktopEditRecipientsView extends StatelessWidget {
   final double width;
   final VoidCallback onCopyAction;
   final VoidCallback onEditAction;
-  final VoidCallback onCreateRuleAction;
+  /// Null hides the create-rule button.
+  final VoidCallback? onCreateRuleAction;
   final VoidCallback onCloseAction;
 
   const DesktopEditRecipientsView({
@@ -29,7 +30,7 @@ class DesktopEditRecipientsView extends StatelessWidget {
     required this.width,
     required this.onCopyAction,
     required this.onEditAction,
-    required this.onCreateRuleAction,
+    this.onCreateRuleAction,
     required this.onCloseAction,
   });
 
@@ -130,19 +131,20 @@ class DesktopEditRecipientsView extends StatelessWidget {
                           ),
                         ),
                       ),
-                      Flexible(
-                        child: Container(
-                          constraints: const BoxConstraints(minWidth: 134),
-                          height: 36,
-                          child: ConfirmDialogButton(
-                            label: AppLocalizations.of(context).createARule,
-                            backgroundColor: Colors.white,
-                            textColor: AppColor.primaryMain,
-                            borderColor: AppColor.primaryMain,
-                            onTapAction: onCreateRuleAction,
+                      if (onCreateRuleAction != null)
+                        Flexible(
+                          child: Container(
+                            constraints: const BoxConstraints(minWidth: 134),
+                            height: 36,
+                            child: ConfirmDialogButton(
+                              label: AppLocalizations.of(context).createARule,
+                              backgroundColor: Colors.white,
+                              textColor: AppColor.primaryMain,
+                              borderColor: AppColor.primaryMain,
+                              onTapAction: onCreateRuleAction,
+                            ),
                           ),
                         ),
-                      ),
                     ],
                   )
                 ],

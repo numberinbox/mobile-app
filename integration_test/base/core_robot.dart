@@ -2,6 +2,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:patrol/patrol.dart';
 
+import '../utils/mock_text_input.dart';
 import '../utils/test_timeouts.dart';
 import '../utils/wait_for_condition.dart';
 
@@ -28,5 +29,7 @@ abstract class CoreRobot {
       timeout: TestTimeouts.short,
       reason: 'Keyboard was not hidden',
     );
+    // The mock input must own the connection again before the next enterText.
+    if (registerMockTextInput) $.tester.testTextInput.register();
   }
 }

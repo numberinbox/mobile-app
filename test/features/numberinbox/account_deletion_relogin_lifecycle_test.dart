@@ -91,7 +91,7 @@ class _FakeDashboardController extends BaseController
   final Future<void> Function() _onClearData;
 
   @override
-  Future<void> clearAllData() => _onClearData();
+  Future<void> clearAllData({BuildContext? context}) => _onClearData();
 
   @override
   dynamic noSuchMethod(Invocation invocation) =>

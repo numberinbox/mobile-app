@@ -1,9 +1,14 @@
-ARG FLUTTER_VERSION=3.38.9
+ARG FLUTTER_VERSION=3.47.9
 
-# the digest wins over the tag: update FLUTTER_VERSION and the digest together
-FROM --platform=amd64 ghcr.io/instrumentisto/flutter:${FLUTTER_VERSION}@sha256:7d227ac458bbb5aca38ada779dc0bf983ad24deae8d2ef3ebf5b779915d1547d AS build-env
+# instrumentisto/flutter is archived; gmeligio/flutter-web tracks Flutter stable.
+# Digest pins linux/amd64 and wins over the tag. To bump: change FLUTTER_VERSION
+# here, in .github/workflows/*.yaml and Jenkinsfile*, then take the amd64 digest from
+# `docker buildx imagetools inspect ghcr.io/gmeligio/flutter-web:<version>`.
+FROM --platform=amd64 ghcr.io/gmeligio/flutter-web:${FLUTTER_VERSION}@sha256:8af1fcd0a7f7e84580f30d7f915f44237bb7a032bd8f4e3135a64fbec1ce1756 AS build-env
 
-ARG SENTRY_AUTH_TOKEN
+# Base image SHELL enables -x, which would print SENTRY_AUTH_TOKEN in build logs.
+SHELL ["/bin/bash", "-eo", "pipefail", "-c"]
+
 ARG SENTRY_ORG
 ARG SENTRY_PROJECT
 ARG SENTRY_URL
@@ -11,8 +16,13 @@ ARG SENTRY_RELEASE
 ARG VCS_REF
 ARG GITHUB_SHA
 
+# Image defaults to user flutter; root only to chown the WORKDIR, which Docker creates as root.
+USER root
 WORKDIR /app
-COPY . .
+COPY --chown=flutter:flutter . .
+RUN chown flutter:flutter /app
+
+USER flutter
 
 ENV GITHUB_SHA=$GITHUB_SHA \
     SENTRY_ORG=$SENTRY_ORG \
@@ -20,16 +30,34 @@ ENV GITHUB_SHA=$GITHUB_SHA \
     SENTRY_URL=$SENTRY_URL \
     SENTRY_RELEASE=$SENTRY_RELEASE
 
-RUN ./scripts/prebuild.sh && \
-    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-} ./scripts/configure-sentry.sh && \
+# The Sentry auth token comes in as a BuildKit secret, never a build-arg: build-arg
+# values are recorded in the image provenance attestation pushed to public registries.
+# Release builds set SENTRY_UPLOAD so a missing secret fails instead of caching a skip.
+ARG SENTRY_UPLOAD=
+RUN --mount=type=secret,id=sentry_auth_token,uid=1001 \
+    sentry_auth_token="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" && \
+    if [ -n "${SENTRY_UPLOAD}" ] && [ -z "$sentry_auth_token" ]; then \
+      echo "SENTRY_UPLOAD is set but the sentry_auth_token secret is empty" >&2; exit 1; \
+    fi && \
+    ./scripts/prebuild.sh && \
+    SENTRY_AUTH_TOKEN="$sentry_auth_token" ./scripts/configure-sentry.sh && \
     flutter build web --release --source-maps --no-web-resources-cdn \
     --dart-define=SENTRY_RELEASE=$SENTRY_RELEASE \
     --dart-define=SENTRY_DIST=$GITHUB_SHA && \
-    SENTRY_AUTH_TOKEN=${SENTRY_AUTH_TOKEN:-} ./scripts/run-sentry.sh
+    SENTRY_AUTH_TOKEN="$sentry_auth_token" ./scripts/run-sentry.sh
 
 FROM nginx:alpine@sha256:df221db836e1754089190208cee7eeda94f233197056426eda74a43ab1abeac2
 RUN apk add gzip
 COPY --from=build-env /app/server/nginx.conf /etc/nginx
+COPY --from=build-env /app/server/csp-headers.conf.template /etc/nginx/csp-headers.conf.template
+COPY --from=build-env --chmod=755 /app/server/docker-entrypoint.d/ /docker-entrypoint.d/
 COPY --from=build-env /app/build/web /usr/share/nginx/html
+ENV CSP_FRAME_ANCESTORS="'self'"
+ENV CSP_FRAME_SRC=""
+ENV CSP_SCRIPT_SRC=""
+ENV CSP_CONNECT_SRC=""
+ENV CSP_IMG_SRC=""
+ENV CSP_REPORT_URI=""
+RUN /docker-entrypoint.d/21-render-csp-headers.sh && /docker-entrypoint.d/25-csp-report-uri.sh && nginx -t
 EXPOSE 80
-CMD gzip -k -r -f /usr/share/nginx/html/ && nginx -g 'daemon off;'
+CMD ["nginx", "-g", "daemon off;"]

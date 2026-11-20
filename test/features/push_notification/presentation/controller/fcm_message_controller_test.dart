@@ -869,8 +869,8 @@ void main() {
         final stored = pipeline.MockGetStoredEmailDeliveryStateInteractor();
         final changes = pipeline.MockGetEmailChangesToPushNotificationInteractor();
         final store = pipeline.MockStoreEmailDeliveryStateInteractor();
-        when(stored.execute(any, any)).thenAnswer((_) async* {
-          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state')));
+        when(stored.execute(any, any)).thenAnswer((invocation) async* {
+          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state'), invocation.positionalArguments[0] as AccountId, invocation.positionalArguments[1] as UserName));
         });
         when(changes.execute(any, any, any, any,
           propertiesCreated: anyNamed('propertiesCreated'),
@@ -891,7 +891,8 @@ void main() {
         aliceAccountGate.complete();
         await aliceHandling;
 
-        verify(mockGetAuthenticatedAccountInteractor.execute()).called(6);
+        // Each push rechecks its own account before writing its delivery cursor.
+        verify(mockGetAuthenticatedAccountInteractor.execute()).called(8);
         verify(mockGetSessionInteractor.execute(stateChange: null)).called(2);
         verify(mockDynamicUrlInterceptors.changeBaseUrl(any)).called(4);
       },
@@ -1077,8 +1078,8 @@ void main() {
         final stored = pipeline.MockGetStoredEmailDeliveryStateInteractor();
         final changes = pipeline.MockGetEmailChangesToPushNotificationInteractor();
         final store = pipeline.MockStoreEmailDeliveryStateInteractor();
-        when(stored.execute(any, any)).thenAnswer((_) async* {
-          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state')));
+        when(stored.execute(any, any)).thenAnswer((invocation) async* {
+          yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(State('stored-state'), invocation.positionalArguments[0] as AccountId, invocation.positionalArguments[1] as UserName));
         });
         when(changes.execute(any, any, any, any,
           propertiesCreated: anyNamed('propertiesCreated'),

@@ -17,6 +17,7 @@ import 'package:tmail_ui_user/features/cleanup/domain/usecases/cleanup_email_cac
 import 'package:tmail_ui_user/features/cleanup/domain/usecases/cleanup_recent_login_url_cache_interactor.dart';
 import 'package:tmail_ui_user/features/cleanup/domain/usecases/cleanup_recent_login_username_interactor.dart';
 import 'package:tmail_ui_user/features/home/domain/state/auto_sign_in_via_deep_link_state.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/dashboard_session_arguments.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
 import 'package:tmail_ui_user/features/home/presentation/extensions/handle_web_finger_to_get_token_extension.dart';
 import 'package:tmail_ui_user/features/login/domain/exceptions/logout_exception.dart';
@@ -85,7 +86,10 @@ class HomeController extends ReloadableController {
   void handleReloaded(Session session) {
     pushAndPopAll(
       RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
-      arguments: session);
+      arguments: DashboardSessionArguments(
+        session: session,
+        fromCache: sessionLoadedFromCache,
+      ));
   }
 
   @override
@@ -157,7 +161,9 @@ class HomeController extends ReloadableController {
     return null;
   }
 
-  void _handleLogOutAndSignInNewAccount({
+  /// Completes once the logout and the sign-in to the link account are done,
+  /// so no other sign-in link is handled meanwhile.
+  Future<void> _handleLogOutAndSignInNewAccount({
     required Success authenticationViewStateSuccess,
     required PersonalAccount personalAccount,
     required OpenAppDeepLinkData openAppDeepLinkData,
@@ -176,7 +182,7 @@ class HomeController extends ReloadableController {
       );
     }
 
-    _getSessionActionToLogOut(
+    return _getSessionActionToLogOut(
       authenticationViewStateSuccess: authenticationViewStateSuccess,
       personalAccount: personalAccount,
       openAppDeepLinkData: openAppDeepLinkData,
@@ -191,8 +197,8 @@ class HomeController extends ReloadableController {
     try {
       final sessionViewState = await getSessionInteractor.execute().last;
 
-      sessionViewState.fold(
-        (failure) => _handleGetSessionFailureToLogOut(authenticationViewStateSuccess),
+      await sessionViewState.fold(
+        (failure) async => _handleGetSessionFailureToLogOut(authenticationViewStateSuccess),
         (success) => _handleGetSessionSuccessToLogOut(
           sessionViewStateSuccess: success,
           authenticationViewStateSuccess: authenticationViewStateSuccess,
@@ -206,19 +212,19 @@ class HomeController extends ReloadableController {
     }
   }
 
-  void _handleGetSessionSuccessToLogOut({
+  Future<void> _handleGetSessionSuccessToLogOut({
     required Success sessionViewStateSuccess,
     required Success authenticationViewStateSuccess,
     required PersonalAccount personalAccount,
     required OpenAppDeepLinkData openAppDeepLinkData,
-  }) {
+  }) async {
     if (sessionViewStateSuccess is GetSessionSuccess) {
-      logoutToSignInNewAccount(
+      await logoutToSignInNewAccount(
         session: sessionViewStateSuccess.session,
         accountId: personalAccount.accountId!,
-        onFailureCallback: ({exception}) {
+        onFailureCallback: ({exception}) async {
           if (exception is UserCancelledLogoutOIDCFlowException) {
-            _deepLinksManager?.autoSignInViaDeepLink(
+            await _deepLinksManager?.autoSignInViaDeepLink(
               openAppDeepLinkData: openAppDeepLinkData,
               onFailureCallback: () => _continueUsingTheApp(authenticationViewStateSuccess),
               onAutoSignInSuccessCallback: _handleAutoSignInViaDeepLinkSuccess,
@@ -285,6 +291,7 @@ class HomeController extends ReloadableController {
             _deepLinksManager!.handleOpenAppDeepLinks(
               openAppDeepLinkData: deepLinkData,
               isSignedIn: false,
+              isCallerActive: () => !isClosed,
               onFailureCallback: goToLogin,
               onAutoSignInSuccessCallback: _handleAutoSignInViaDeepLinkSuccess
             );
@@ -321,6 +328,7 @@ class HomeController extends ReloadableController {
             _deepLinksManager!.handleOpenAppDeepLinks(
               openAppDeepLinkData: deepLinkData,
               isSignedIn: true,
+              isCallerActive: () => !isClosed,
               username: personalAccount?.userName,
               onConfirmLogoutCallback: (openAppDeepLinkData) => _handleLogOutAndSignInNewAccount(
                 authenticationViewStateSuccess: success,

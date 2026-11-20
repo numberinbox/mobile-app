@@ -348,6 +348,16 @@
       "count": {}
     }
   },
+  "sharedFilesCannotBeRead": "{count,plural, =1{Không thể đọc một tệp được chia sẻ nên tệp này chưa được thêm}other{Không thể đọc {count} tệp được chia sẻ nên các tệp này chưa được thêm}}",
+  "@sharedFilesCannotBeRead": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
   "attachments_uploaded_successfully": "Tệp đính kèm đã được tải lên thành công",
   "@attachments_uploaded_successfully": {
     "type": "text",
@@ -6120,6 +6130,54 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "deepLinkAccountCannotBeVerified": "Chúng tôi không thể xác minh liên kết đăng nhập này. Vui lòng đăng nhập từ ứng dụng.",
+  "@deepLinkAccountCannotBeVerified": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkTitle": "Đăng nhập bằng liên kết này?",
+  "@signInWithLinkTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkAccountPrefix": "Liên kết này đăng nhập bạn với tư cách",
+  "@signInWithLinkAccountPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkWarning": "Chỉ tiếp tục nếu bạn đã yêu cầu đăng nhập.",
+  "@signInWithLinkWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerTitle": "Xác nhận máy chủ thư của bạn",
+  "@discoveredServerTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerPrefix": "Đã tìm thấy máy chủ thư cho",
+  "@discoveredServerPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerHint": "Chỉ tiếp tục nếu bạn nhận ra máy chủ này.",
+  "@discoveredServerHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerOutsideDomainWarning": "Máy chủ này không thuộc miền email của bạn. Chỉ tiếp tục nếu quản trị viên của bạn yêu cầu sử dụng máy chủ này.",
+  "@discoveredServerOutsideDomainWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "pdfPasswordRequired": "PDF được bảo vệ bằng mật khẩu",
   "@pdfPasswordRequired": {
     "type": "text",
@@ -6164,6 +6222,124 @@
   },
   "domainActivationPendingMessage": "Hiện tại bạn không thể gửi email. Hãy liên hệ quản trị viên nếu sự cố vẫn tiếp diễn.",
   "@domainActivationPendingMessage": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "sendingNotAllowedFromThisMailbox": "Bạn không thể gửi email từ hộp thư này.",
+  "@sendingNotAllowedFromThisMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "endedDelegationLostItems": "Quyền truy cập đã kết thúc. {count} thư chưa gửi hoặc thư nháp đã bị xóa.",
+  "@endedDelegationLostItems": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "delegation": "Ủy quyền",
+  "@delegation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationSettingExplanation": "Mở các hộp thư mà người dùng khác đã ủy quyền cho bạn",
+  "@delegationSettingExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationToggleDescription": "Bật ủy quyền",
+  "@delegationToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "openingOwnerMailbox": "Đang mở hộp thư của {name}…",
+  "@openingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "openingYourMailbox": "Đang mở hộp thư của bạn…",
+  "@openingYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "viewingOwnerMailbox": "Đang xem {name}",
+  "@viewingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "yourMailbox": "Hộp thư của bạn",
+  "@yourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedToYou": "Được ủy quyền cho bạn",
+  "@delegatedToYou": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "accountSwitcherMenu": "Chuyển đổi tài khoản",
+  "@accountSwitcherMenu": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "couldNotOpenOwnerMailbox": "Không thể mở hộp thư của {name}",
+  "@couldNotOpenOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "couldNotReturnToYourMailbox": "Không thể quay lại hộp thư của bạn",
+  "@couldNotReturnToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "closeComposerBeforeSwitchingAccounts": "Hãy đóng trình soạn thảo trước khi chuyển tài khoản",
+  "@closeComposerBeforeSwitchingAccounts": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailbox": "Hộp thư được ủy quyền",
+  "@delegatedMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "backToYourMailbox": "Quay lại hộp thư của bạn",
+  "@backToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailboxUnavailable": "Hộp thư được ủy quyền này không khả dụng nên hộp thư của bạn được hiển thị",
+  "@delegatedMailboxUnavailable": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

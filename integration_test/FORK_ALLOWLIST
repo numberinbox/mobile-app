@@ -4,6 +4,8 @@ integration_test/base/app_constants.dart
 integration_test/robots/mobile/mobile_app_grid_robot.dart
 # Configurable disposable recipient; retain upstream fallback destinations.
 integration_test/scenarios/search_email_by_date_time_and_sort_order_relevance_scenario.dart
+# Native fixtures use reset; web James uses upstream leasing.
+integration_test/base/test_base.dart
 # Fail closed on reset errors without retaining sensitive diagnostics; upstream proposal drafted.
 integration_test/utils/backend_reset_client.dart
 # Fork-only OTP flows and store capture; inherited test files remain untouched.

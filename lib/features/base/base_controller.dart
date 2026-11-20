@@ -19,8 +19,11 @@ import 'package:tmail_ui_user/features/base/mixin/emit_state_mixin.dart';
 import 'package:tmail_ui_user/features/base/extensions/discard_web_composers_on_logout_extension.dart';
 import 'package:tmail_ui_user/features/base/extensions/handle_company_server_login_info_extension.dart';
 import 'package:tmail_ui_user/features/base/mixin/logout_mixin.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/cleanup_ended_delegations.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/providers/delegation_session_cleanup.dart';
 import 'package:tmail_ui_user/features/base/mixin/popup_context_menu_action_mixin.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/bridge/active_account_source.dart';
 import 'package:tmail_ui_user/features/email/presentation/bindings/mdn_interactor_bindings.dart';
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
 import 'package:tmail_ui_user/features/login/data/network/config/oidc_constant.dart';
@@ -181,7 +184,7 @@ abstract class BaseController extends GetxController
   }
 
   void handleUrgentExceptionOnMobile({Failure? failure, Exception? exception}) {
-    logWarning('$runtimeType::handleUrgentExceptionOnMobile():Failure: $failure | Exception: $exception');
+    logWarning('$runtimeType::handleUrgentExceptionOnMobile():Failure: ${failure.runtimeType} | Exception: ${exception.runtimeType}');
     if (exception is ConnectionError) {
       _handleConnectionErrorException();
     } else if (exception is BadCredentialsException) {
@@ -424,13 +427,13 @@ abstract class BaseController extends GetxController
 
   void injectWebSocket({
     Session? session,
-    AccountId? accountId,
+    AccountId? personalAccountId,
     bool isLabelAvailable = false,
   }) {
     try {
       log('$runtimeType::injectWebSocket: isLabelAvailable is $isLabelAvailable');
       if (!session!.canStartWebSocketPush(
-        accountId!,
+        personalAccountId!,
         hasBasicCredentials: authorizationInterceptors.basicAuthorizationHeader != null,
         isWeb: PlatformInfo.isWeb,
       )) {
@@ -438,7 +441,7 @@ abstract class BaseController extends GetxController
       }
       WebSocketInteractorBindings().dependencies();
       WebSocketController.instance.initialize(
-        accountId: accountId,
+        accountId: personalAccountId,
         session: session,
         isLabelAvailable: isLabelAvailable,
       );
@@ -530,6 +533,10 @@ abstract class BaseController extends GetxController
     }
 
     await discardWebComposersOnLogout(session, accountId);
+    await removeDelegatedComposerSnapshotsOnLogout(
+      session: session,
+      personalAccountId: accountId,
+    );
 
     _isFcmEnabled = _isFcmActivated(session, accountId);
     if (isAuthenticatedWithOidc) {
@@ -539,38 +546,60 @@ abstract class BaseController extends GetxController
     }
   }
 
+  /// Logs out before signing in to another account, then runs exactly one
+  /// callback. It completes only once that callback completed, so a caller
+  /// can hold a lock across the whole account switch.
   Future<void> logoutToSignInNewAccount({
     required Session session,
     required AccountId accountId,
-    required Function onSuccessCallback,
-    required Function({Object? exception}) onFailureCallback,
+    required FutureOr<void> Function() onSuccessCallback,
+    required FutureOr<void> Function({Object? exception}) onFailureCallback,
   }) async {
+    _LogoutToSignInOutcome outcome;
     try {
+      await removeDelegatedComposerSnapshotsOnLogout(
+        session: session,
+        personalAccountId: accountId,
+      );
       _isFcmEnabled = _isFcmActivated(session, accountId);
-
-      if (isAuthenticatedWithOidc) {
-        final logoutViewState = await logoutOidcInteractor.execute().last;
-        final logoutResult = logoutViewState.foldSuccessWithResult<LogoutOidcSuccess>();
-        final isUserCancelledLogoutOidcFlow = logoutResult is LogoutOidcFailure
-            && _validateUserCancelledLogoutOidcFlow(logoutResult.exception);
-        if (logoutResult is! LogoutOidcSuccess && !isUserCancelledLogoutOidcFlow) {
-          onFailureCallback();
-          return;
-        }
-        await _handleDeleteFCMAndClearData();
-        if (isUserCancelledLogoutOidcFlow) {
-          onFailureCallback(exception: UserCancelledLogoutOIDCFlowException());
-        } else {
-          onSuccessCallback();
-        }
-      } else {
-        await _handleDeleteFCMAndClearData();
-        onSuccessCallback();
-      }
+      outcome = await _logoutToSignIn();
     } catch (e) {
       logWarning('BaseController::logoutToSignInNewAccount:Exception = $e');
-      onFailureCallback();
+      outcome = _LogoutToSignInOutcome.failed;
     }
+
+    switch (outcome) {
+      case _LogoutToSignInOutcome.loggedOut:
+        await onSuccessCallback();
+      case _LogoutToSignInOutcome.oidcLogoutCancelled:
+        await onFailureCallback(exception: UserCancelledLogoutOIDCFlowException());
+      case _LogoutToSignInOutcome.failed:
+        await onFailureCallback();
+    }
+  }
+
+  Future<_LogoutToSignInOutcome> _logoutToSignIn() async {
+    if (!isAuthenticatedWithOidc) {
+      await _handleDeleteFCMAndClearData();
+      return _LogoutToSignInOutcome.loggedOut;
+    }
+
+    final logoutViewState = await logoutOidcInteractor.execute().last;
+    final isLoggedOut = logoutViewState.fold(
+      (failure) => false,
+      (success) => success is LogoutOidcSuccess,
+    );
+    final isCancelledByUser = logoutViewState.fold(
+      (failure) => failure is LogoutOidcFailure &&
+          _validateUserCancelledLogoutOidcFlow(failure.exception),
+      (success) => false,
+    );
+    if (!isLoggedOut && !isCancelledByUser) return _LogoutToSignInOutcome.failed;
+
+    await _handleDeleteFCMAndClearData();
+    return isLoggedOut
+        ? _LogoutToSignInOutcome.loggedOut
+        : _LogoutToSignInOutcome.oidcLogoutCancelled;
   }
 
   bool _validateUserCancelledLogoutOidcFlow(dynamic exception) {
@@ -672,7 +701,22 @@ abstract class BaseController extends GetxController
   /// Several entry points call this, some without awaiting. Overlapping runs
   /// used to close Hive while another run was still writing to it, so they are
   /// serialised through a single shared future.
-  Future<void> clearAllData() => twakeAppManager.runClearDataOnce(clearLocalSessionData);
+  Future<void> clearAllData({BuildContext? context}) =>
+      twakeAppManager.runClearDataOnce(() async {
+        final delegationContext = context ?? currentContext;
+        if (delegationContext != null) {
+          try {
+            endDelegationSession(delegationContext);
+          } catch (error, stackTrace) {
+            logError(
+              'BaseController::clearAllData: could not end delegation session',
+              exception: error,
+              stackTrace: stackTrace,
+            );
+          }
+        }
+        await clearLocalSessionData();
+      });
 
   int getMinInputLengthAutocomplete({
     required Session session,
@@ -681,6 +725,9 @@ abstract class BaseController extends GetxController
     final minInputLength = session.getMinInputLengthAutocomplete(accountId);
     return minInputLength?.value.toInt() ?? AppConfig.defaultMinInputLengthAutocomplete;
   }
+
+  /// Built when the retry toast shows, which may be long before Retry is tapped.
+  VoidCallback retryActionOf(Stream<Either<Failure, Success>> retry) => () => consumeState(retry);
 
   void showRetryToast(FeatureFailure failure) {
     if (currentOverlayContext == null || currentContext == null) return;
@@ -697,7 +744,7 @@ abstract class BaseController extends GetxController
         if (failure.onRetry != null)
           (
             actionName: AppLocalizations.of(currentContext!).retry,
-            onActionClick: () => consumeState(failure.onRetry!),
+            onActionClick: retryActionOf(failure.onRetry!),
             actionIcon: SvgPicture.asset(imagePaths.icUndo),
           ),
         (
@@ -723,6 +770,7 @@ abstract class BaseController extends GetxController
 /// can run the exact same teardown, still serialised by callers through
 /// [TwakeAppManager.runClearDataOnce].
 Future<void> clearLocalSessionData() async {
+  getBinding<ActiveAccountWriter>()?.clear();
   await LocalNotificationManager.instance.cancelAll();
   await _clearSentryForSessionEnd();
   final authorizationInterceptors = Get.find<AuthorizationInterceptors>();
@@ -762,3 +810,4 @@ Future<void> _clearSentryForSessionEnd() async {
     );
   }
 }
+enum _LogoutToSignInOutcome { loggedOut, oidcLogoutCancelled, failed }

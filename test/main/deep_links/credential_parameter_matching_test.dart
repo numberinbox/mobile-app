@@ -126,7 +126,9 @@ void main() {
                 openAppDeepLinkData: data,
                 isSignedIn: signedIn,
                 username: signedIn ? UserName('current@example.test') : null,
-                onConfirmLogoutCallback: (_) => switched = true,
+                onConfirmLogoutCallback: (_) async {
+                  switched = true;
+                },
                 onAutoSignInSuccessCallback: (_) => signedInViaLink = true,
                 onFailureCallback: () => failures++,
               );

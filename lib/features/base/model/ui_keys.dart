@@ -28,12 +28,18 @@ class UiKeys {
   static const String recipientCcButtonSuffix = '_recipient_cc_button';
   static const String recipientExpandButtonSuffix = '_recipient_expand_button';
 
+  // Language & region
+  static const String languageDropDownButton = 'language_drop_down_button';
+
   // Email rules / rules filter creator
   static const String createRuleButton = 'createRuleButton';
   /// Back control of the mail-reader routes (thread detail and email view).
   /// Distinct from [closeComposerButton], which must stay composer-only.
   static const String emailReaderBackButton = 'email_reader_back_button';
   static const String emailRulesSettingMenuItem = 'setting_email_rules';
+  static const String delegationSettingMenuItem = 'setting_delegation';
+  static const String delegatedToMeList = 'delegated_to_me_list';
+  static const String delegatedToMeEmptyCard = 'delegated_to_me_empty_card';
   static const String editEmailRuleButton = 'editEmailRuleButton';
   static const String moreEmailRuleButton = 'moreEmailRuleButton';
   static const String addActionButton = 'addActionButton';
@@ -41,6 +47,14 @@ class UiKeys {
   static const String userAvatar = 'userAvatar';
   // Settings button that replaces the avatar inside Twake Workplace.
   static const String workplaceSettingsButton = 'workplace_settings_button';
+  static const String viewingOwnerBanner = 'viewingOwnerBanner';
+  static const String viewingOwnerBannerDismiss = 'viewingOwnerBannerDismiss';
+  static const String accountSwitcherMenu = 'accountSwitcherMenu';
+  static const String recoverDeletedMessagesButton = 'recover_deleted_messages_button';
+  static const String compactAccountSwitcher = 'compactAccountSwitcher';
+  static const String accountSwitchLoadingDialog = 'accountSwitchLoadingDialog';
+  static const String accountSwitchLoadingCancel =
+      'accountSwitchLoadingCancel';
 
   // Advanced search
   static const String openAdvancedSearchButton = 'open_advanced_search_button';
@@ -58,4 +72,9 @@ class UiKeys {
   // Email detail labels
   static const String emailDetailedMoreButton = 'email_detailed_more_button';
   static const String addLabelToEmailModal = 'add_label_to_email_modal';
+
+  // Vacation settings
+  static const String vacationResponderSwitch = 'vacation_responder_switch';
+  static const String vacationMessageEditorMobile = 'vacation_message_editor_mobile';
+  static const String vacationSaveButton = 'vacation_save_button';
 }

@@ -16,6 +16,7 @@ import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
 import 'package:model/email/eml_attachment.dart';
 import 'package:model/email/presentation_email.dart';
 import 'package:model/extensions/email_address_extension.dart';
+import 'package:model/extensions/email_list_header_extension.dart';
 import 'package:model/extensions/list_email_address_extension.dart';
 import 'package:model/extensions/presentation_mailbox_extension.dart';
 import 'package:model/extensions/utc_date_extension.dart';
@@ -37,7 +38,10 @@ extension PresentationEmailExtension on PresentationEmail {
       cc.numberEmailAddress() +
       bcc.numberEmailAddress();
 
-  int getCountMailAddressWithoutMe(String userName) {
+  int getCountMailAddressWithoutShown(String userName) =>
+      getCountMailAddressWithoutShownAddresses({userName});
+
+  int getCountMailAddressWithoutShownAddresses(Set<String> shownAddresses) {
     final uniqueEmails = <String>{};
     final newTo = to ?? {};
     final newCc = cc ?? {};
@@ -45,7 +49,7 @@ extension PresentationEmailExtension on PresentationEmail {
     final newFrom = from ?? {};
 
     for (final email in <EmailAddress>[...newTo, ...newCc, ...newBcc, ...newFrom]) {
-      if (email.emailAddress != userName) {
+      if (!shownAddresses.contains(email.emailAddress)) {
         uniqueEmails.add(email.emailAddress);
       }
     }
@@ -117,8 +121,8 @@ extension PresentationEmailExtension on PresentationEmail {
         if (xPriorityHeader != null) map[IndividualHeaderIdentifier.xPriorityHeader] = xPriorityHeader!;
         if (importanceHeader != null) map[IndividualHeaderIdentifier.importanceHeader] = importanceHeader!;
         if (priorityHeader != null) map[IndividualHeaderIdentifier.priorityHeader] = priorityHeader!;
-        if (listPostHeader != null) map[IndividualHeaderIdentifier.listPostHeader] = listPostHeader!;
-        if (listUnsubscribeHeader != null) map[IndividualHeaderIdentifier.listUnsubscribeHeader] = listUnsubscribeHeader!;
+        if (listPostHeader != null) map[ListHeaderIdentifier.listPost] = listPostHeader!;
+        if (listUnsubscribeHeader != null) map[ListHeaderIdentifier.listUnsubscribe] = listUnsubscribeHeader!;
         return map;
       }(),
       threadId: threadId,
@@ -219,8 +223,9 @@ extension PresentationEmailExtension on PresentationEmail {
     return mailboxContain?.isTrash ?? mailboxContain?.isSpam ?? false;
   }
 
-  bool isReplyAllEnabled(String ownerEmailAddress) {
-    final countMailAddress = getCountMailAddressWithoutMe(ownerEmailAddress);
-    return countMailAddress > 1;
-  }
+  bool isReplyAllEnabled(String ownerEmailAddress) =>
+      isReplyAllEnabledForAddresses({ownerEmailAddress});
+
+  bool isReplyAllEnabledForAddresses(Set<String> shownAddresses) =>
+      getCountMailAddressWithoutShownAddresses(shownAddresses) > 1;
 }

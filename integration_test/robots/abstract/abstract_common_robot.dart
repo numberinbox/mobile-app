@@ -72,7 +72,9 @@ abstract class AbstractCommonRobot extends CoreRobot {
       );
     }
 
-    ComposerBindings().dispose();
+    // No ComposerBindings().dispose() here: it runs with the default (null) tag,
+    // so it would delete the dashboard's own untagged registrations (for example
+    // ManageAccountRepository) and break closing a composer later in the test.
   }
 
   // A swallowed send failure otherwise surfaces 90 s later as a missing tile
@@ -90,6 +92,23 @@ abstract class AbstractCommonRobot extends CoreRobot {
     for (final fileInfo in provisioningEmail.fileInfos) {
       attachments.add(await uploadAttachments(fileInfo));
     }
+    final inlineAttachments = <String, Attachment>{};
+    var emailContent = provisioningEmail.content;
+    for (var i = 0; i < provisioningEmail.inlineFileInfos.length; i++) {
+      final uploaded =
+          await uploadAttachments(provisioningEmail.inlineFileInfos[i]);
+      final cid = '${uploaded.blobId!.value}@tmail-memory';
+      inlineAttachments[cid] = Attachment(
+        partId: uploaded.partId,
+        blobId: uploaded.blobId,
+        size: uploaded.size,
+        name: uploaded.name,
+        type: uploaded.type,
+        cid: cid,
+        disposition: ContentDisposition.inline,
+      );
+      emailContent = emailContent.replaceAll('{{inline$i}}', cid);
+    }
     final result = await createNewAndSendEmailInteractor
         .execute(
           createEmailRequest: CreateEmailRequest(
@@ -98,7 +117,7 @@ abstract class AbstractCommonRobot extends CoreRobot {
             emailActionType: EmailActionType.compose,
             ownEmailAddress: mailboxDashBoardController.ownEmailAddress.value,
             subject: provisioningEmail.subject,
-            emailContent: provisioningEmail.content,
+            emailContent: emailContent,
             toRecipients: {EmailAddress(null, provisioningEmail.toEmail)},
             outboxMailboxId: mailboxDashBoardController.outboxMailbox?.mailboxId,
             sentMailboxId: folderLocationRole != null
@@ -108,6 +127,7 @@ abstract class AbstractCommonRobot extends CoreRobot {
                     .mapDefaultMailboxIdByRole[PresentationMailbox.roleSent],
             identity: identity,
             attachments: attachments,
+            inlineAttachments: inlineAttachments,
             hasRequestReadReceipt: requestReadReceipt,
             keywords: provisioningEmail.labels.keywords,
           ),

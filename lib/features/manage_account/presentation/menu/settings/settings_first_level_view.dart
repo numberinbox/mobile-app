@@ -8,6 +8,7 @@ import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/user_information_widget.dart';
 import 'package:tmail_ui_user/features/numberinbox/about_numberinbox.dart';
 import 'package:tmail_ui_user/features/numberinbox/account_deletion_page.dart';
+import 'package:tmail_ui_user/features/manage_account/presentation/menu/manage_account_menu_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/setting_user_info_widget.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings/settings_controller.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/menu/settings_utils.dart';
@@ -195,6 +196,7 @@ class SettingsFirstLevelView extends GetWidget<SettingsController> {
             return const SizedBox.shrink();
           }
         }),
+        _buildDelegationEntry(context, appLocalizations, divider),
         Obx(() {
           if (controller.manageAccountDashboardController.isFcmCapabilitySupported && PlatformInfo.isMobile) {
             return Column(children: [
@@ -268,6 +270,29 @@ class SettingsFirstLevelView extends GetWidget<SettingsController> {
         ],
       ]),
     );
+  }
+
+  Widget _buildDelegationEntry(
+    BuildContext context,
+    AppLocalizations appLocalizations,
+    Widget divider,
+  ) {
+    return Obx(() {
+      final isDelegationDisplayed = Get.find<ManageAccountMenuController>()
+          .listAccountMenuItem
+          .contains(AccountMenuItem.delegation);
+
+      if (!isDelegationDisplayed) return const SizedBox.shrink();
+      return Column(children: [
+        divider,
+        _buildSettingItem(
+          key: const Key(UiKeys.delegationSettingMenuItem),
+          context: context,
+          menuItem: AccountMenuItem.delegation,
+          appLocalizations: appLocalizations,
+        ),
+      ]);
+    });
   }
 
   Widget _buildSettingItem({

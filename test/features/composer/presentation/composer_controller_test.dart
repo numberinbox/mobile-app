@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'dart:io';
 
+import 'package:contact/contact/model/capability_contact.dart';
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/utils/logging/app_logger_registry.dart';
 import 'package:core/presentation/resources/image_paths.dart';
@@ -12,6 +13,7 @@ import 'package:core/presentation/utils/html_transformer/dom/normalize_line_heig
 import 'package:core/presentation/utils/html_transformer/transform_configuration.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/presentation/views/button/tmail_button_widget.dart';
+import 'package:core/utils/html/html_utils.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:dartz/dartz.dart';
@@ -23,10 +25,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
+import 'package:jmap_dart_client/jmap/core/account/account.dart';
+import 'package:jmap_dart_client/jmap/core/capability/capability_identifier.dart';
+import 'package:jmap_dart_client/jmap/core/capability/default_capability.dart';
 import 'package:jmap_dart_client/jmap/core/error/set_error.dart';
 import 'package:jmap_dart_client/jmap/core/id.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/core/unsigned_int.dart';
+import 'package:model/autocomplete/auto_complete_pattern.dart';
+import 'package:server_settings/server_settings/capability_server_settings.dart';
 import 'package:jmap_dart_client/jmap/identities/identity.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email_address.dart';
@@ -52,9 +59,12 @@ import 'package:tmail_ui_user/features/composer/domain/exceptions/forbidden_to_s
 import 'package:tmail_ui_user/features/composer/domain/exceptions/invalid_recipients_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/exceptions/set_method_exception.dart';
 import 'package:tmail_ui_user/features/composer/domain/repository/composer_repository.dart';
+import 'package:tmail_ui_user/features/composer/domain/state/get_autocomplete_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/send_email_state.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/update_email_drafts_state.dart';
+import 'package:tmail_ui_user/features/composer/domain/usecases/get_autocomplete_interactor.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/ai_scribe/handle_ai_scribe_in_composer_extension.dart';
 import 'package:tmail_ui_user/features/email/domain/exceptions/email_exceptions.dart';
 import 'package:tmail_ui_user/features/email/domain/state/transform_html_email_content_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/get_email_content_state.dart';
@@ -64,6 +74,8 @@ import 'package:tmail_ui_user/features/composer/domain/usecases/create_new_and_s
 import 'package:tmail_ui_user/features/composer/domain/usecases/download_image_as_base64_interactor.dart';
 import 'package:tmail_ui_user/features/composer/domain/usecases/save_composer_cache_interactor.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_controller.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/update_screen_display_mode_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_list_identities_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/sanitize_signature_in_email_content_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/model/create_email_request.dart';
 import 'package:tmail_ui_user/features/upload/presentation/validator/attachment_upload_validation_service.dart';
@@ -72,6 +84,7 @@ import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/features/composer/presentation/composer_view_web.dart';
 import 'package:tmail_ui_user/features/composer/presentation/controller/rich_text_mobile_tablet_controller.dart';
 import 'package:tmail_ui_user/features/composer/presentation/controller/rich_text_web_controller.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_keyboard_shortcut_actions_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_mobile_auto_save_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_edit_recipient_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/remove_draggable_email_address_between_recipient_fields_extension.dart';
@@ -81,7 +94,10 @@ import 'package:tmail_ui_user/features/composer/presentation/extensions/auto_cre
 import 'package:tmail_ui_user/features/composer/presentation/extensions/handle_recipients_collapsed_extensions.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_content_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_recipients_extension.dart';
+import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_email_request_read_receipt_flag_extension.dart';
 import 'package:tmail_ui_user/features/composer/presentation/extensions/setup_selected_identity_extension.dart';
+import 'package:tmail_ui_user/features/delegation/domain/model/active_account.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/model/shown_account_capabilities.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/drive_attachment_handler.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/composer_manager.dart';
 import 'package:tmail_ui_user/features/composer/presentation/manager/web_composer_reload_cache_handler.dart';
@@ -111,11 +127,14 @@ import 'package:tmail_ui_user/features/mailbox_dashboard/domain/usecases/save_co
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/draggable_app_state.dart';
 import 'package:tmail_ui_user/features/manage_account/data/local/language_cache_manager.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/model/preferences/ai_scribe_config.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/state/get_all_identities_state.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/get_all_identities_interactor.dart';
 import 'package:tmail_ui_user/features/manage_account/domain/usecases/log_out_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/network_connection/presentation/network_connection_controller.dart';
 import 'package:tmail_ui_user/features/paywall/presentation/paywall_launcher.dart';
 import 'package:tmail_ui_user/features/paywall/presentation/providers/premium_cta_provider.dart';
+import 'package:server_settings/server_settings/tmail_server_settings.dart';
+import 'package:tmail_ui_user/features/server_settings/domain/state/get_server_setting_state.dart';
 import 'package:tmail_ui_user/features/server_settings/domain/usecases/get_server_setting_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/usecases/local_file_picker_interactor.dart';
 import 'package:tmail_ui_user/features/upload/domain/usecases/local_image_picker_interactor.dart';
@@ -147,6 +166,7 @@ import 'package:workplace/presentation/model/drive_pick_state.dart';
 
 import '../../../fixtures/account_fixtures.dart';
 import '../../../fixtures/capturing_log_handler.dart';
+import '../../../fixtures/delegation_fixtures.dart';
 import '../../../fixtures/recording_paywall_launcher.dart';
 import '../../../fixtures/session_fixtures.dart';
 import '../../../fixtures/widget_fixtures.dart';
@@ -179,8 +199,15 @@ class MockRichTextWebController extends Mock implements RichTextWebController {
   @override
   HtmlEditorController get editorController => _editorController;
 
+  bool isCodeViewOnForTest = false;
+
   @override
-  bool get codeViewEnabled => false;
+  bool get codeViewEnabled => isCodeViewOnForTest;
+
+  bool isCodeViewBusyForTest = false;
+
+  @override
+  bool get isCodeViewBusy => isCodeViewBusyForTest;
 
   @override
   Future<void> setEnableCodeView() async {}
@@ -215,13 +242,49 @@ class MockMailboxDashBoardController extends Mock implements MailboxDashBoardCon
   @override
   Session? currentSession = SessionFixtures.aliceSession;
 
+  /// Override instead of `when`: non-nullable mixin getter cannot be stubbed safely.
+  ShownAccountCapabilities shownAccountCapabilitiesOverride =
+      ShownAccountCapabilities.of(null);
+
+  @override
+  ShownAccountCapabilities get shownAccountCapabilities =>
+      shownAccountCapabilitiesOverride;
+
   @override
   Rxn<AccountId> get accountId => Rxn(currentAccountId);
+  /// The shown mailbox when it is not my own account.
+  AccountId? shownAccountIdOverride;
+
+  // Composer reads the shown mailbox through activeAccountId (ADR-0114).
+  @override
+  AccountId? get activeAccountId => shownAccountIdOverride ?? currentAccountId;
   @override
   Session? get sessionCurrent => currentSession;
 
+  final RxString _ownEmailAddress =
+      SessionFixtures.aliceSession.getOwnEmailAddressOrEmpty().obs;
+
+  /// When set, the session owner of the shown mailbox (empty for username-only).
+  String? sessionOwnerEmailAddress;
+
   @override
-  RxString get ownEmailAddress => SessionFixtures.aliceSession.getOwnEmailAddressOrEmpty().obs;
+  RxString get ownEmailAddress => _ownEmailAddress;
+
+  @override
+  String get ownerEmailAddress {
+    final shown = sessionOwnerEmailAddress ?? _ownEmailAddress.value;
+    if (shown.isNotEmpty) return shown;
+    if (activeAccountId == null || activeAccountId == accountId.value) {
+      return _ownEmailAddress.value;
+    }
+    return '';
+  }
+
+  @override
+  Set<String> get ownerEmailAddresses {
+    final address = ownerEmailAddress;
+    return {if (address.isNotEmpty) address};
+  }
 
   @override
   Rxn<DraggableAppState> get attachmentDraggableAppState => Rxn(DraggableAppState.inActive);
@@ -261,9 +324,12 @@ class MockMailboxDashBoardController extends Mock implements MailboxDashBoardCon
   @override
   Rx<AIScribeConfig> get cachedAIScribeConfig => AIScribeConfig.initial().obs;
 
+  /// Accounts whose AI capability has a Scribe endpoint.
+  Set<AccountId> scribeEndpointAccountIds = {};
+
   @override
   bool isAIScribeEndpointAvailable({Session? session, AccountId? accountId}) {
-    return false;
+    return scribeEndpointAccountIds.contains(accountId);
   }
 
   @override
@@ -512,6 +578,7 @@ List<List<String>> _recordStartedDriveBatches(ProviderContainer container) {
   MockSpec<PrintEmailInteractor>(),
   MockSpec<ComposerRepository>(),
   MockSpec<SaveTemplateEmailInteractor>(),
+  MockSpec<GetAutoCompleteInteractor>(),
   MockSpec<AttachmentUploadValidationService>(),
 
   // Additional Getx dependencies mock specs
@@ -523,6 +590,7 @@ List<List<String>> _recordStartedDriveBatches(ProviderContainer container) {
   // Additional misc dependencies mock specs
   MockSpec<HtmlEditorApi>(),
   MockSpec<HtmlEditorController>(),
+  MockSpec<InAppWebViewController>(),
 ])
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -627,6 +695,9 @@ void main() {
     // Mock Getx controllers
     // Reset the shared drag state so it does not leak between tests.
     mockMailboxDashBoardController.localFileDraggableAppState.value = DraggableAppState.inActive;
+    mockMailboxDashBoardController.sessionOwnerEmailAddress = null;
+    mockMailboxDashBoardController.ownEmailAddress.value =
+        SessionFixtures.aliceSession.getOwnEmailAddressOrEmpty();
     Get.put<MailboxDashBoardController>(mockMailboxDashBoardController);
     Get.put<NetworkConnectionController>(mockNetworkConnectionController);
     Get.put<BeforeReconnectManager>(mockBeforeReconnectManager);
@@ -658,6 +729,16 @@ void main() {
     Get.reset();
     composerController = null;
   });
+
+  test(
+    'ownEmailAddress falls back to the identity-derived address when the session username is not an email',
+    () {
+      mockMailboxDashBoardController.sessionOwnerEmailAddress = '';
+      mockMailboxDashBoardController.ownEmailAddress.value = 'alice@domain.tld';
+
+      expect(composerController!.ownEmailAddress, 'alice@domain.tld');
+    },
+  );
 
   group('ComposerController test:', () {
     group('hash draft email test:', () {
@@ -1348,6 +1429,54 @@ void main() {
         expect(composerController?.isEmailChanged.value, isFalse);
       });
 
+      test(
+        'Should update _savedEmailDraftHash on web\n'
+        'When email action type is editDraft\n'
+        'And identity is already selected from the draft header',
+      () async {
+        // arrange
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+
+        composerController?.composerArguments.value = ComposerArguments(
+          emailActionType: EmailActionType.editDraft,
+          identities: [identity],
+        );
+        composerController?.currentEmailActionType = EmailActionType.editDraft;
+        composerController?.identitySelected.value = identity;
+        composerController?.setTextEditorWeb(emailContent);
+        composerController?.subjectEmail.value = emailSubject;
+
+        when(mockUploadController.attachmentsUploaded).thenReturn([attachment]);
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((_) async => emailContent);
+
+        final savedEmailDraft = SavedComposingEmail(
+          content: emailContent,
+          subject: emailSubject,
+          toRecipients: {},
+          ccRecipients: {},
+          bccRecipients: {},
+          replyToRecipients: {},
+          identity: identity,
+          attachments: [attachment],
+          hasReadReceipt: false,
+          isMarkAsImportant: false,
+        );
+
+        // act
+        await composerController?.setupSelectedIdentity();
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // assert
+        expect(
+          composerController?.savedEmailDraftHash,
+          equals(savedEmailDraft.asString().hashCode),
+        );
+        expect(composerController?.isEmailChanged.value, isFalse);
+      });
+
       for (final actionType in [
         EmailActionType.compose,
         EmailActionType.reply,
@@ -1485,6 +1614,64 @@ void main() {
 
         // assert
         expect(composerController?.restoringSignatureButton, isFalse);
+      });
+    });
+
+    group('selectIdentity signature removal test:', () {
+      final formerIdentity = Identity(id: IdentityId(Id('former')), name: 'Former');
+      final nextIdentity = Identity(id: IdentityId(Id('next')), name: 'Next');
+
+      setUp(() {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        composerController?.richTextWebController = mockRichTextWebController;
+        reset(mockRichTextWebController.editorController);
+        reset(mockHtmlEditorApi);
+      });
+
+      test(
+        'Should remove every signature through the tmail script\n'
+        'When switching from a former identity',
+      () async {
+        composerController?.identitySelected.value = formerIdentity;
+
+        await composerController?.selectIdentity(nextIdentity);
+
+        verify(mockRichTextWebController.editorController
+            .evaluateJavascriptWeb(HtmlUtils.removeAllSignatures.name)).called(1);
+        verifyNever(mockRichTextWebController.editorController.removeSignature());
+        verifyNever(mockRichTextWebController.editorController.getText());
+      });
+
+      test(
+        'Should not remove any signature\n'
+        'When there is no former identity',
+      () async {
+        composerController?.identitySelected.value = null;
+
+        await composerController?.selectIdentity(nextIdentity);
+
+        verifyNever(mockRichTextWebController.editorController
+            .evaluateJavascriptWeb(HtmlUtils.removeAllSignatures.name));
+      });
+
+      test(
+        'Should remove every signature through the tmail script on mobile\n'
+        'When switching from a former identity',
+      () async {
+        PlatformInfo.isTestingForWeb = false;
+        final mockWebViewController = MockInAppWebViewController();
+        composerController?.richTextMobileTabletController = mockRichTextMobileTabletController;
+        when(mockRichTextMobileTabletController.htmlEditorApi).thenReturn(mockHtmlEditorApi);
+        when(mockHtmlEditorApi.webViewController).thenReturn(mockWebViewController);
+        composerController?.identitySelected.value = formerIdentity;
+
+        await composerController?.selectIdentity(nextIdentity);
+
+        verify(mockWebViewController.evaluateJavascript(
+          source: HtmlUtils.removeAllSignatures.script,
+        )).called(1);
+        verifyNever(mockHtmlEditorApi.removeSignature());
       });
     });
 
@@ -1890,6 +2077,76 @@ void main() {
       });
     });
 
+    group('code view on web:', () {
+      setUp(() {
+        reset(mockRichTextWebController.editorController);
+        composerController?.richTextWebController = mockRichTextWebController;
+      });
+
+      tearDown(() {
+        mockRichTextWebController.isCodeViewBusyForTest = false;
+        mockRichTextWebController.isCodeViewOnForTest = false;
+      });
+
+      test(
+        'Should sanitize the body it hands out\n'
+        'When the editor changed it while code view is on',
+      () {
+        PlatformInfo.isTestingForWeb = true;
+        addTearDown(() => PlatformInfo.isTestingForWeb = false);
+        mockRichTextWebController.isCodeViewOnForTest = true;
+
+        composerController?.onChangeTextEditorWeb('<img src="x" onerror="alert(1)"><p>text</p>');
+
+        expect(composerController?.textEditorWeb, isNot(contains('onerror')));
+      });
+
+      test(
+        'Should not read and write back the editor HTML\n'
+        'When code view is on or being left',
+      () async {
+        mockRichTextWebController.isCodeViewBusyForTest = true;
+
+        composerController?.displayScreenTypeComposerAction(ScreenDisplayMode.fullScreen);
+        await Future<void>.delayed(Duration.zero);
+
+        verifyNever(mockRichTextWebController.editorController.getText());
+        expect(composerController?.screenDisplayMode.value, ScreenDisplayMode.fullScreen);
+      });
+
+      test(
+        'Should write the editor HTML back before switching\n'
+        'When code view is off',
+      () async {
+        when(mockRichTextWebController.editorController.getText())
+            .thenAnswer((_) async => '<p>body</p>');
+
+        composerController?.displayScreenTypeComposerAction(ScreenDisplayMode.fullScreen);
+        await untilCalled(mockRichTextWebController.editorController.setText('<p>body</p>'));
+
+        verify(mockRichTextWebController.editorController.setText('<p>body</p>')).called(1);
+      });
+
+      test(
+        'Should not write the editor HTML back\n'
+        'When code view becomes busy during getText',
+      () async {
+        final html = Completer<String>();
+        when(mockRichTextWebController.editorController.getText())
+            .thenAnswer((_) => html.future);
+
+        composerController?.displayScreenTypeComposerAction(ScreenDisplayMode.fullScreen);
+        await untilCalled(mockRichTextWebController.editorController.getText());
+        mockRichTextWebController.isCodeViewBusyForTest = true;
+        const rawHtml = '<img src=x onerror="alert(1)">';
+        html.complete(rawHtml);
+        await Future<void>.delayed(Duration.zero);
+
+        verifyNever(mockRichTextWebController.editorController.setText(rawHtml));
+        expect(composerController?.screenDisplayMode.value, ScreenDisplayMode.fullScreen);
+      });
+    });
+
     group('oversize files and the Drive recovery:', () {
       testWidgets(
         'Should hand the files to the Drive recovery and not upload them\n'
@@ -2040,6 +2297,68 @@ void main() {
 
     // Runs when the app is forced to log out (e.g. rejected OIDC refresh) with
     // a composer open: web saves the draft to cache before the redirect.
+    group('capabilities of the shown account:', () {
+      void showBob(Session session) {
+        mockMailboxDashBoardController.currentSession = session;
+        mockMailboxDashBoardController.shownAccountIdOverride = DelegationFixtures.bobAccountId;
+        addTearDown(() {
+          mockMailboxDashBoardController.currentSession = SessionFixtures.aliceSession;
+          mockMailboxDashBoardController.shownAccountIdOverride = null;
+          mockMailboxDashBoardController.scribeEndpointAccountIds = {};
+        });
+      }
+
+      test('SHOULD NOT offer AI Scribe while the shown account has no Scribe endpoint, even though mine has', () {
+        showBob(DelegationFixtures.session());
+        mockMailboxDashBoardController.scribeEndpointAccountIds = {AccountFixtures.aliceAccountId};
+
+        expect(composerController!.isAIScribeAvailable, isFalse);
+      });
+
+      test('offers AI Scribe while both my own and the shown account have a Scribe endpoint', () {
+        showBob(DelegationFixtures.session());
+        mockMailboxDashBoardController.scribeEndpointAccountIds = {
+          AccountFixtures.aliceAccountId,
+          DelegationFixtures.bobAccountId,
+        };
+
+        expect(composerController!.isAIScribeAvailable, isTrue);
+      });
+
+      group('getAutoCompleteSuggestion:', () {
+        late MockGetAutoCompleteInteractor getAutoCompleteInteractor;
+
+        setUp(() {
+          getAutoCompleteInteractor = MockGetAutoCompleteInteractor();
+          Get.put<GetAutoCompleteInteractor>(getAutoCompleteInteractor);
+          when(getAutoCompleteInteractor.execute(any))
+              .thenAnswer((_) async => Right(GetAutoCompleteSuccess([])));
+        });
+
+        test('SHOULD NOT query contacts while the shown account has no contact autocomplete, even though mine has', () async {
+          showBob(DelegationFixtures.sessionWithBobCapabilities(
+            {CapabilityIdentifier.jmapMail},
+            myExtraCapabilities: {tmailContactCapabilityIdentifier},
+          ));
+
+          await composerController!.getAutoCompleteSuggestion('car');
+
+          verifyNever(getAutoCompleteInteractor.execute(any));
+        });
+
+        test('queries the contacts of the shown account, not of my own', () async {
+          showBob(DelegationFixtures.sessionWithBobCapabilities(
+            {CapabilityIdentifier.jmapMail, tmailContactCapabilityIdentifier},
+          ));
+
+          await composerController!.getAutoCompleteSuggestion('car');
+
+          final pattern = verify(getAutoCompleteInteractor.execute(captureAny)).captured.single as AutoCompletePattern;
+          expect(pattern.accountId, DelegationFixtures.bobAccountId);
+        });
+      });
+    });
+
     group('onBeforeReconnect:', () {
       const emailContent = '<p>unsent draft</p>';
 
@@ -3357,6 +3676,103 @@ void main() {
       });
     });
 
+    // A chip menu moves focus from the recipient text field to its FocusScope.
+    group('hasInputFieldFocused on web:', () {
+      setUp(() => PlatformInfo.isTestingForWeb = true);
+      tearDown(() => PlatformInfo.isTestingForWeb = false);
+
+      test(
+        'Should be true\n'
+        'When a recipient FocusScope keeps focus without its text field',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.to, true);
+
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+      });
+
+      test(
+        'Should be false\n'
+        'When the recipient FocusScope lost focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.to, true);
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.to, false);
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When a focused recipient row is deleted',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.cc, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.deleteEmailAddressType(PrefixEmailAddress.cc);
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When the composer minimizes while a recipient FocusScope has focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.to, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.setScreenDisplayMode(ScreenDisplayMode.minimize);
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When recipient rows collapse while a recipient FocusScope has focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.cc, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.hideAllRecipientsFields();
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When the minimize button is pressed while a recipient FocusScope has focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.to, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.displayScreenTypeComposerAction(ScreenDisplayMode.minimize);
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When recipient rows collapse to To while a recipient FocusScope has focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.cc, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.hideAllRecipientsFieldsExceptTo();
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+
+      test(
+        'Should be false\n'
+        'When mobile recipient inputs are enabled while a recipient FocusScope has focus',
+      () async {
+        composerController!.onEmailAddressFocusChange(PrefixEmailAddress.cc, true);
+        expect(await composerController!.hasInputFieldFocused(), isTrue);
+
+        composerController!.handleEnableRecipientsInputOnMobileAction(true);
+
+        expect(await composerController!.hasInputFieldFocused(), isFalse);
+      });
+    });
+
     group('isEditedEmailContentLoadFailed test:', () {
       const editingActionTypes = [
         EmailActionType.editDraft,
@@ -3445,6 +3861,61 @@ void main() {
           ..isEnableEmailSendButton.value = true
           ..subjectEmail.value = 'subject';
       }
+
+      void showBobWith(Set<CapabilityIdentifier> capabilities) {
+        mockMailboxDashBoardController.currentSession =
+            DelegationFixtures.sessionWithBobCapabilities(capabilities);
+        mockMailboxDashBoardController.shownAccountIdOverride = DelegationFixtures.bobAccountId;
+        addTearDown(() {
+          mockMailboxDashBoardController.currentSession = SessionFixtures.aliceSession;
+          mockMailboxDashBoardController.shownAccountIdOverride = null;
+        });
+      }
+
+      testWidgets(
+        'Should show the sending not allowed dialog and not send the email\n'
+        'When send is clicked while the shown mailbox has no submission capability',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        showBobWith({CapabilityIdentifier.jmapMail});
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(AppLocalizations.of(context).sendingNotAllowedFromThisMailbox),
+          findsOneWidget,
+        );
+        verifyNever(mockCreateNewAndSendEmailInteractor.execute(
+          createEmailRequest: anyNamed('createEmailRequest'),
+        ));
+      });
+
+      testWidgets(
+        'Should go on to the next send check\n'
+        'When send is clicked while the shown mailbox has the submission capability',
+      (tester) async {
+        final context = await pumpContext(tester);
+        arrangeOtherwiseSendableEmail();
+        composerController?.isEmailBodyLoaded = true;
+        composerController?.emailContentsViewState.value =
+          Right(GetEmailContentLoading());
+        showBobWith({CapabilityIdentifier.jmapMail, CapabilityIdentifier.jmapSubmission});
+
+        composerController?.handleClickSendButton(context);
+        await tester.pumpAndSettle();
+
+        expect(
+          find.text(AppLocalizations.of(context).messageDialogSendEmailContentLoading),
+          findsOneWidget,
+        );
+        expect(
+          find.text(AppLocalizations.of(context).sendingNotAllowedFromThisMailbox),
+          findsNothing,
+        );
+      });
 
       testWidgets(
         'Should show the content loading dialog and not send the email\n'
@@ -3574,6 +4045,237 @@ void main() {
             .deleteEmailPermanentlyInBackground(null))
             .called(2);
       });
+    });
+
+    group('setupEmailRequestReadReceiptFlag:', () {
+      // Extension reads capabilityServerSettings off the session (not a mockable member).
+      Session sessionWithServerSettings() {
+        final base = SessionFixtures.aliceSession;
+        final alice = base.accounts[AccountFixtures.aliceAccountId]!;
+        return Session(
+          {
+            ...base.capabilities,
+            capabilityServerSettings: DefaultCapability(<String, dynamic>{}),
+          },
+          {
+            AccountFixtures.aliceAccountId: Account(
+              alice.name,
+              alice.isPersonal,
+              alice.isReadOnly,
+              {
+                ...alice.accountCapabilities,
+                capabilityServerSettings: DefaultCapability(<String, dynamic>{}),
+              },
+            ),
+          },
+          {
+            ...base.primaryAccounts,
+            capabilityServerSettings: AccountFixtures.aliceAccountId,
+          },
+          base.username,
+          base.apiUrl,
+          base.downloadUrl,
+          base.uploadUrl,
+          base.eventSourceUrl,
+          base.state,
+        );
+      }
+
+      setUp(() {
+        mockMailboxDashBoardController.currentSession = sessionWithServerSettings();
+        when(mockComposerRepository.removeCollapsedExpandedSignatureEffect(
+          emailContent: anyNamed('emailContent'),
+        )).thenAnswer((_) async => '');
+        when(mockUploadController.attachmentsUploaded).thenReturn([]);
+        composerController!.currentEmailActionType = EmailActionType.compose;
+        composerController!.hasRequestReadReceipt.value = false;
+      });
+
+      test(
+        'SHOULD NOT call getServerSettingInteractor and keep hasRequestReadReceipt false '
+        'WHEN a delegated account is shown',
+        () async {
+          mockMailboxDashBoardController.shownAccountCapabilitiesOverride =
+              ShownAccountCapabilities.of(ActiveAccount.delegated(
+            DelegationFixtures.session(),
+            DelegationFixtures.bobAccountId,
+          ));
+
+          composerController!.setupEmailRequestReadReceiptFlag(
+            ComposerArguments(emailActionType: EmailActionType.compose),
+          );
+          await pumpEventQueue();
+
+          verifyNever(mockGetServerSettingInteractor.execute(any));
+          expect(composerController!.hasRequestReadReceipt.value, isFalse);
+        },
+      );
+
+      test(
+        'SHOULD call getServerSettingInteractor with Alice accountId and follow the setting '
+        'WHEN my own account is shown',
+        () async {
+          mockMailboxDashBoardController.shownAccountCapabilitiesOverride =
+              ShownAccountCapabilities.of(
+            ActiveAccount.personal(DelegationFixtures.session()),
+          );
+          when(mockGetServerSettingInteractor.execute(any)).thenAnswer(
+            (_) => Stream.fromIterable([
+              Right(GettingServerSetting()),
+              Right(GetServerSettingSuccess(
+                TMailServerSettingOptions(alwaysReadReceipts: true),
+              )),
+            ]),
+          );
+
+          composerController!.setupEmailRequestReadReceiptFlag(
+            ComposerArguments(emailActionType: EmailActionType.compose),
+          );
+          await pumpEventQueue();
+
+          verify(mockGetServerSettingInteractor.execute(DelegationFixtures.aliceAccountId))
+              .called(1);
+          expect(composerController!.hasRequestReadReceipt.value, isTrue);
+        },
+      );
+    });
+
+    group('getAllIdentitiesAsSynchronize:', () {
+      final serverDefault = Identity(
+        id: IdentityId(Id('server-default')),
+        name: 'Server default',
+        email: DelegationFixtures.bobAddress,
+        mayDelete: false,
+      );
+      final editable = Identity(
+        id: IdentityId(Id('editable')),
+        name: 'Editable',
+        email: DelegationFixtures.bobAddress,
+        mayDelete: true,
+      );
+
+      final bobShown = ActiveAccount.delegated(
+        DelegationFixtures.session(),
+        DelegationFixtures.bobAccountId,
+      );
+
+      void arrangeShownAccount(ActiveAccount shown, List<Identity> identities) {
+        addTearDown(() {
+          mockMailboxDashBoardController.currentAccountId = AccountFixtures.aliceAccountId;
+          mockMailboxDashBoardController.currentSession = SessionFixtures.aliceSession;
+          mockMailboxDashBoardController.shownAccountCapabilitiesOverride =
+              ShownAccountCapabilities.of(null);
+        });
+        mockMailboxDashBoardController.currentAccountId = shown.accountId;
+        mockMailboxDashBoardController.currentSession = shown.session;
+        mockMailboxDashBoardController.shownAccountCapabilitiesOverride =
+            ShownAccountCapabilities.of(shown);
+        when(mockGetAllIdentitiesInteractor.execute(any, shown.accountId)).thenAnswer(
+          (_) => Stream.value(Right(GetAllIdentitiesSuccess(identities, null))),
+        );
+      }
+
+      test(
+        'SHOULD offer the server default identities '
+        'WHEN a delegated account that has no editable identity is shown',
+        () async {
+          arrangeShownAccount(bobShown, [serverDefault]);
+
+          await composerController!.getAllIdentitiesAsSynchronize();
+
+          expect(composerController!.listFromIdentities, [serverDefault]);
+        },
+      );
+
+      test(
+        'SHOULD offer only the editable identities '
+        'WHEN a delegated account that has some is shown',
+        () async {
+          arrangeShownAccount(bobShown, [serverDefault, editable]);
+
+          await composerController!.getAllIdentitiesAsSynchronize();
+
+          expect(composerController!.listFromIdentities, [editable]);
+        },
+      );
+
+      test(
+        'SHOULD NOT offer the server default identities '
+        'WHEN my own account is shown',
+        () async {
+          arrangeShownAccount(ActiveAccount.personal(DelegationFixtures.session()), [serverDefault]);
+
+          await composerController!.getAllIdentitiesAsSynchronize();
+
+          expect(composerController!.listFromIdentities, isEmpty);
+          verify(mockGetAllIdentitiesInteractor.execute(any, DelegationFixtures.aliceAccountId))
+              .called(1);
+        },
+      );
+
+      test(
+        'SHOULD offer the server default identities of a refetch '
+        'WHEN a delegated account that has no editable identity is shown',
+        () {
+          arrangeShownAccount(bobShown, [serverDefault]);
+
+          composerController!.handleSuccessViewState(
+            GetAllIdentitiesSuccess([serverDefault], null),
+          );
+
+          expect(composerController!.listFromIdentities, [serverDefault]);
+        },
+      );
+    });
+
+    group('onKeyboardShortcutDispose:', () {
+      testWidgets(
+        'SHOULD NOT cut the composer focus subtree before the composer view unmounts '
+        'WHEN a recipient scope is still marked for focus',
+        (tester) async {
+          PlatformInfo.isTestingForWeb = true;
+          addTearDown(() => PlatformInfo.isTestingForWeb = false);
+          composerController!.onKeyboardShortcutInit();
+          final recipientFocusNode = FocusNode();
+          addTearDown(recipientFocusNode.dispose);
+          final isComposerMounted = ValueNotifier(true);
+          addTearDown(isComposerMounted.dispose);
+
+          await tester.pumpWidget(ValueListenableBuilder<bool>(
+            valueListenable: isComposerMounted,
+            builder: (_, mounted, __) {
+              if (!mounted) {
+                // Like a provider listener unfocusing during the build of the frame that unmounts the composer.
+                recipientFocusNode.unfocus();
+                return const SizedBox();
+              }
+              return Focus(
+                focusNode: composerController!.keyboardShortcutFocusNode,
+                child: FocusScope(
+                  child: Focus(
+                    focusNode: recipientFocusNode,
+                    child: const SizedBox(),
+                  ),
+                ),
+              );
+            },
+          ));
+          recipientFocusNode.requestFocus();
+          await tester.pump();
+
+          final keyboardShortcutFocusNode = composerController!.keyboardShortcutFocusNode!;
+          composerController!.onKeyboardShortcutDispose();
+          isComposerMounted.value = false;
+          await tester.pump();
+
+          expect(tester.takeException(), isNull);
+          expect(recipientFocusNode.hasFocus, isFalse);
+          expect(
+            () => ChangeNotifier.debugAssertNotDisposed(keyboardShortcutFocusNode),
+            throwsFlutterError,
+          );
+        },
+      );
     });
   });
 

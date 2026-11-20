@@ -77,7 +77,7 @@ class _ExcludedMailboxes implements GetMailboxesNotPutNotificationsInteractor {
   List<PresentationMailbox> mailboxes = [];
   @override
   Stream<dartz.Either<Failure, Success>> execute(Session session, AccountId accountId) async* {
-    yield dartz.Right<Failure, Success>(GetMailboxesNotPutNotificationsSuccess(mailboxes, session.username));
+    yield dartz.Right<Failure, Success>(GetMailboxesNotPutNotificationsSuccess(mailboxes, accountId, session.username));
   }
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -136,7 +136,7 @@ void main() {
     clearInteractions(mockGetNewReceiveEmailFromNotificationInteractor);
     when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any)).thenAnswer((_) async* {
       yield dartz.Right<Failure, Success>(
-          GetStoredEmailDeliveryStateSuccess(State(_cachedAndDisplayedState)));
+          GetStoredEmailDeliveryStateSuccess(State(_cachedAndDisplayedState), AccountFixtures.aliceAccountId, _userName));
     });
     when(mockGetEmailChangesToPushNotificationInteractor.execute(
       any,
@@ -174,13 +174,13 @@ void main() {
           _userName,
         )).thenAnswer((_) => Stream.fromFuture(aliceDeliveryGate.future).asyncExpand(
             (_) => Stream.value(dartz.Right<Failure, Success>(
-                GetStoredEmailDeliveryStateSuccess(State(_cachedAndDisplayedState))))));
+                GetStoredEmailDeliveryStateSuccess(State(_cachedAndDisplayedState), AccountFixtures.aliceAccountId, _userName)))));
         when(mockGetStoredEmailDeliveryStateInteractor.execute(
           AccountFixtures.bobAccountId,
           _bobUserName,
         )).thenAnswer((_) async* {
           yield dartz.Right<Failure, Success>(
-              GetStoredEmailDeliveryStateSuccess(State(_bobStoredDeliveryState)));
+              GetStoredEmailDeliveryStateSuccess(State(_bobStoredDeliveryState), AccountFixtures.bobAccountId, _bobUserName));
         });
 
         final aliceProcessing = EmailChangeListener.instance.processPlatformPushNotification(
@@ -241,7 +241,7 @@ void main() {
         when(mockGetStoredEmailStateInteractor.execute(any, any))
             .thenAnswer((_) async* {
           yield dartz.Right<Failure, Success>(
-              GetStoredEmailStateSuccess(State(_cachedAndDisplayedState)));
+              GetStoredEmailStateSuccess(State(_cachedAndDisplayedState), AccountFixtures.aliceAccountId, _userName));
         });
 
         EmailChangeListener.instance.dispatchActions([
@@ -290,7 +290,7 @@ void main() {
         when(mockGetStoredEmailStateInteractor.execute(any, any))
             .thenAnswer((_) async* {
           yield dartz.Right<Failure, Success>(
-              GetStoredEmailStateSuccess(State(_cachedAndDisplayedState)));
+              GetStoredEmailStateSuccess(State(_cachedAndDisplayedState), AccountFixtures.aliceAccountId, _userName));
         });
         when(mockGetEmailChangesToPushNotificationInteractor.execute(
           any,
@@ -443,7 +443,7 @@ void main() {
     test('WHEN foreground precedes background THEN background starts from the foreground real cursor', () async {
       var persisted = State(_cachedAndDisplayedState);
       when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any)).thenAnswer((_) async* {
-        yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(persisted));
+        yield dartz.Right<Failure, Success>(GetStoredEmailDeliveryStateSuccess(persisted, AccountFixtures.aliceAccountId, _userName));
       });
       when(mockStoreEmailDeliveryStateInteractor.execute(any, any, any)).thenAnswer((invocation) async* {
         persisted = invocation.positionalArguments[2] as State;
@@ -672,6 +672,7 @@ void main() {
             any,
             propertiesCreated: anyNamed('propertiesCreated'),
             propertiesUpdated: anyNamed('propertiesUpdated'),
+            deliveryState: State(_incomingLegacyServerState),
           )).thenAnswer((_) async* {
             yield dartz.Right<Failure, Success>(
                 GetEmailChangesToPushNotificationSuccess(

@@ -13,12 +13,17 @@ import 'package:flutter/foundation.dart' show debugDefaultTargetPlatformOverride
 import 'package:fcm/model/device_client_id.dart';
 import 'package:fcm/model/firebase_registration.dart';
 import 'package:fcm/model/firebase_registration_id.dart';
+import 'package:dartz/dartz.dart' hide State;
+import 'package:tmail_ui_user/features/login/data/network/config/oidc_constant.dart';
+import 'package:tmail_ui_user/features/login/domain/exceptions/logout_exception.dart';
+import 'package:tmail_ui_user/features/manage_account/domain/state/log_out_oidc_state.dart';
 import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:core/utils/platform_info.dart';
 import 'package:flutter/material.dart' hide State;
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
@@ -36,6 +41,11 @@ import 'package:tmail_ui_user/features/base/base_controller.dart';
 import 'package:tmail_ui_user/features/base/before_reconnect_manager.dart';
 import 'package:tmail_ui_user/features/base/sentry_session_cleanup.dart';
 import 'package:tmail_ui_user/features/caching/caching_manager.dart';
+import 'package:tmail_ui_user/features/delegation/domain/model/ended_delegation_cleanup.dart';
+import 'package:tmail_ui_user/features/delegation/domain/repository/ended_delegation_store.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/notifier/account_switch_notifier.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/notifier/active_account_notifier.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/bridge/active_account_source.dart';
 import 'package:tmail_ui_user/features/login/data/network/interceptors/authorization_interceptors.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_authority_oidc_interactor.dart';
 import 'package:tmail_ui_user/features/login/domain/usecases/delete_credential_interactor.dart';
@@ -71,6 +81,8 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import '../../fixtures/web_socket_session_fixtures.dart';
 
 import '../../fixtures/account_fixtures.dart';
+import '../../fixtures/active_account_source_fixtures.dart';
+import '../../fixtures/delegation_fixtures.dart';
 import '../../fixtures/session_fixtures.dart';
 import 'base_controller_test.mocks.dart';
 
@@ -112,12 +124,12 @@ class MockBaseController extends BaseController {
   }
 
   @override
-  Future<void> clearAllData() async {
+  Future<void> clearAllData({BuildContext? context}) async {
     if (clearAllDataRecording) {
       events.add('clearAllData');
       return;
     }
-    await super.clearAllData();
+    await super.clearAllData(context: context);
   }
 
   @override
@@ -149,6 +161,43 @@ class FakeComposerCacheRepository extends Fake implements ComposerCacheRepositor
 }
 
 class _FakeBuildContext extends Fake implements BuildContext {}
+class _SnapshotStore implements EndedDelegationStore {
+  _SnapshotStore(this.events);
+
+  final List<String> events;
+  AccountId? personalAccountId;
+  UserName? userName;
+
+  @override
+  Future<void> removeDelegatedComposerSnapshots({
+    required UserName userName,
+    required AccountId personalAccountId,
+  }) async {
+    events.add('snapshots');
+    this.userName = userName;
+    this.personalAccountId = personalAccountId;
+  }
+
+  @override
+  Future<Set<AccountId>> storedAccountIds({
+    required UserName userName,
+    required AccountId personalAccountId,
+  }) async => {};
+
+  @override
+  Future<StoredDelegatedAccount> describe(UserName userName, AccountId accountId) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> delete({
+    required UserName userName,
+    required AccountId personalAccountId,
+    required AccountId accountId,
+  }) {
+    throw UnimplementedError();
+  }
+}
 
 class SomeOtherException extends RemoteException {
   const SomeOtherException();
@@ -497,6 +546,94 @@ void main() {
       verify(mockDeleteCredentialInteractor.execute()).called(1);
       verifyNever(mockDeleteAuthorityOidcInteractor.execute());
     });
+
+    testWidgets('ends delegation state in the widget provider scope before clearing session data', (tester) async {
+      final container = ProviderContainer();
+      addTearDown(container.dispose);
+      BuildContext? providerContext;
+      final session = DelegationFixtures.session();
+      final activeAccountNotifier = container.read(activeAccountProvider.notifier);
+      activeAccountNotifier.applySession(session);
+      activeAccountNotifier.select(DelegationFixtures.bobAccountId);
+
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            home: Builder(
+              builder: (context) {
+                providerContext = context;
+                return const SizedBox.shrink();
+              },
+            ),
+          ),
+        ),
+      );
+      expect(providerContext, isNotNull);
+      expect(
+        ProviderScope.containerOf(providerContext!, listen: false),
+        same(container),
+      );
+      when(mockAuthorizationInterceptors.authenticationType)
+          .thenReturn(AuthenticationType.basic);
+
+      await tester.runAsync(() => mockBaseController.clearAllData(
+        context: providerContext,
+      ));
+
+      expect(container.read(activeAccountProvider), isNull);
+      expect(
+        container.read(accountSwitchProvider).currentAttemptId,
+        1,
+      );
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+
+    testWidgets('continues clearing session data if no provider scope is available', (tester) async {
+      BuildContext? contextWithoutScope;
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) {
+              contextWithoutScope = context;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+      expect(contextWithoutScope, isNotNull);
+      when(mockAuthorizationInterceptors.authenticationType)
+          .thenReturn(AuthenticationType.basic);
+
+      await tester.runAsync(() => mockBaseController.clearAllData(
+        context: contextWithoutScope,
+      ));
+
+      verify(mockDeleteCredentialInteractor.execute()).called(1);
+      verify(mockCachingManager.clearAll()).called(1);
+    });
+
+    test('forgets the shown account, so the next user never starts on it', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+      final source = ActiveAccountSourceFixtures.put(
+        DelegationFixtures.session(),
+        shownAccountId: DelegationFixtures.bobAccountId,
+      );
+      addTearDown(ActiveAccountSourceFixtures.unregister);
+
+      await mockBaseController.clearAllData();
+
+      expect(source.activeAccount, isNull);
+    });
+
+    test('still clears account data when no dashboard is open', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+
+      await mockBaseController.clearAllData();
+
+      expect(Get.isRegistered<ActiveAccountWriter>(), isFalse);
+      verify(mockCachingManager.clearAll()).called(1);
+    });
   });
 
   group('BaseController::getMinInputLengthAutocomplete::test', () {
@@ -732,6 +869,34 @@ void main() {
     });
   });
 
+  group('BaseController::logoutToSignInNewAccount', () {
+    setUp(() {
+      mockBaseController.resetState();
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+      when(mockTwakeAppManager.runClearDataOnce(any)).thenAnswer((_) async {
+        mockBaseController.events.add('clearAllData');
+      });
+    });
+
+    test('removes delegated composer snapshots before clearing data', () async {
+      final store = _SnapshotStore(mockBaseController.events);
+      Get.put<EndedDelegationStore>(store);
+      addTearDown(() => Get.delete<EndedDelegationStore>(force: true));
+      final session = DelegationFixtures.session();
+
+      await mockBaseController.logoutToSignInNewAccount(
+        session: session,
+        accountId: DelegationFixtures.aliceAccountId,
+        onSuccessCallback: () {},
+        onFailureCallback: ({Object? exception}) => fail('$exception'),
+      );
+
+      expect(mockBaseController.events, ['snapshots', 'clearAllData']);
+      expect(store.personalAccountId, DelegationFixtures.aliceAccountId);
+      expect(store.userName, session.username);
+    });
+  });
+
   group('BaseController::showBlockedLinkToast', () {
     setUp(() => clearInteractions(mockAppToast));
 
@@ -784,7 +949,7 @@ void main() {
           session: pushSession(ticket: c.ticket, accountWebSocket: c.ticket
               ? WebSocketCapability(supportsPush: true, url: Uri.parse('ws://localhost/jmap/ws'))
               : null),
-          accountId: AccountFixtures.aliceAccountId,
+          personalAccountId: AccountFixtures.aliceAccountId,
         );
         expect(Get.isRegistered<ConnectWebSocketInteractor>(), c.registered);
         // Let the synthetic refusal exhaust the inherited bounded retries.
@@ -1161,6 +1326,156 @@ void main() {
       );
       expect(completed, isTrue);
       expect(mockBaseController.events, ['clearAllData']);
+    });
+  });
+
+  group('BaseController::logoutToSignInNewAccount', () {
+    late _TestSentrySessionCleanup sentrySessionCleanup;
+
+    setUp(() {
+      mockBaseController.resetState();
+      dotenv.testLoad();
+      addTearDown(dotenv.clean);
+      // Other logout scenarios reset Get to remove their FCM fakes.
+      Get.put<CachingManager>(mockCachingManager);
+      Get.put<LanguageCacheManager>(mockLanguageCacheManager);
+      Get.put<DeleteCredentialInteractor>(mockDeleteCredentialInteractor);
+      Get.put<DeleteAuthorityOidcInteractor>(mockDeleteAuthorityOidcInteractor);
+      Get.put<AuthorizationInterceptors>(mockAuthorizationInterceptors);
+      Get.put<AuthorizationInterceptors>(
+        mockAuthorizationInterceptors,
+        tag: BindingTag.isolateTag,
+      );
+      const notificationChannel = MethodChannel('dexterous.com/flutter/local_notifications');
+      final messenger = TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(notificationChannel, (_) async => null);
+      addTearDown(() => messenger.setMockMethodCallHandler(notificationChannel, null));
+      sentrySessionCleanup = _TestSentrySessionCleanup();
+      Get.put<SentrySessionCleanup>(sentrySessionCleanup);
+      addTearDown(() => Get.delete<SentrySessionCleanup>());
+      clearInteractions(mockCachingManager);
+      when(mockTwakeAppManager.runClearDataOnce(any)).thenAnswer(
+        (invocation) => (invocation.positionalArguments[0] as Future<void> Function())());
+    });
+
+    Future<void> logout({
+      required FutureOr<void> Function() onSuccess,
+      required FutureOr<void> Function({Object? exception}) onFailure,
+    }) => mockBaseController.logoutToSignInNewAccount(
+      session: SessionFixtures.aliceSession,
+      accountId: AccountFixtures.aliceAccountId,
+      onSuccessCallback: onSuccess,
+      onFailureCallback: onFailure,
+    );
+
+    test('basic session: completes only after the success callback completed', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.basic);
+      final signIn = Completer<void>();
+      var failures = 0;
+      var isDone = false;
+
+      final logoutFuture = logout(
+        onSuccess: () => signIn.future,
+        onFailure: ({exception}) => failures++,
+      ).then((_) => isDone = true);
+      await pumpEventQueue();
+
+      verify(mockCachingManager.clearAll()).called(1);
+      expect(isDone, isFalse);
+
+      signIn.complete();
+      await logoutFuture;
+
+      expect(isDone, isTrue);
+      expect(failures, 0);
+    });
+
+    test('OIDC session: completes only after the success callback completed', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.oidc);
+      when(mockLogoutOidcInteractor.execute()).thenAnswer(
+        (_) => Stream.value(Right<Failure, Success>(LogoutOidcSuccess())));
+      final signIn = Completer<void>();
+      var isDone = false;
+
+      final logoutFuture = logout(
+        onSuccess: () => signIn.future,
+        onFailure: ({exception}) => fail('the logout succeeded'),
+      ).then((_) => isDone = true);
+      await pumpEventQueue();
+
+      verify(mockCachingManager.clearAll()).called(1);
+      expect(isDone, isFalse);
+
+      signIn.complete();
+      await logoutFuture;
+      expect(isDone, isTrue);
+    });
+
+    test('OIDC logout cancelled by the user: clears data and completes after '
+        'the failure callback completed', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.oidc);
+      when(mockLogoutOidcInteractor.execute()).thenAnswer((_) => Stream.value(
+        Left<Failure, Success>(LogoutOidcFailure(
+          PlatformException(code: OIDCConstant.endSessionFailedCode)))));
+      final signIn = Completer<void>();
+      Object? reported;
+      var isDone = false;
+
+      final logoutFuture = logout(
+        onSuccess: () => fail('the logout was cancelled'),
+        onFailure: ({exception}) {
+          reported = exception;
+          return signIn.future;
+        },
+      ).then((_) => isDone = true);
+      await pumpEventQueue();
+
+      verify(mockCachingManager.clearAll()).called(1);
+      expect(reported, isA<UserCancelledLogoutOIDCFlowException>());
+      expect(isDone, isFalse);
+
+      signIn.complete();
+      await logoutFuture;
+      expect(isDone, isTrue);
+    });
+
+    test('OIDC logout failure: keeps the data and reports no exception', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.oidc);
+      when(mockLogoutOidcInteractor.execute()).thenAnswer((_) => Stream.value(
+        Left<Failure, Success>(LogoutOidcFailure(Exception('server down')))));
+      var failures = 0;
+      Object? reported;
+
+      await logout(
+        onSuccess: () => fail('the logout failed'),
+        onFailure: ({exception}) {
+          failures++;
+          reported = exception;
+        },
+      );
+
+      verifyNever(mockCachingManager.clearAll());
+      expect(failures, 1);
+      expect(reported, isNull);
+    });
+
+    test('OIDC logout failure: completes only after the failure callback completed', () async {
+      when(mockAuthorizationInterceptors.authenticationType).thenReturn(AuthenticationType.oidc);
+      when(mockLogoutOidcInteractor.execute()).thenAnswer((_) => Stream.value(
+        Left<Failure, Success>(LogoutOidcFailure(Exception('server down')))));
+      final recovery = Completer<void>();
+      var isDone = false;
+
+      final logoutFuture = logout(
+        onSuccess: () => fail('the logout failed'),
+        onFailure: ({exception}) => recovery.future,
+      ).then((_) => isDone = true);
+      await pumpEventQueue();
+      expect(isDone, isFalse);
+
+      recovery.complete();
+      await logoutFuture;
+      expect(isDone, isTrue);
     });
   });
 }

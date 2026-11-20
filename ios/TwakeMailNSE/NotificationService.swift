@@ -17,12 +17,16 @@ class NotificationService: UNNotificationServiceExtension {
 
     private var handler: ((UNNotificationContent) -> Void)?
     private var modifiedContent: UNMutableNotificationContent?
+    private var activeBatch: MultiAccountEmailFetchBatch?
+    private var fetchChainStopped = false
     
     private lazy var keychainController = KeychainController(service: .sessions,
                                                              accessGroup: InfoPlistReader.main.keychainAccessGroupIdentifier)
     
     override func didReceive(_ request: UNNotificationRequest, withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void) {
         
+        fetchChainStopped = false
+        activeBatch = nil
         SentryManager.shared.configure(with: keychainController)
         SentryManager.shared.clearUser()
 
@@ -68,7 +72,16 @@ class NotificationService: UNNotificationServiceExtension {
     override func serviceExtensionTimeWillExpire() {
         // Called just before the extension will be terminated by the system.
         // Use this as an opportunity to deliver your "best attempt" at modified content, otherwise the original push payload will be used.
-        SentryManager.shared.capture(message: "NSE: Service Extension Time Expired (Timeout)", flushTimeout: 0.3)
+        fetchChainStopped = true
+        if handler != nil {
+            SentryManager.shared.capture(message: "NSE: Service Extension Time Expired (Timeout)", flushTimeout: 0.3)
+        }
+        if activeBatch?.finishEarly() == true {
+            return
+        }
+        if handler == nil {
+            return
+        }
         if isPlatformPush {
             modifiedContent = originalPlatformContent
         } else {
@@ -78,7 +91,7 @@ class NotificationService: UNNotificationServiceExtension {
     }
     
     private func handlePlatformPush(_ push: NumberInboxPushPayload) {
-        platformAccountId = push.stalwartAccountId;
+        platformAccountId = push.stalwartAccountId
         guard let session = keychainController.retrieveSharingSessionFromKeychain(accountId: push.stalwartAccountId),
               session.tokenOIDC != nil || session.basicAuth?.isEmpty == false,
               let state = session.emailDeliveryState ?? session.emailState else {
@@ -90,7 +103,8 @@ class NotificationService: UNNotificationServiceExtension {
             authenticationType: session.authenticationType, tokenOidc: session.tokenOIDC,
             basicAuth: session.basicAuth, tokenEndpointUrl: session.tokenEndpoint,
             oidcScopes: session.oidcScopes, isTWP: session.isTWP,
-            onComplete: { (emails, errors, newState) in
+            recoverExpiredState: true,
+            onComplete: { result in
                 // Expiry may have completed the handler while the request was in flight.
                 guard self.handler != nil else { return }
                 guard let active = self.keychainController.retrieveSharingSessionFromKeychain(accountId: session.accountId),
@@ -99,16 +113,17 @@ class NotificationService: UNNotificationServiceExtension {
                     SentryManager.shared.capture(message: "NSE: Platform session ended")
                     return self.notify()
                 }
-                if let newState {
+                let expiredState = result.errors.contains { ($0 as? JmapExceptions) == .emailStateExpired }
+                if (!result.failed || expiredState), let newState = result.latestState {
                     self.keychainController.updateEmailDeliveryStateToKeychain(
                         accountId: session.accountId, newEmailDeliveryState: newState)
                 }
-                if !errors.isEmpty && emails.isEmpty {
+                if result.failed {
                     SentryManager.shared.capture(message: "NSE: Platform fetch failed")
                     return self.notify()
                 }
                 let filtered = self.filterEmailsToPushNotification(
-                    emails: emails, mailboxIdsBlockNotification: active.mailboxIdsBlockNotification ?? [])
+                    emails: result.presentableEmails, mailboxIdsBlockNotification: active.mailboxIdsBlockNotification ?? [])
                 if filtered.isEmpty { return self.discard() }
                 self.showListNotification(emails: filtered)
             }
@@ -122,80 +137,221 @@ class NotificationService: UNNotificationServiceExtension {
         
     private func handleGetNewEmails(payloadData: [String: Any]) {
         let mapStateChanges: [String: [TypeName: String]] = PayloadParser.shared.parsingPayloadNotification(payloadData: payloadData)
-        
-        if (mapStateChanges.isEmpty) {
+
+        if mapStateChanges.isEmpty {
             SentryManager.shared.capture(message: "NSE: Payload parsing returned empty state changes")
             self.showDefaultNotification(message: NSLocalizedString(self.newNotificationDefaultMessageKey, comment: "Localizable"))
             return self.notify()
-        } else {
-            guard let currentAccountId = mapStateChanges.keys.first,
-                  let keychainSharingSession = keychainController.retrieveSharingSessionFromKeychain(accountId: currentAccountId),
-                  keychainSharingSession.tokenOIDC != nil || keychainSharingSession.basicAuth != nil else {
-                SentryManager.shared.capture(message: "NSE: Session missing or invalid credential for account: \(mapStateChanges.keys.first ?? "unknown")")
-                self.showDefaultNotification(message: NSLocalizedString(self.newNotificationDefaultMessageKey, comment: "Localizable"))
-                return self.notify()
-            }
+        }
 
-            SentryManager.shared.setSentryUser(keychainSharingSession.sentryUser)
-
-            guard let listStateOfAccount = mapStateChanges[currentAccountId],
-                  let newEmailDeliveryState = listStateOfAccount[TypeName.emailDelivery] else {
-                SentryManager.shared.capture(message: "NSE: Missing emailDelivery state in payload")
-                self.showDefaultNotification(message: NSLocalizedString(self.newNotificationDefaultMessageKey, comment: "Localizable"))
-                return self.notify()
-            }
-
-            guard let oldEmailDeliveryState = keychainSharingSession.emailDeliveryState ?? keychainSharingSession.emailState else {
-                SentryManager.shared.capture(message: "NSE: No stored email state for account: \(currentAccountId)")
-                self.showDefaultNotification(message: NSLocalizedString(self.newEmailDefaultMessageKey, comment: "Localizable"))
-                return self.notify()
-            }
-
-            guard newEmailDeliveryState != oldEmailDeliveryState else {
-                SentryManager.shared.capture(message: "NSE: Email delivery state unchanged, skipping fetch")
-                self.showDefaultNotification(message: NSLocalizedString(self.newEmailDefaultMessageKey, comment: "Localizable"))
-                return self.notify()
-            }
-            
-            JmapClient.shared.getNewEmails(
-                apiUrl: keychainSharingSession.apiUrl,
-                accountId: keychainSharingSession.accountId,
-                sinceState: oldEmailDeliveryState,
-                authenticationType: keychainSharingSession.authenticationType,
-                tokenOidc: keychainSharingSession.tokenOIDC,
-                basicAuth: keychainSharingSession.basicAuth,
-                tokenEndpointUrl: keychainSharingSession.tokenEndpoint,
-                oidcScopes: keychainSharingSession.oidcScopes,
-                isTWP: keychainSharingSession.isTWP,
-                onComplete: { (emails, errors, _) in
-                    errors.forEach { SentryManager.shared.capture(error: $0) }
-
-                    if emails.isEmpty {
-                        SentryManager.shared.capture(message: "NSE: getNewEmails returned empty list")
-                        self.showDefaultNotification(message: NSLocalizedString(self.newEmailDefaultMessageKey, comment: "Localizable"))
-                        return self.notify()
-                    }
-
-                    self.keychainController.updateEmailDeliveryStateToKeychain(
-                        accountId: keychainSharingSession.accountId,
-                        newEmailDeliveryState: newEmailDeliveryState
-                    )
-
-                    let mailboxIdsBlockNotification = keychainSharingSession.mailboxIdsBlockNotification ?? []
-
-                    if mailboxIdsBlockNotification.isEmpty {
-                        return self.showListNotification(emails: emails)
-                    } else {
-                        let emailFiltered = self.filterEmailsToPushNotification(
-                            emails: emails,
-                            mailboxIdsBlockNotification: mailboxIdsBlockNotification)
-                        return self.showListNotification(emails: emailFiltered)
-                    }
-                }
+        let accountIds = Array(mapStateChanges.keys)
+        let batch = MultiAccountEmailFetchBatch(accountCount: accountIds.count) {
+            emails, sawResolvableAccount, sawFetchedEmails, hadMissingDelivery in
+            self.finishMultiAccountFetch(
+                emails: emails,
+                sawResolvableAccount: sawResolvableAccount,
+                sawFetchedEmails: sawFetchedEmails,
+                hadMissingDelivery: hadMissingDelivery
             )
         }
+        activeBatch = batch
+        fetchNextAccount(
+            accountIds: accountIds,
+            mapStateChanges: mapStateChanges,
+            index: 0,
+            batch: batch
+        )
     }
-    
+
+    private func fetchNextAccount(
+        accountIds: [String],
+        mapStateChanges: [String: [TypeName: String]],
+        index: Int,
+        batch: MultiAccountEmailFetchBatch
+    ) {
+        guard !fetchChainStopped else {
+            batch.finishEarly()
+            return
+        }
+        guard index < accountIds.count else { return }
+
+        let accountId = accountIds[index]
+        let typeStates = mapStateChanges[accountId] ?? [:]
+        let continueNext: () -> Void = {
+            self.fetchNextAccount(
+                accountIds: accountIds,
+                mapStateChanges: mapStateChanges,
+                index: index + 1,
+                batch: batch
+            )
+        }
+
+        guard let newEmailDeliveryState = typeStates[TypeName.emailDelivery] else {
+            SentryManager.shared.capture(message: "NSE: Missing emailDelivery state in payload")
+            batch.markMissingDelivery()
+            finishAccountStep(batch: batch, emails: [], then: continueNext)
+            return
+        }
+
+        // Resolve at the start of each account so a prior refresh is visible.
+        guard let resolved = keychainController.resolveSharingSession(for: accountId),
+              resolved.personalSession.tokenOIDC != nil || resolved.personalSession.basicAuth != nil else {
+            finishAccountStep(batch: batch, emails: [], then: continueNext)
+            return
+        }
+
+        batch.markResolvable()
+        SentryManager.shared.setSentryUser(resolved.personalSession.sentryUser)
+
+        guard let oldEmailDeliveryState = resolved.emailDeliveryState else {
+            SentryManager.shared.capture(message: "NSE: No stored email state for account: \(accountId)")
+            finishAccountStep(batch: batch, emails: [], then: continueNext)
+            return
+        }
+        guard newEmailDeliveryState != oldEmailDeliveryState else {
+            SentryManager.shared.capture(message: "NSE: Email delivery state unchanged, skipping fetch")
+            finishAccountStep(batch: batch, emails: [], then: continueNext)
+            return
+        }
+
+        startEmailFetch(
+            accountId: accountId,
+            resolved: resolved,
+            sinceState: oldEmailDeliveryState,
+            newEmailDeliveryState: newEmailDeliveryState,
+            batch: batch,
+            then: continueNext
+        )
+    }
+
+    private func finishAccountStep(
+        batch: MultiAccountEmailFetchBatch,
+        emails: [Email],
+        then continueNext: @escaping () -> Void
+    ) {
+        batch.accountFinished(emails: emails)
+        continueNext()
+    }
+
+    private func startEmailFetch(
+        accountId: String,
+        resolved: ResolvedSharingSession,
+        sinceState: String,
+        newEmailDeliveryState: String,
+        batch: MultiAccountEmailFetchBatch,
+        then continueNext: @escaping () -> Void
+    ) {
+        let personalSession = resolved.personalSession
+        JmapClient.shared.getNewEmails(
+            apiUrl: personalSession.apiUrl,
+            accountId: accountId,
+            sinceState: sinceState,
+            authenticationType: personalSession.authenticationType,
+            tokenOidc: personalSession.tokenOIDC,
+            basicAuth: personalSession.basicAuth,
+            tokenEndpointUrl: personalSession.tokenEndpoint,
+            oidcScopes: personalSession.oidcScopes,
+            isTWP: personalSession.isTWP,
+            keychainAccountId: resolved.personalAccountId,
+            onComplete: { result in
+                guard !self.fetchChainStopped else { return }
+                result.errors.forEach { SentryManager.shared.capture(error: $0) }
+
+                let bookmark = DeliveryBookmarkUpdate.resolve(
+                    failed: result.failed || !result.errors.isEmpty,
+                    hasMoreChanges: result.hasMoreChanges,
+                    payloadState: newEmailDeliveryState,
+                    latestState: result.latestState
+                )
+                self.persist(bookmark, accountId: accountId, resolved: resolved)
+
+                // A failed fetch keeps the bookmark, so presenting its partial emails would repeat them on the next push.
+                let emails = result.presentableEmails
+                guard !emails.isEmpty else {
+                    self.reportEmptyResult(result, bookmark: bookmark)
+                    self.finishAccountStep(batch: batch, emails: [], then: continueNext)
+                    return
+                }
+
+                batch.markFetchedEmails()
+                let filtered = self.filterEmailsToPushNotification(
+                    emails: emails,
+                    mailboxIdsBlockNotification: resolved.mailboxIdsBlockNotification ?? []
+                )
+                self.finishAccountStep(batch: batch, emails: filtered, then: continueNext)
+            }
+        )
+    }
+
+    private func finishMultiAccountFetch(
+        emails: [Email],
+        sawResolvableAccount: Bool,
+        sawFetchedEmails: Bool,
+        hadMissingDelivery: Bool
+    ) {
+        if !emails.isEmpty {
+            showListNotification(emails: emailsSortedByReceivedAt(emails))
+            return
+        }
+
+        if !sawResolvableAccount {
+            if !hadMissingDelivery {
+                SentryManager.shared.capture(message: "NSE: Session missing or invalid credential for every account in the payload")
+            }
+            showDefaultNotification(message: NSLocalizedString(newNotificationDefaultMessageKey, comment: "Localizable"))
+            return notify()
+        }
+
+        // Emails were fetched but every one is in a blocked mailbox, so the original push content is kept instead of the default banner.
+        if sawFetchedEmails {
+            showListNotification(emails: [])
+            return
+        }
+
+        showDefaultNotification(message: NSLocalizedString(newEmailDefaultMessageKey, comment: "Localizable"))
+        notify()
+    }
+
+    private func persist(
+        _ bookmark: DeliveryBookmarkUpdate,
+        accountId: String,
+        resolved: ResolvedSharingSession
+    ) {
+        guard case .write(let state) = bookmark else { return }
+
+        let persisted: Bool
+        if resolved.isDelegated {
+            persisted = keychainController.updateDelegatedAccountEmailDeliveryStateToKeychain(
+                personalAccountId: resolved.personalAccountId,
+                delegatedAccountId: accountId,
+                newEmailDeliveryState: state
+            )
+        } else {
+            persisted = keychainController.updateEmailDeliveryStateToKeychain(
+                accountId: resolved.personalAccountId,
+                newEmailDeliveryState: state
+            )
+        }
+        // On failure the emails are still presented: a possible repeat on the next push beats losing a new-mail alert.
+        if !persisted {
+            SentryManager.shared.capture(message: "NSE: Failed to persist emailDelivery state")
+        }
+    }
+
+    /// Sends at most one Sentry event per fetch: a failure whose cause was already captured only adds a breadcrumb.
+    private func reportEmptyResult(_ result: NewEmailFetchResult, bookmark: DeliveryBookmarkUpdate) {
+        if result.failed {
+            return result.errors.isEmpty
+                ? SentryManager.shared.capture(message: "NSE: getNewEmails failed without error")
+                : SentryManager.shared.addBreadcrumb(message: "NSE: getNewEmails failed")
+        }
+        if case .write = bookmark {
+            SentryManager.shared.addBreadcrumb(message: "NSE: getNewEmails returned empty list")
+        } else {
+            SentryManager.shared.capture(message: "NSE: getNewEmails returned empty list")
+        }
+    }
+
     private func filterEmailsToPushNotification(emails: [Email], mailboxIdsBlockNotification: [String]) -> [Email] {
         return emails.filter { email in
             guard let mailboxIds = email.mailboxIds else { return true }
@@ -314,6 +470,8 @@ class NotificationService: UNNotificationServiceExtension {
     }
     
     private func cleanUp() {
+        fetchChainStopped = true
+        activeBatch = nil
         SentryManager.shared.clearUser()
         handler = nil
         modifiedContent = nil

@@ -75,19 +75,10 @@ class EmailAddressDetailWidget extends StatelessWidget {
                     onCopyEmailAddressAction?.call(emailAddress),
               ),
               const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 48,
-                child: ConfirmDialogButton(
-                  label: AppLocalizations.of(context).quickCreatingRule,
-                  backgroundColor: Colors.white,
-                  textColor: AppColor.primaryMain,
-                  borderColor: AppColor.primaryMain,
-                  onTapAction: () =>
-                      onQuickCreatingRuleEmailDialogAction?.call(emailAddress),
-                ),
-              ),
-              const SizedBox(height: 14),
+              if (onQuickCreatingRuleEmailDialogAction != null) ...[
+                _buildQuickCreatingRuleButton(context),
+                const SizedBox(height: 14),
+              ],
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -116,6 +107,21 @@ class EmailAddressDetailWidget extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildQuickCreatingRuleButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: ConfirmDialogButton(
+        label: AppLocalizations.of(context).quickCreatingRule,
+        backgroundColor: Colors.white,
+        textColor: AppColor.primaryMain,
+        borderColor: AppColor.primaryMain,
+        onTapAction: () =>
+            onQuickCreatingRuleEmailDialogAction?.call(emailAddress),
+      ),
     );
   }
 }

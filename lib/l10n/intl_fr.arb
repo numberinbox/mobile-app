@@ -348,6 +348,16 @@
       "count": {}
     }
   },
+  "sharedFilesCannotBeRead": "{count,plural, =1{Un fichier partagé n'a pas pu être lu et n'a pas été ajouté}other{{count} fichiers partagés n'ont pas pu être lus et n'ont pas été ajoutés}}",
+  "@sharedFilesCannotBeRead": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
   "attachments_uploaded_successfully": "Pièces jointes téléversées avec succès",
   "@attachments_uploaded_successfully": {
     "type": "text",
@@ -6114,6 +6124,54 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "deepLinkAccountCannotBeVerified": "Nous n'avons pas pu vérifier ce lien de connexion. Veuillez vous connecter depuis l'application.",
+  "@deepLinkAccountCannotBeVerified": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkTitle": "Se connecter avec ce lien ?",
+  "@signInWithLinkTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkAccountPrefix": "Ce lien vous connecte en tant que",
+  "@signInWithLinkAccountPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkWarning": "Ne continuez que si vous avez demandé à vous connecter.",
+  "@signInWithLinkWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerTitle": "Confirmez votre serveur de messagerie",
+  "@discoveredServerTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerPrefix": "Serveur de messagerie trouvé pour",
+  "@discoveredServerPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerHint": "Ne continuez que si vous reconnaissez ce serveur.",
+  "@discoveredServerHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerOutsideDomainWarning": "Ce serveur ne fait pas partie de votre domaine de messagerie. Ne continuez que si votre administrateur vous a demandé de l'utiliser.",
+  "@discoveredServerOutsideDomainWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "pdfPasswordRequired": "PDF protégé par mot de passe",
   "@pdfPasswordRequired": {
     "type": "text",
@@ -6158,6 +6216,124 @@
   },
   "domainActivationPendingMessage": "Vous ne pouvez pas envoyer d'e-mails pour le moment. Contactez votre administrateur si le problème persiste.",
   "@domainActivationPendingMessage": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "sendingNotAllowedFromThisMailbox": "Vous ne pouvez pas envoyer d'e-mails depuis cette boîte mail.",
+  "@sendingNotAllowedFromThisMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "endedDelegationLostItems": "L'accès a pris fin. {count} messages non envoyés ou brouillons ont été supprimés.",
+  "@endedDelegationLostItems": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "delegation": "Délégation",
+  "@delegation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationSettingExplanation": "Ouvrir les boîtes mail que d'autres utilisateurs vous ont déléguées",
+  "@delegationSettingExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationToggleDescription": "Activer la délégation",
+  "@delegationToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "openingOwnerMailbox": "Ouverture de la boîte mail de {name}…",
+  "@openingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "openingYourMailbox": "Ouverture de votre boîte mail…",
+  "@openingYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "viewingOwnerMailbox": "Affichage de {name}",
+  "@viewingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "yourMailbox": "Votre boîte mail",
+  "@yourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedToYou": "Délégué à vous",
+  "@delegatedToYou": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "accountSwitcherMenu": "Changement de compte",
+  "@accountSwitcherMenu": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "couldNotOpenOwnerMailbox": "Impossible d'ouvrir la boîte mail de {name}",
+  "@couldNotOpenOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "couldNotReturnToYourMailbox": "Impossible de revenir à votre boîte mail",
+  "@couldNotReturnToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "closeComposerBeforeSwitchingAccounts": "Fermez l'éditeur avant de changer de compte",
+  "@closeComposerBeforeSwitchingAccounts": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailbox": "Boîte mail déléguée",
+  "@delegatedMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "backToYourMailbox": "Retour à votre boîte mail",
+  "@backToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailboxUnavailable": "Cette boîte mail déléguée n'est pas disponible, votre boîte mail est donc affichée",
+  "@delegatedMailboxUnavailable": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

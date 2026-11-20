@@ -25,8 +25,6 @@ Future<void> main() async {
   await runAppWithMonitoring(runTmail);
 }
 
-final _smartDialogBuilder = FlutterSmartDialog.init();
-
 class TMailApp extends StatefulWidget {
   const TMailApp({Key? key}) : super(key: key);
 
@@ -40,6 +38,8 @@ class _TMailAppState extends State<TMailApp> {
   // Kept as a field so route tracking survives app rebuilds; a new instance
   // per build would drop the suspended-route state and skip the restore.
   final _selectionHandlesRouteObserver = SelectionHandlesRouteObserver();
+
+  final TransitionBuilder _smartDialogBuilder = FlutterSmartDialog.init();
 
   @override
   void initState() {
@@ -90,7 +90,11 @@ class _TMailAppState extends State<TMailApp> {
         initialRoute: AppRoutes.home,
         getPages: AppPages.pages,
         builder: (context, child) => LightSystemUiRegion(
-          child: _smartDialogBuilder(context, child!),
+          child: FocusScope(
+            // Keeps overlay focus nodes out of the View's focus sort while they are disposed; flutter/flutter#194056.
+            // TODO: remove with test/main/focus_*_test.dart once flutter/flutter#194056 is in our Flutter version; only web Patrol runs (didChangeViewFocus null check) catch its removal.
+            child: _smartDialogBuilder(context, child!),
+          ),
         ),
       ),
     );

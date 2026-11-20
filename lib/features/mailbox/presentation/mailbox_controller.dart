@@ -24,6 +24,10 @@ import 'package:tmail_ui_user/features/base/mixin/contact_support_mixin.dart';
 import 'package:tmail_ui_user/features/base/mixin/launcher_application_mixin.dart';
 import 'package:tmail_ui_user/features/base/mixin/mailbox_action_handler_mixin.dart';
 import 'package:tmail_ui_user/features/composer/domain/state/save_email_as_drafts_state.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/bridge/active_account_reader.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/bridge/active_account_source.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/model/shown_account_load.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/utils/start_on_url_account.dart';
 import 'package:tmail_ui_user/features/email/domain/model/move_action.dart';
 import 'package:tmail_ui_user/features/email/domain/state/delete_email_permanently_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/delete_multiple_emails_permanently_state.dart';
@@ -77,6 +81,7 @@ import 'package:tmail_ui_user/features/mailbox/presentation/extensions/presentat
 import 'package:tmail_ui_user/features/mailbox/presentation/mixin/mailbox_widget_mixin.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_actions.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_categories_expand_mode.dart';
+import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_collection.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_node.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_tree_builder.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/open_mailbox_view_event.dart';
@@ -112,7 +117,9 @@ class MailboxController extends BaseMailboxController
     with MailboxActionHandlerMixin,
         ContactSupportMixin,
         LauncherApplicationMixin,
-        MailboxWidgetMixin {
+        MailboxWidgetMixin,
+        ActiveAccountReader,
+        ShownAccountStateConsumer {
 
   final mailboxDashBoardController = Get.find<MailboxDashBoardController>();
   final isMailboxListScrollable = false.obs;
@@ -135,6 +142,8 @@ class MailboxController extends BaseMailboxController
   NavigationRouter? _navigationRouter;
   WebSocketQueueHandler? _webSocketQueueHandler;
   Worker? isLabelsLoadedWorker;
+  CancelShownAccountWatch? _cancelShownAccountWatch;
+  CancelShownAccountWatch? _cancelShownAccountReloadWatch;
 
   final _openMailboxEventController = StreamController<OpenMailboxViewEvent>();
   StreamSubscription? _openMailboxEventStreamSubscription;
@@ -144,7 +153,16 @@ class MailboxController extends BaseMailboxController
 
   PresentationEmail? get selectedEmail => mailboxDashBoardController.selectedEmail.value;
 
-  AccountId? get accountId => mailboxDashBoardController.accountId.value;
+  AccountId? get accountId => activeAccountId;
+
+  /// My own account id while a personal-only side effect is allowed for the shown account.
+  AccountId? _personalAccountIdWhen(bool allowed) => allowed ? accountId : null;
+
+  @override
+  bool get canCreateFilter => shownAccountCapabilities.canCreateFilter;
+
+  @override
+  bool get canRecoverDeletedMessages => shownAccountCapabilities.canRecoverDeletedMessages;
 
   Session? get session => mailboxDashBoardController.sessionCurrent;
 
@@ -201,6 +219,10 @@ class MailboxController extends BaseMailboxController
     _webSocketQueueHandler?.dispose();
     isLabelsLoadedWorker?.dispose();
     isLabelsLoadedWorker = null;
+    _cancelShownAccountWatch?.call();
+    _cancelShownAccountWatch = null;
+    _cancelShownAccountReloadWatch?.call();
+    _cancelShownAccountReloadWatch = null;
     super.onClose();
   }
 
@@ -294,11 +316,8 @@ class MailboxController extends BaseMailboxController
   }
 
   void _registerObxStreamListener() {
-    ever(mailboxDashBoardController.accountId, (accountId) {
-      if (accountId != null && session != null) {
-        getAllMailbox(session!, accountId);
-      }
-    });
+    _cancelShownAccountWatch = activeAccountSource.watchShown(_showFoldersOf);
+    _cancelShownAccountReloadWatch = activeAccountSource.watchShownReload(_loadFoldersOfShownAccount);
 
     ever<Map<String, dynamic>?>(
       mailboxDashBoardController.routerParameters,
@@ -583,10 +602,26 @@ class MailboxController extends BaseMailboxController
 
   Future<void> refreshAllMailbox() async {
     if (session != null && accountId != null) {
-      consumeState(getAllMailboxInteractor!.execute(session!, accountId!));
+      _loadFoldersOfShownAccount(accountId!);
     } else {
       consumeState(Stream.value(Left(GetAllMailboxFailure(NotFoundSessionException()))));
     }
+  }
+
+  /// The folders of the account shown before must not stay tappable while the new ones load.
+  void _showFoldersOf(AccountId shownAccountId) {
+    currentMailboxState = null;
+    updateMailboxTree(mailboxCollection: MailboxCollection.empty(), isRefreshTrigger: false);
+    _setMapMailbox();
+    _loadFoldersOfShownAccount(shownAccountId);
+  }
+
+  void _loadFoldersOfShownAccount(AccountId shownAccountId) {
+    if (session == null || getAllMailboxInteractor == null) return;
+    consumeShownAccountState(
+      getAllMailboxInteractor!.execute(session!, shownAccountId),
+      reportAs: ShownAccountLoadKind.folders,
+    );
   }
 
   void _refreshMailboxChanges({required jmap.State newState}) {
@@ -603,13 +638,15 @@ class MailboxController extends BaseMailboxController
   }
 
   Future<void> _handleWebSocketMessage(WebSocketMessage message) async {
+    // An account switch clears the folder state it leaves, so a message queued before it has nothing to refresh.
+    if (currentMailboxState == null) return;
     try {
-      final refreshViewState = await refreshAllMailboxInteractor!.execute(
+      final refreshViewState = await awaitShownAccountState(refreshAllMailboxInteractor!.execute(
         session!,
         accountId!,
         currentMailboxState!,
         properties: MailboxConstants.propertiesDefault,
-      ).last;
+      ));
 
       final refreshState = refreshViewState
           .foldSuccessWithResult<RefreshChangesAllMailboxSuccess>();
@@ -733,7 +770,9 @@ class MailboxController extends BaseMailboxController
       .whereNot((role) => mapDefaultMailboxRole.containsKey(role) || findNodeByNameOnFirstLevel(role.value) != null)
       .toList();
 
-    if (listRoleMissing.isEmpty || accountId == null || session == null) {
+    final personalAccountId =
+        _personalAccountIdWhen(shownAccountCapabilities.canCreateDefaultFolders);
+    if (listRoleMissing.isEmpty || personalAccountId == null || session == null) {
       updateMailboxTree(
         mailboxCollection: updateMailboxCollection(currentMailboxCollection),
         isRefreshTrigger: false,
@@ -748,7 +787,7 @@ class MailboxController extends BaseMailboxController
     log('MailboxController::_handleCreateDefaultFolderIfMissing():mapRoles: $mapRoles');
     consumeState(_createDefaultMailboxInteractor.execute(
       session!,
-      accountId!,
+      personalAccountId,
       mapRoles,
     ));
   }
@@ -789,6 +828,12 @@ class MailboxController extends BaseMailboxController
     if (!PlatformInfo.isWeb || _navigationRouter == null) {
       _selectSelectedMailboxDefault();
       _replaceBrowserHistory();
+      return;
+    }
+
+    final urlAccountId = _navigationRouter!.accountId;
+    if (urlAccountId != null && urlAccountId != activeAccountId) {
+      _startOnUrlAccount(urlAccountId);
       return;
     }
 
@@ -834,8 +879,7 @@ class MailboxController extends BaseMailboxController
               _openMailboxFromLocationBar(matchedMailboxNode.item);
             }
           } else {
-            _clearNavigationRouter();
-            popAndPush(AppRoutes.unknownRoutePage);
+            openMissingTargetFromLocationBar();
           }
         } else if (_navigationRouter!.emailId != null) {
           _openEmailWithoutMailboxFromLocationBar(_navigationRouter!.emailId!);
@@ -846,6 +890,21 @@ class MailboxController extends BaseMailboxController
         }
         break;
     }
+  }
+
+  /// The router waits for its account, so a fallback to mine never opens another account's folder or email.
+  Future<void> _startOnUrlAccount(AccountId urlAccountId) async {
+    final router = _navigationRouter!;
+    _clearNavigationRouter();
+    final context = currentContext;
+    final isShown = context != null &&
+        await startOnUrlAccount(context: context, urlAccountId: urlAccountId) &&
+        activeAccountId == urlAccountId;
+    if (isClosed) return;
+    if (isShown) {
+      _navigationRouter = router;
+    }
+    _handleDataFromNavigationRouter();
   }
 
   void openEmailInsideMailboxFromLocationBar(
@@ -912,7 +971,15 @@ class MailboxController extends BaseMailboxController
     _clearNavigationRouter();
   }
 
-  void clearNavigationRouter() => _clearNavigationRouter();
+  /// A delegated link may outlive its folder or label, so it opens Inbox instead of the unknown page.
+  void openMissingTargetFromLocationBar() {
+    _clearNavigationRouter();
+    if (!shownAccountCapabilities.opensInboxForMissingLinkTarget) {
+      popAndPush(AppRoutes.unknownRoutePage);
+      return;
+    }
+    _switchBackToMailboxDefault();
+  }
 
   void _clearNavigationRouter() {
     _navigationRouter = null;
@@ -1236,7 +1303,8 @@ class MailboxController extends BaseMailboxController
       case MailboxActions.move:
         moveMailboxAction(
           mailbox,
-          mailboxDashBoardController,
+          accountId: accountId,
+          session: session,
           onMovingMailboxAction: (mailboxSelected, destinationMailbox) => _invokeMovingMailboxAction(context, mailboxSelected, destinationMailbox)
         );
         break;
@@ -1255,7 +1323,7 @@ class MailboxController extends BaseMailboxController
       case MailboxActions.copySubaddress:
         try{
           final subaddress = getSubAddress(
-            mailboxDashBoardController.ownEmailAddress.value,
+            mailboxDashBoardController.emailForSubaddress,
             findNodePathWithSeparator(mailbox.id, '.')!,
           );
           copySubAddressAction(context, subaddress);
@@ -1273,7 +1341,7 @@ class MailboxController extends BaseMailboxController
       case MailboxActions.allowSubaddressing:
         try{
           final subAddress = getSubAddress(
-            mailboxDashBoardController.ownEmailAddress.value,
+            mailboxDashBoardController.emailForSubaddress,
             findNodePathWithSeparator(mailbox.id, '.')!,
           );
           openConfirmationDialogSubAddressingAction(
@@ -1384,13 +1452,17 @@ class MailboxController extends BaseMailboxController
   }
 
   Future<void> _updateMailboxIdsBlockNotificationToKeychain(List<PresentationMailbox> mailboxes) async {
+    final personalAccountId =
+        _personalAccountIdWhen(shownAccountCapabilities.canUseNotificationKeychain);
+    if (personalAccountId == null) return;
+
     _iosSharingManager = getBinding<IOSSharingManager>();
-    if (accountId == null || _iosSharingManager == null || mailboxes.isEmpty) {
-      logWarning('MailboxController::_updateMailboxIdsBlockNotificationToKeychain: AccountId = $accountId | IosSharingManager = $_iosSharingManager | Mailboxes = ${mailboxes.length}');
+    if (_iosSharingManager == null || mailboxes.isEmpty) {
+      logWarning('MailboxController::_updateMailboxIdsBlockNotificationToKeychain: AccountId = $personalAccountId | IosSharingManager = $_iosSharingManager | Mailboxes = ${mailboxes.length}');
       return;
     }
 
-    if (await _iosSharingManager!.isExistMailboxIdsBlockNotificationInKeyChain(accountId!)) {
+    if (await _iosSharingManager!.isExistMailboxIdsBlockNotificationInKeyChain(personalAccountId)) {
       return;
     }
 
@@ -1400,7 +1472,7 @@ class MailboxController extends BaseMailboxController
       .toList();
     log('MailboxController::_updateMailboxIdsBlockNotificationToKeychain:MailboxIdsBlockNotification = $mailboxIdsBlockNotification');
     _iosSharingManager!.updateMailboxIdsBlockNotificationInKeyChain(
-      accountId: accountId!,
+      accountId: personalAccountId,
       mailboxIds: mailboxIdsBlockNotification);
   }
 
@@ -1539,7 +1611,7 @@ class MailboxController extends BaseMailboxController
   }
 
   void _handleSubaddressingAction(MailboxId mailboxId, Map<String, List<String>?>? currentRights, MailboxActions subaddressingAction) {
-    final accountId = mailboxDashBoardController.accountId.value;
+    final accountId = activeAccountId;
     final session = mailboxDashBoardController.sessionCurrent;
 
     if (session != null && accountId != null) {

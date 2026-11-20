@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-10-20T08:30:46.960034",
+  "@@last_modified": "2026-11-16T10:25:27.170234",
   "initializing_data": "Initializing data...",
   "@initializing_data": {
     "type": "text",
@@ -428,6 +428,16 @@
   },
   "cannotUploadFoldersAsAttachments": "{count,plural, =1{Cannot upload this folder as attachment}other{Cannot upload these folders as attachments}}",
   "@cannotUploadFoldersAsAttachments": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "sharedFilesCannotBeRead": "{count,plural, =1{A shared file could not be read and was not added}other{{count} shared files could not be read and were not added}}",
+  "@sharedFilesCannotBeRead": {
     "type": "text",
     "placeholders_order": [
       "count"
@@ -5770,6 +5780,54 @@
     "placeholders_order": [],
     "placeholders": {}
   },
+  "deepLinkAccountCannotBeVerified": "We couldn't verify this sign-in link. Please sign in from the app.",
+  "@deepLinkAccountCannotBeVerified": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkTitle": "Sign in with this link?",
+  "@signInWithLinkTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkAccountPrefix": "This link signs you in as",
+  "@signInWithLinkAccountPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "signInWithLinkWarning": "Only continue if you asked to sign in.",
+  "@signInWithLinkWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerTitle": "Confirm your mail server",
+  "@discoveredServerTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerPrefix": "Mail server found for",
+  "@discoveredServerPrefix": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerHint": "Continue only if you recognize this server.",
+  "@discoveredServerHint": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "discoveredServerOutsideDomainWarning": "This server is not part of your email domain. Continue only if your administrator told you to use it.",
+  "@discoveredServerOutsideDomainWarning": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
   "linkTypeNotAllowed": "This type of link is not allowed!",
   "@linkTypeNotAllowed": {
     "type": "text",
@@ -5796,6 +5854,194 @@
   },
   "domainActivationPendingMessage": "You cannot send emails at this time. Contact your administrator if the problem persists.",
   "@domainActivationPendingMessage": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "sendingNotAllowedFromThisMailbox": "You cannot send emails from this mailbox.",
+  "@sendingNotAllowedFromThisMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "endedDelegationLostItems": "Access ended. {count} unsent or draft messages were removed.",
+  "@endedDelegationLostItems": {
+    "type": "text",
+    "placeholders_order": [
+      "count"
+    ],
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "delegation": "Delegation",
+  "@delegation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationSettingExplanation": "Open the mailboxes other users delegated to you",
+  "@delegationSettingExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationToggleDescription": "Enable delegation",
+  "@delegationToggleDescription": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "openingOwnerMailbox": "Opening {name}'s mailbox…",
+  "@openingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "openingYourMailbox": "Opening your mailbox…",
+  "@openingYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "viewingOwnerMailbox": "Viewing {name}",
+  "@viewingOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "yourMailbox": "Your mailbox",
+  "@yourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedToYou": "Delegated to you",
+  "@delegatedToYou": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "accountSwitcherMenu": "Account switcher",
+  "@accountSwitcherMenu": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "couldNotOpenOwnerMailbox": "Couldn't open {name}'s mailbox",
+  "@couldNotOpenOwnerMailbox": {
+    "type": "text",
+    "placeholders_order": [
+      "name"
+    ],
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "couldNotReturnToYourMailbox": "Couldn't return to your mailbox",
+  "@couldNotReturnToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "closeComposerBeforeSwitchingAccounts": "Close the composer before switching accounts",
+  "@closeComposerBeforeSwitchingAccounts": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailbox": "Delegated mailbox",
+  "@delegatedMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "backToYourMailbox": "Back to your mailbox",
+  "@backToYourMailbox": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedMailboxUnavailable": "This delegated mailbox isn't available, so your mailbox is shown",
+  "@delegatedMailboxUnavailable": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegatedToMeExplanation": "Accounts other people have given you access to. You can switch into them from the account menu, and remove your own access at any time.",
+  "@delegatedToMeExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "delegationMenuExplanation": "Give someone permission to manage your mailbox on your behalf.",
+  "@delegationMenuExplanation": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "mailboxesDelegatedToMe": "Mailboxes delegated to me",
+  "@mailboxesDelegatedToMe": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "mailboxesSharedWithMe": "Mailboxes shared with me",
+  "@mailboxesSharedWithMe": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "noMailboxesSharedWithYou": "No mailboxes shared with you",
+  "@noMailboxesSharedWithYou": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "noMailboxesSharedWithYouMessage": "When someone gives you access to their inbox, it will show up here.",
+  "@noMailboxesSharedWithYouMessage": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "couldNotLoadDelegatedMailboxes": "Couldn't load the mailboxes delegated to you",
+  "@couldNotLoadDelegatedMailboxes": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "removeYourAccessTitle": "Remove your access?",
+  "@removeYourAccessTitle": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "removeYourAccessMessage": "You'll no longer be able to view or manage {emailAddress}. They'll need to share access with you again if you need it back.",
+  "@removeYourAccessMessage": {
+    "type": "text",
+    "placeholders_order": [
+      "emailAddress"
+    ],
+    "placeholders": {
+      "emailAddress": {}
+    }
+  },
+  "removeAccess": "Remove access",
+  "@removeAccess": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "couldNotRemoveYourAccess": "Couldn't remove your access",
+  "@couldNotRemoveYourAccess": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

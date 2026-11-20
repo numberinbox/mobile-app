@@ -150,3 +150,6 @@ firebase.json
 
 # Local security review output (scripts/security-review.sh)
 /.security-review/
+
+# Backend pool slot properties (scripts/backend-reset-server.py)
+backend-docker/tmail-pool-*/

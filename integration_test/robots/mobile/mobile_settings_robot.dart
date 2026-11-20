@@ -2,9 +2,13 @@ import 'package:tmail_ui_user/features/manage_account/presentation/menu/widgets/
 import 'package:tmail_ui_user/features/manage_account/presentation/model/account_menu_item.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
+import '../abstract/abstract_delegation_settings_robot.dart';
+import '../abstract/abstract_language_robot.dart';
 import '../abstract/abstract_preferences_robot.dart';
 import '../abstract/abstract_settings_robot.dart';
+import '../delegation_settings_robot.dart';
 import '../setting_robot.dart';
+import 'mobile_language_robot.dart';
 import 'mobile_preferences_robot.dart';
 
 class MobileSettingsRobot extends SettingRobot
@@ -15,12 +19,29 @@ class MobileSettingsRobot extends SettingRobot
   AbstractPreferencesRobot get preferencesRobot => MobilePreferencesRobot($);
 
   @override
+  AbstractLanguageRobot get languageRobot => MobileLanguageRobot($);
+
+  @override
+  AbstractDelegationSettingsRobot get delegationRobot => DelegationSettingsRobot($);
+
+  @override
   Future<void> openSettingsDetail(AccountMenuItem accountMenuItem) async {
-    await $(SettingFirstLevelTileBuilder)
+    final settingTile = $(SettingFirstLevelTileBuilder)
         .which<SettingFirstLevelTileBuilder>(
           (widget) =>
               widget.title == accountMenuItem.getName(AppLocalizations()),
-        )
-        .tap();
+        );
+    // Lower tiles (e.g. Language & region) are off screen on phones
+    await settingTile.scrollTo();
+    await settingTile.tap();
+  }
+
+  @override
+  Future<void> leaveSettingsDetail() => backToSettingsFromFirstLevel();
+
+  @override
+  Future<void> closeSettingsFromDetail() async {
+    await leaveSettingsDetail();
+    await closeSettings();
   }
 }

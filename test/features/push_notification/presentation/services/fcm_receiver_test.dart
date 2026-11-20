@@ -1,3 +1,4 @@
+import 'package:jmap_dart_client/jmap/account_id.dart';
 import 'dart:async';
 
 import 'package:core/presentation/state/failure.dart';
@@ -106,9 +107,13 @@ void main() {
         stateChange: null,
       ));
     });
-    when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any)).thenAnswer((_) async* {
+    when(mockGetStoredEmailDeliveryStateInteractor.execute(any, any)).thenAnswer((invocation) async* {
       yield dartz.Right<Failure, Success>(
-          GetStoredEmailDeliveryStateSuccess(State('stored-delivery-state')));
+          GetStoredEmailDeliveryStateSuccess(
+            State('stored-delivery-state'),
+            invocation.positionalArguments[0] as AccountId,
+            invocation.positionalArguments[1] as UserName,
+          ));
     });
     when(mockGetEmailChangesToPushNotificationInteractor.execute(
       any,

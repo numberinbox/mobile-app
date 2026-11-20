@@ -18,16 +18,22 @@ class GetEmailChangesToPushNotificationSuccess extends UIState {
   /// delivery cursor must advance to it; a push-produced state is not a
   /// server state and must never be persisted in its place.
   final jmap.State? newState;
+  /// Push delivery state this query was started for.
+  ///
+  /// Stored only when it is still the latest push for the account, so a newer
+  /// push that arrived while the query was in flight is not skipped.
+  final jmap.State? deliveryState;
 
   GetEmailChangesToPushNotificationSuccess(
     this.accountId,
     this.userName,
     this.emailList, {
     this.newState,
+    this.deliveryState,
   });
 
   @override
-  List<Object?> get props => [accountId, userName, emailList, newState];
+  List<Object?> get props => [accountId, userName, emailList, newState, deliveryState];
 }
 
 class GetEmailChangesToPushNotificationFailure extends FeatureFailure {

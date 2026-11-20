@@ -89,7 +89,7 @@ class TMailButtonWidget extends StatelessWidget {
 
   factory TMailButtonWidget.fromIcon({
     required String icon,
-    final Key? key,
+    Key? key,
     OnTapActionCallback? onTapActionCallback,
     OnTapActionAtPositionCallback? onTapActionAtPositionCallback,
     OnLongPressActionCallback? onLongPressActionCallback,
@@ -146,7 +146,7 @@ class TMailButtonWidget extends StatelessWidget {
 
   factory TMailButtonWidget.fromText({
     required String text,
-    final Key? key,
+    Key? key,
     OnTapActionCallback? onTapActionCallback,
     OnTapActionAtPositionCallback? onTapActionAtPositionCallback,
     OnLongPressActionCallback? onLongPressActionCallback,

@@ -55,12 +55,8 @@ android {
         manifestPlaceholders = [
                 'appAuthRedirectScheme': 'teammail.mobile'
         ]
-        testInstrumentationRunner "pl.leancode.patrol.PatrolJUnitRunner"
-        // Orchestrator wipes app data between instrumentation tests. That is the
-        // right default for independent scenarios, but the private smoke run
-        // needs a second Patrol invocation to rehydrate a stored session, so it
-        // passes -PclearPackageData=false and clears data explicitly instead.
-        // Guarded by scripts/tests/workflow-policy.test.mjs.
+        testInstrumentationRunner "com.linagora.android.tmail.ActivityDrainingPatrolJUnitRunner"
+        // The private relaunch smoke retains app data between invocations.
         testInstrumentationRunnerArguments clearPackageData: (project.findProperty("clearPackageData") ?: "true").toString()
     }
 
@@ -87,11 +83,30 @@ android {
         }
         debug {
             minifyEnabled false
+            // Split APKs cannot also use NDK ABI filters.
+            if (project.findProperty('target-platform') == 'android-arm64' &&
+                    !(project.findProperty('split-per-abi')?.toString()?.toBoolean() ?: false)) {
+                ndk {
+                    abiFilters.clear()
+                    abiFilters 'arm64-v8a'
+                }
+            }
+        }
+        profile {
+            // Release signing has no keystore in CI
+            signingConfig signingConfigs.debug
         }
     }
 
     testOptions {
         execution "ANDROIDX_TEST_ORCHESTRATOR"
+    }
+
+    testBuildType System.getenv('ANDROID_TEST_BUILD_TYPE') ?: 'debug'
+
+    // KeyboardTestActivity only exists in the debug source set
+    if (System.getenv('ANDROID_TEST_BUILD_TYPE') == 'profile') {
+        sourceSets.androidTest.java.filter.exclude '**/WebViewKeyboardTest.java'
     }
 
     namespace "com.numberinbox.app"

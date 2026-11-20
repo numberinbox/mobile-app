@@ -10,6 +10,7 @@ import 'package:model/extensions/presentation_mailbox_extension.dart';
 import 'package:model/extensions/session_extension.dart';
 import 'package:tmail_ui_user/features/base/mixin/app_loader_mixin.dart';
 import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/providers/shown_account_capabilities_provider.dart';
 import 'package:tmail_ui_user/features/home/domain/extensions/session_extensions.dart';
 import 'package:tmail_ui_user/features/labels/presentation/extensions/handle_label_action_type_extension.dart';
 import 'package:tmail_ui_user/features/labels/presentation/models/label_action_type.dart';
@@ -18,7 +19,6 @@ import 'package:tmail_ui_user/features/mailbox/presentation/extensions/handle_la
 import 'package:tmail_ui_user/features/mailbox/presentation/extensions/handle_mailbox_action_extension.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/extensions/open_app_grid_extension.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/extensions/presentation_mailbox_extension.dart';
-import 'package:tmail_ui_user/features/mailbox/presentation/extensions/sidebar_section_header_icons_extension.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/extensions/toggle_expand_folders_extension.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/mailbox_controller.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_categories.dart';
@@ -27,13 +27,11 @@ import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_sideba
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_sidebar_category_tree_source.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/mailbox_sidebar_category_tree_source_resolver.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/model/presentation_label_mailbox.dart';
-import 'package:tmail_ui_user/features/mailbox/presentation/styles/sidebar_section_header_action_styles.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/mailbox_app_bar.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/mailbox_loading_bar_widget.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/sending_queue_mailbox_widget.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/sidebar/sidebar_label_item.dart';
 import 'package:tmail_ui_user/features/mailbox/presentation/widgets/sidebar/sidebar_mailbox_item.dart';
-import 'package:tmail_ui_user/features/mailbox/presentation/widgets/sidebar/sidebar_section_header_actions.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/extensions/labels/handle_logic_label_extension.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/dashboard_routes.dart';
 import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/notifier/search_view_state_notifier.dart';
@@ -51,34 +49,38 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
   BaseMailboxView({Key? key}) : super(key: key);
 
   Widget buildMailboxAppBar() {
-    return Obx(() {
-      final dashboardController = controller.mailboxDashBoardController;
-      final accountId = dashboardController.accountId.value;
-      final session = dashboardController.sessionCurrent;
-      String username = dashboardController.ownEmailAddress.value;
-      if (username.trim().isEmpty) {
-        username = session?.getOwnEmailAddressOrUsername() ?? '';
-      }
+    return Consumer(builder: (context, ref, child) {
+      final canOpenSettings = ref.watch(shownAccountCapabilitiesProvider).canOpenSettings;
+      return Obx(() {
+        final dashboardController = controller.mailboxDashBoardController;
+        // My own menu, like the web navigation bar: contact support follows my account.
+        final accountId = dashboardController.accountId.value;
+        final session = dashboardController.sessionCurrent;
+        String username = dashboardController.ownEmailAddress.value;
+        if (username.trim().isEmpty) {
+          username = session?.getOwnEmailAddressOrUsername() ?? '';
+        }
 
-      final linagoraApps = dashboardController
-          .appGridDashboardController
-          .listLinagoraApp;
+        final linagoraApps = dashboardController
+            .appGridDashboardController
+            .listLinagoraApp;
 
-      final contactSupportCapability = accountId != null && session != null
-          ? session.getContactSupportCapability(accountId)
-          : null;
+        final contactSupportCapability = accountId != null && session != null
+            ? session.getContactSupportCapability(accountId)
+            : null;
 
-      return MailboxAppBar(
-        imagePaths: controller.imagePaths,
-        username: username,
-        openSettingsAction: dashboardController.goToSettings,
-        openAppGridAction: linagoraApps.isNotEmpty
-          ? () => controller.openAppGrid(linagoraApps)
-          : null,
-        openContactSupportAction: contactSupportCapability?.isAvailable == true
-          ? () => dashboardController.onGetHelpOrReportBug(contactSupportCapability!)
-          : null,
-      );
+        return MailboxAppBar(
+          imagePaths: controller.imagePaths,
+          username: username,
+          openSettingsAction: canOpenSettings ? dashboardController.goToSettings : null,
+          openAppGridAction: linagoraApps.isNotEmpty
+            ? () => controller.openAppGrid(linagoraApps)
+            : null,
+          openContactSupportAction: contactSupportCapability?.isAvailable == true
+            ? () => dashboardController.onGetHelpOrReportBug(contactSupportCapability!)
+            : null,
+        );
+      });
     });
   }
 
@@ -251,28 +253,25 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
     final expandMode = controller.foldersExpandMode.value;
 
     return LinagoraSidebarSectionHeader(
+      style: _sectionHeaderStyle(context),
       label: appLocalizations.folders,
       expanded: expandMode.isExpanded,
       onExpandTogglePressed: (_) => controller.toggleExpandFolders(),
       expandToggleLabel: expandMode.getTooltipMessage(appLocalizations),
       actions: [
-        SidebarSectionHeaderActions(
-          actions: [
-            _buildSectionHeaderAction(
-              context,
-              key: const Key(UiKeys.mailboxSearchButton),
-              icon: controller.imagePaths.sidebarSearchIcon,
-              semanticLabel: appLocalizations.searchForFolders,
-              onTap: () => controller.openSearchViewAction(context),
-            ),
-            _buildSectionHeaderAction(
-              context,
-              key: const Key(UiKeys.addNewFolderButton),
-              icon: controller.imagePaths.sidebarAddIcon,
-              semanticLabel: appLocalizations.newFolder,
-              onTap: () => controller.goToCreateNewMailboxView(context),
-            ),
-          ],
+        _buildSectionHeaderAction(
+          context,
+          key: const Key(UiKeys.mailboxSearchButton),
+          icon: LinagoraDesignImages.sidebarSearchIcon,
+          semanticLabel: appLocalizations.searchForFolders,
+          onTap: () => controller.openSearchViewAction(context),
+        ),
+        _buildSectionHeaderAction(
+          context,
+          key: const Key(UiKeys.addNewFolderButton),
+          icon: LinagoraDesignImages.sidebarAddIcon,
+          semanticLabel: appLocalizations.newFolder,
+          onTap: () => controller.goToCreateNewMailboxView(context),
         ),
       ],
     );
@@ -282,6 +281,14 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
       get _mailboxSidebarFolderTreeSources =>
           _categoryTreeSourceResolver.resolveFolderSources(controller);
 
+  /// The drawer layout uses borderless header actions with touch targets.
+  LinagoraSidebarStyle _sectionHeaderStyle(BuildContext context) {
+    final style = LinagoraSidebarStyle.of(context);
+    return controller.responsiveUtils.isWebDesktop(context)
+        ? style
+        : style.copyWith(section: LinagoraSidebarSectionStyleOverride.drawer);
+  }
+
   Widget _buildSectionHeaderAction(
     BuildContext context, {
     Key? key,
@@ -290,7 +297,6 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
     required VoidCallback onTap,
   }) {
     final style = LinagoraSidebarStyle.of(context);
-    final iconSize = SidebarSectionHeaderActionStyles.resolveIconSize(style);
 
     return LinagoraSidebarSectionHeaderAction(
       key: key,
@@ -298,8 +304,7 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
       onTap: onTap,
       iconWidget: SvgPicture.asset(
         icon,
-        width: iconSize,
-        height: iconSize,
+        package: LinagoraDesignImages.packageName,
         colorFilter: style.resolvedSectionHeaderForeground.asFilter(),
         fit: BoxFit.contain,
       ),
@@ -375,6 +380,7 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
           SliverToBoxAdapter(
             child: LinagoraSidebarSectionHeader(
               key: labelController.labelAppBarKey,
+              style: _sectionHeaderStyle(context),
               label: appLocalizations.labels,
               expanded: labels.isNotEmpty ? expandMode.isExpanded : null,
               onExpandTogglePressed: labels.isNotEmpty
@@ -387,7 +393,7 @@ abstract class BaseMailboxView extends GetWidget<MailboxController>
                 _buildSectionHeaderAction(
                   context,
                   key: const Key(UiKeys.addNewLabelButton),
-                  icon: controller.imagePaths.sidebarAddIcon,
+                  icon: LinagoraDesignImages.sidebarAddIcon,
                   semanticLabel: appLocalizations.newLabel,
                   onTap: () => labelController.handleLabelActionType(
                     actionType: LabelActionType.create,

@@ -5,6 +5,7 @@ import 'package:core/presentation/utils/app_toast.dart';
 import 'package:core/presentation/utils/responsive_utils.dart';
 import 'package:dartz/dartz.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get/get.dart';
@@ -13,6 +14,7 @@ import 'package:model/oidc/oidc_configuration.dart';
 import 'package:model/oidc/token_oidc.dart';
 import 'package:tmail_ui_user/features/home/domain/state/auto_sign_in_via_deep_link_state.dart';
 import 'package:tmail_ui_user/features/home/domain/usecases/auto_sign_in_via_deep_link_interactor.dart';
+import 'package:tmail_ui_user/main/deep_links/deep_link_account_verifier.dart';
 import 'package:tmail_ui_user/main/deep_links/deep_link_action_type.dart';
 import 'package:tmail_ui_user/main/deep_links/deep_links_manager.dart';
 import 'package:tmail_ui_user/main/deep_links/open_app_deep_link_data.dart';
@@ -30,6 +32,12 @@ class _RecordingAppToast extends AppToast {
     String? leadingSVGIcon,
     Duration? duration,
   }) => errors.add(message);
+}
+
+/// The server reports the link username as the account of the link token.
+class _LinkUsernameAccountVerifier extends DeepLinkAccountVerifier {
+  @override
+  Future<String> getAccountUsername(OpenAppDeepLinkData data) async => data.username;
 }
 
 class _FakeAutoSignInInteractor extends Fake implements AutoSignInViaDeepLinkInteractor {
@@ -53,7 +61,7 @@ void main() {
   group('DeepLinksManager::test', () {
     group('parseDeepLink::test', () {
       test('SHOULD returns correct DeepLinkData for valid openApp deep link', () {
-        const url = 'twake://openApp/some-data';
+        const url = 'numberinbox.mobile://openApp/some-data';
         final result = deepLinkManager.parseDeepLink(url);
 
         expect(result, isNotNull);
@@ -96,7 +104,7 @@ void main() {
             '&username=dXNlcg=='
             '&registrationUrl=https://sign-up.numberinbox.com'
             '&jmapUrl=https://jmap.numberinbox.com',
-      }) => 'twake://openApp?$query';
+      }) => 'numberinbox.mobile://openApp?$query';
 
       test('SHOULD drop every credential parameter', () {
         final result = deepLinkManager.parseOpenAppDeepLink(
@@ -340,20 +348,23 @@ void main() {
     setUp(() {
       Get.put(ResponsiveUtils());
       Get.put(ImagePaths());
+      Get.put<DeepLinkAccountVerifier>(_LinkUsernameAccountVerifier());
+      deepLinkManager.resetHandledSignInLinks();
     });
 
     tearDown(Get.reset);
 
     Future<void> pumpApp(WidgetTester tester) async {
-      await tester.pumpWidget(const GetMaterialApp(
-        localizationsDelegates: [
+      await tester.pumpWidget(GetMaterialApp(
+        localizationsDelegates: const [
           AppLocalizationsDelegate(),
           GlobalMaterialLocalizations.delegate,
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
         supportedLocales: LocalizationService.supportedLocales,
-        home: Scaffold(),
+        home: const Scaffold(),
+        builder: FlutterSmartDialog.init(),
       ));
       await tester.pumpAndSettle();
     }
@@ -450,7 +461,7 @@ void main() {
           ) as OpenAppDeepLinkData,
           username: UserName('bob@example.com'),
           isSignedIn: true,
-          onConfirmLogoutCallback: (_) => confirmed = true,
+          onConfirmLogoutCallback: (_) async { confirmed = true; },
           onFailureCallback: () => failed = true,
         );
         await tester.pumpAndSettle();
@@ -516,7 +527,7 @@ void main() {
     });
 
     // The web "Open in app" banner (web/worker_service/worker_service.js) opens
-    // twakemail.mobile://openapp with no parameters: it only brings the app up.
+    // numberinbox.mobile://openapp with no parameters: it only brings the app up.
     testWidgets(
       'SHOULD NOT show the refused-link toast WHEN a bare openapp link arrives while signed in',
       (tester) async {
@@ -526,7 +537,7 @@ void main() {
 
         deepLinkManager.handleOpenAppDeepLinks(
           openAppDeepLinkData:
-              deepLinkManager.parseDeepLink('twakemail.mobile://openapp') as OpenAppDeepLinkData,
+              deepLinkManager.parseDeepLink('numberinbox.mobile://openapp') as OpenAppDeepLinkData,
           username: UserName('bob@example.com'),
           onFailureCallback: () => failed = true,
         );
@@ -546,7 +557,7 @@ void main() {
 
         await deepLinkManager.autoSignInViaDeepLink(
           openAppDeepLinkData:
-              deepLinkManager.parseDeepLink('twakemail.mobile://openapp') as OpenAppDeepLinkData,
+              deepLinkManager.parseDeepLink('numberinbox.mobile://openapp') as OpenAppDeepLinkData,
           onAutoSignInSuccessCallback: (_) {},
           onFailureCallback: () => failed = true,
         );

@@ -20,7 +20,6 @@ class ImagePaths {
   String get icChevronDown => _getImagePath('ic_chevron_down.svg');
   String get icFilter => _getImagePath('ic_filter.svg');
   String get icSearchBar => _getImagePath('ic_search_bar.svg');
-  String get icMagnifierNoBorder => _getImagePath('ic_magnifier_noborder.svg');
   String get icCompose => _getImagePath('ic_compose.svg');
   String get icRead => _getImagePath('ic_read.svg');
   String get icUnread => _getImagePath('ic_unread.svg');
@@ -38,7 +37,6 @@ class ImagePaths {
   String get icUnreadEmail => _getImagePath('ic_unread_email.svg');
   String get icCircleClose => _getImagePath('ic_circle_close.svg');
   String get icAddNewFolder => _getImagePath('ic_add_new_folder.svg');
-  String get icPlusNoBorder => _getImagePath('ic_plus_noborder.svg');
   String get icFolderMailbox => _getImagePath('ic_default_folder.svg');
   String get icMailboxInbox => _getImagePath('ic_inbox_folder.svg');
   String get icMailboxDrafts => _getImagePath('ic_draft_folder.svg');
@@ -259,6 +257,7 @@ class ImagePaths {
   String get icCloudPlus => _getImagePath('ic_cloud_plus.svg');
   String get icNoRules => _getImagePath('ic_no_rules.svg');
   String get icStorage => _getImagePath('ic_storage.svg');
+  String get icDelegation => _getImagePath('ic_delegation.svg');
   String get icWarning => _getImagePath('ic_warning.svg');
   String get icKeyboard => _getImagePath('ic_keyboard.svg');
   String get icMessage => _getImagePath('ic_message.svg');

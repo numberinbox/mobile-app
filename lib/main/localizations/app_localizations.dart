@@ -434,6 +434,16 @@ class AppLocalizations {
     );
   }
 
+  String sharedFilesCannotBeRead(int count) {
+    return Intl.plural(
+      count,
+      one: 'A shared file could not be read and was not added',
+      other: '$count shared files could not be read and were not added',
+      name: 'sharedFilesCannotBeRead',
+      args: [count],
+    );
+  }
+
   String get attachments_uploaded_successfully {
     return Intl.message(
       'Attachments uploaded successfully',
@@ -6118,6 +6128,62 @@ class AppLocalizations {
     );
   }
 
+  String get deepLinkAccountCannotBeVerified {
+    return Intl.message(
+      'We couldn\'t verify this sign-in link. Please sign in from the app.',
+      name: 'deepLinkAccountCannotBeVerified',
+    );
+  }
+
+  String get signInWithLinkTitle {
+    return Intl.message(
+      'Sign in with this link?',
+      name: 'signInWithLinkTitle',
+    );
+  }
+
+  String get signInWithLinkAccountPrefix {
+    return Intl.message(
+      'This link signs you in as',
+      name: 'signInWithLinkAccountPrefix',
+    );
+  }
+
+  String get signInWithLinkWarning {
+    return Intl.message(
+      'Only continue if you asked to sign in.',
+      name: 'signInWithLinkWarning',
+    );
+  }
+
+  String get discoveredServerTitle {
+    return Intl.message(
+      'Confirm your mail server',
+      name: 'discoveredServerTitle',
+    );
+  }
+
+  String get discoveredServerPrefix {
+    return Intl.message(
+      'Mail server found for',
+      name: 'discoveredServerPrefix',
+    );
+  }
+
+  String get discoveredServerHint {
+    return Intl.message(
+      'Continue only if you recognize this server.',
+      name: 'discoveredServerHint',
+    );
+  }
+
+  String get discoveredServerOutsideDomainWarning {
+    return Intl.message(
+      'This server is not part of your email domain. Continue only if your administrator told you to use it.',
+      name: 'discoveredServerOutsideDomainWarning',
+    );
+  }
+
   String get linkTypeNotAllowed {
     return Intl.message(
       'This type of link is not allowed!',
@@ -6150,6 +6216,207 @@ class AppLocalizations {
     return Intl.message(
       'You cannot send emails at this time. Contact your administrator if the problem persists.',
       name: 'domainActivationPendingMessage',
+    );
+  }
+
+  String get sendingNotAllowedFromThisMailbox {
+    return Intl.message(
+      'You cannot send emails from this mailbox.',
+      name: 'sendingNotAllowedFromThisMailbox',
+    );
+  }
+
+  String endedDelegationLostItems(int count) {
+    return Intl.message(
+      'Access ended. $count unsent or draft messages were removed.',
+      name: 'endedDelegationLostItems',
+      args: [count],
+    );
+  }
+
+  String get delegation {
+    return Intl.message(
+      'Delegation',
+      name: 'delegation',
+    );
+  }
+
+  String get delegationSettingExplanation {
+    return Intl.message(
+      'Open the mailboxes other users delegated to you',
+      name: 'delegationSettingExplanation',
+    );
+  }
+
+  String get delegationToggleDescription {
+    return Intl.message(
+      'Enable delegation',
+      name: 'delegationToggleDescription',
+    );
+  }
+
+  String openingOwnerMailbox(String name) {
+    return Intl.message(
+      "Opening $name's mailbox…",
+      name: 'openingOwnerMailbox',
+      args: [name],
+    );
+  }
+
+  String get openingYourMailbox {
+    return Intl.message(
+      'Opening your mailbox…',
+      name: 'openingYourMailbox',
+    );
+  }
+
+  String viewingOwnerMailbox(String name) {
+    return Intl.message(
+      'Viewing $name',
+      name: 'viewingOwnerMailbox',
+      args: [name],
+    );
+  }
+
+  String get yourMailbox {
+    return Intl.message(
+      'Your mailbox',
+      name: 'yourMailbox',
+    );
+  }
+
+  String get delegatedToYou {
+    return Intl.message(
+      'Delegated to you',
+      name: 'delegatedToYou',
+    );
+  }
+
+  String get accountSwitcherMenu {
+    return Intl.message(
+      'Account switcher',
+      name: 'accountSwitcherMenu',
+    );
+  }
+
+  String couldNotOpenOwnerMailbox(String name) {
+    return Intl.message(
+      "Couldn't open $name's mailbox",
+      name: 'couldNotOpenOwnerMailbox',
+      args: [name],
+    );
+  }
+
+  String get couldNotReturnToYourMailbox {
+    return Intl.message(
+      "Couldn't return to your mailbox",
+      name: 'couldNotReturnToYourMailbox',
+    );
+  }
+
+  String get closeComposerBeforeSwitchingAccounts {
+    return Intl.message(
+      'Close the composer before switching accounts',
+      name: 'closeComposerBeforeSwitchingAccounts',
+    );
+  }
+
+  String get delegatedMailbox {
+    return Intl.message(
+      'Delegated mailbox',
+      name: 'delegatedMailbox',
+    );
+  }
+
+  String get backToYourMailbox {
+    return Intl.message(
+      'Back to your mailbox',
+      name: 'backToYourMailbox',
+    );
+  }
+
+  String get delegatedMailboxUnavailable {
+    return Intl.message(
+      "This delegated mailbox isn't available, so your mailbox is shown",
+      name: 'delegatedMailboxUnavailable',
+    );
+  }
+
+  String get delegatedToMeExplanation {
+    return Intl.message(
+      'Accounts other people have given you access to. You can switch into them from the account menu, and remove your own access at any time.',
+      name: 'delegatedToMeExplanation',
+    );
+  }
+
+  String get delegationMenuExplanation {
+    return Intl.message(
+      'Give someone permission to manage your mailbox on your behalf.',
+      name: 'delegationMenuExplanation',
+    );
+  }
+
+  String get mailboxesDelegatedToMe {
+    return Intl.message(
+      'Mailboxes delegated to me',
+      name: 'mailboxesDelegatedToMe',
+    );
+  }
+
+  String get mailboxesSharedWithMe {
+    return Intl.message(
+      'Mailboxes shared with me',
+      name: 'mailboxesSharedWithMe',
+    );
+  }
+
+  String get noMailboxesSharedWithYou {
+    return Intl.message(
+      'No mailboxes shared with you',
+      name: 'noMailboxesSharedWithYou',
+    );
+  }
+
+  String get noMailboxesSharedWithYouMessage {
+    return Intl.message(
+      'When someone gives you access to their inbox, it will show up here.',
+      name: 'noMailboxesSharedWithYouMessage',
+    );
+  }
+
+  String get couldNotLoadDelegatedMailboxes {
+    return Intl.message(
+      "Couldn't load the mailboxes delegated to you",
+      name: 'couldNotLoadDelegatedMailboxes',
+    );
+  }
+
+  String get removeYourAccessTitle {
+    return Intl.message(
+      'Remove your access?',
+      name: 'removeYourAccessTitle',
+    );
+  }
+
+  String removeYourAccessMessage(String emailAddress) {
+    return Intl.message(
+      "You'll no longer be able to view or manage $emailAddress. They'll need to share access with you again if you need it back.",
+      name: 'removeYourAccessMessage',
+      args: [emailAddress],
+    );
+  }
+
+  String get removeAccess {
+    return Intl.message(
+      'Remove access',
+      name: 'removeAccess',
+    );
+  }
+
+  String get couldNotRemoveYourAccess {
+    return Intl.message(
+      "Couldn't remove your access",
+      name: 'couldNotRemoveYourAccess',
     );
   }
 }

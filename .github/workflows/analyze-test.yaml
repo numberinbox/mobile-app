@@ -21,11 +21,15 @@ concurrency:
 name: Analyze and test
 
 env:
-  FLUTTER_VERSION: 3.38.9
+  FLUTTER_VERSION: 3.47.9
   # The runner occasionally aborts the ~1.4 GB SDK download mid-stream
   # (curl 92, HTTP/2 INTERNAL_ERROR), which used to kill whole matrix jobs
   # before a single test ran. Three attempts turn that into a slow pass.
   FLUTTER_INSTALL_ATTEMPTS: "3"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   discover-tests:

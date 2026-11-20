@@ -68,9 +68,11 @@ jobs:
             type=gha
           cache-to: |
             type=gha
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
           build-args: |
-            FLUTTER_VERSION=3.38.9
-            SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}
+            FLUTTER_VERSION=3.47.9
+            SENTRY_UPLOAD=1
             SENTRY_ORG=${{ secrets.SENTRY_ORG }}
             SENTRY_PROJECT=${{ secrets.SENTRY_PROJECT }}
             SENTRY_URL=${{ secrets.SENTRY_URL }}
@@ -139,3 +141,11 @@ jobs:
     uses: ./.github/workflows/security-release.yaml # zizmor: ignore[self-repository]
     # the report secrets must reach the called workflow
     secrets: inherit # zizmor: ignore[secrets-inherit]
+
+  memory-leak-check:
+    name: Memory leak check
+    # manual image builds aren't release tags
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+    uses: ./.github/workflows/memory-leak-check.yaml # zizmor: ignore[self-repository]

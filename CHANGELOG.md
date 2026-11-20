@@ -1,3 +1,65 @@
+## [0.42.1] - 2026-11-17
+### Added
+- #5022 Delegation: account switcher on web and mobile to view and act on delegated mailboxes
+- #5022 Delegation preference toggle in Settings
+- #5025 Scribe: add Mongolian, German, Spanish, Italian to the translate menu
+
+### Fixed
+- #5099 Prevent StringConvert from corrupting plain entries matching
+- #5038 Sign out Twake Workplace account in the sign-in browser on iOS
+
+### Changed
+- #5022 Composer, search, labels and capabilities follow the shown account; share/mailto intents switch back to own account
+- #5022 Delegated mail is not kept in offline storage
+- #4827 Move composer toolbar actions into More menu on narrow screens
+- Drop unsafe-inline from the web CSP with a per-request script nonce
+- Upgrade Flutter to 3.47.9 and super_tag_editor to 1.1.1
+- Translate vi, ru, fr, mn
+
+## [0.41.3] - 2026-11-11
+### Added
+- Add automated memory leak check for web and Android
+
+### Fixed
+- #5094 Keep top-level signature visible when reopening a draft
+- #4985 Reject a vacation message with no text content
+- #4827 Show the attaching file bottom sheet on narrow web
+- Stop dropping Firefox multi-file picks when focus returns before change
+- Fix NSE empty-list loop by paging Email/changes and advancing state
+- Confirm deep-link sign-in account and DNS-discovered server
+- Sandbox the web mail viewer iframe
+
+### Changed
+- #4678 Use design system sidebar symbols in BaseMailboxView
+- Move inline web scripts to files and enforce the nginx page policy
+- Show the LLM section of the security report unfolded
+- Translate vi, ru, fr, mn
+
+## [0.41.0] - 2026-11-02
+### Added
+- #4849 Hide sign out in the profile menu inside Twake Workplace
+
+### Fixed
+- #4980 Fix Android composer keyboard input
+- #4982 Keep the cc and bcc of a mailto link on Android
+- #4983 Keep label bindings alive after a share-started composer closes
+- #4984 Skip shared files the app cannot read
+- #4858 Always keep space for a new recipient after the chips
+- List each thread once when a folder loads more with thread view on
+- Sanitize composer reply, forward, mailto and pasted content
+- Fix XSS through composer embed code
+
+### Changed
+- Translate vi, ru, fr, mn
+
+## [0.40.4] - 2026-11-02
+### Fixed
+- Soft-fail missing linagora-ecosystem without a connection toast
+
+## [0.40.3] - 2026-10-29
+### Changed
+- #5071 Restrict web languages with the ALLOWED_LANGUAGES option
+
 ## [0.40.2] - 2026-10-19
 ### Added
 - #4623 Pin the "no attending" row when nobody can be answered or mailed

@@ -145,6 +145,7 @@ extension HandleRecipientsCollapsedExtensions on ComposerController {
   }
 
   void hideAllRecipientsFields() {
+    clearFocusedRecipientScopes();
     fromRecipientState.value = PrefixRecipientState.disabled;
     toRecipientState.value = PrefixRecipientState.disabled;
     ccRecipientState.value = PrefixRecipientState.disabled;
@@ -154,6 +155,7 @@ extension HandleRecipientsCollapsedExtensions on ComposerController {
   }
 
   void hideAllRecipientsFieldsExceptTo() {
+    clearFocusedRecipientScopes();
     toRecipientState.value = PrefixRecipientState.enabled;
     fromRecipientState.value = PrefixRecipientState.disabled;
     ccRecipientState.value = PrefixRecipientState.disabled;
@@ -163,6 +165,7 @@ extension HandleRecipientsCollapsedExtensions on ComposerController {
   }
 
   void handleEnableRecipientsInputOnMobileAction(bool isEnabled) {
+    if (isEnabled) clearFocusedRecipientScopes();
     PrefixRecipientState from;
     PrefixRecipientState to;
     PrefixRecipientState cc;

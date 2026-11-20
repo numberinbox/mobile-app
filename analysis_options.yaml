@@ -15,6 +15,7 @@ analyzer:
     - android/**
     - ios/**
     - web/**
+    - lib/l10n/messages_*.dart
   plugins:
     - riverpod_lint
 

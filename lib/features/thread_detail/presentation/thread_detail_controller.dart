@@ -7,16 +7,15 @@ import 'package:debounce_throttle/debounce_throttle.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:jmap_dart_client/jmap/account_id.dart';
-import 'package:jmap_dart_client/jmap/core/properties/properties.dart';
 import 'package:jmap_dart_client/jmap/core/session/session.dart';
 import 'package:jmap_dart_client/jmap/mail/email/email.dart';
-import 'package:jmap_dart_client/jmap/mail/email/individual_header_identifier.dart';
 import 'package:jmap_dart_client/jmap/mail/mailbox/mailbox.dart';
 import 'package:model/email/email_property.dart';
 import 'package:model/email/presentation_email.dart';
 import 'package:model/extensions/keyword_identifier_extension.dart';
 import 'package:model/mailbox/presentation_mailbox.dart';
 import 'package:tmail_ui_user/features/base/base_controller.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/bridge/active_account_reader.dart';
 import 'package:tmail_ui_user/features/email/domain/state/add_a_label_to_a_thread_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/labels/remove_a_label_from_a_thread_state.dart';
 import 'package:tmail_ui_user/features/email/domain/state/mark_as_email_read_state.dart';
@@ -37,6 +36,7 @@ import 'package:tmail_ui_user/features/network_connection/presentation/network_c
   if (dart.library.html) 'package:tmail_ui_user/features/network_connection/presentation/web_network_connection_controller.dart';
 import 'package:tmail_ui_user/features/search/email/presentation/notifier/search_email_presentation_notifier.dart';
 import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
+import 'package:tmail_ui_user/features/thread/domain/constants/thread_constants.dart';
 import 'package:tmail_ui_user/features/thread/domain/state/mark_as_multiple_email_read_state.dart';
 import 'package:tmail_ui_user/features/thread/domain/state/mark_as_star_multiple_email_state.dart';
 import 'package:tmail_ui_user/features/thread/domain/usecases/mark_as_multiple_email_read_interactor.dart';
@@ -65,7 +65,8 @@ import 'package:tmail_ui_user/features/thread_detail/presentation/thread_detail_
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 
-class ThreadDetailController extends BaseController {
+class ThreadDetailController extends BaseController
+    with ActiveAccountReader, ShownAccountStateConsumer {
   final GetThreadByIdInteractor _getEmailIdsByThreadIdInteractor;
   final GetEmailsByIdsInteractor getEmailsByIdsInteractor;
   final MarkAsEmailReadInteractor _markAsEmailReadInteractor;
@@ -96,11 +97,7 @@ class ThreadDetailController extends BaseController {
   final emailsInThreadDetailInfo = RxList<EmailInThreadDetailInfo>();
 
   late final EmailActionReactor emailActionReactor;
-  final additionalProperties = Properties({
-    IndividualHeaderIdentifier.listPostHeader.value,
-    EmailProperty.references,
-    EmailProperty.messageId,
-  });
+  final additionalProperties = ThreadConstants.propertiesThreadDetailAdditional;
   final cachedEmailLoaded = <EmailId, EmailLoaded>{};
   late final _threadGetDebouncer = Debouncer<({ThreadId? threadId, bool isSentMailbox})?>(
     const Duration(milliseconds: 500),
@@ -108,12 +105,12 @@ class ThreadDetailController extends BaseController {
     checkEquality: false,
     onChanged: (value) {
       if (_validateLoadThread(value?.threadId)) {
-        consumeState(_getEmailIdsByThreadIdInteractor.execute(
+        consumeShownAccountState(_getEmailIdsByThreadIdInteractor.execute(
           value!.threadId!,
           session!,
           accountId!,
           sentMailboxId!,
-          ownEmailAddress,
+          ownerEmailAddresses,
           isSentMailbox: value.isSentMailbox,
         ));
       }
@@ -133,14 +130,16 @@ class ThreadDetailController extends BaseController {
   StreamController<MailViewShortcutActionViewEvent>? shortcutActionEventController;
   StreamSubscription<MailViewShortcutActionViewEvent>? shortcutActionEventSubscription;
 
-  AccountId? get accountId => mailboxDashBoardController.accountId.value;
+  AccountId? get accountId => activeAccountId;
   Session? get session => mailboxDashBoardController.sessionCurrent;
   MailboxId? get sentMailboxId => mailboxDashBoardController.getMailboxIdByRole(
     PresentationMailbox.roleSent,
   );
 
-  String get ownEmailAddress =>
-      mailboxDashBoardController.ownEmailAddress.value;
+  String get ownEmailAddress => mailboxDashBoardController.ownerEmailAddress;
+
+  Set<String> get ownerEmailAddresses =>
+      mailboxDashBoardController.ownerEmailAddresses;
 
   bool get isSearchRunning {
     final isWebSearchRunning = mailboxDashBoardController
@@ -206,6 +205,8 @@ class ThreadDetailController extends BaseController {
         refocusMailShortcutFocus();
       } else if (action is ClearMailViewKeyboardShortcutFocusAction) {
         clearMailShortcutFocus();
+      } else if (action is DropPendingMailViewShortcutsAction) {
+        dropPendingShortcutActions();
       } else if (action is ResyncThreadDetailWhenSettingChangedAction) {
         resyncThreadDetailWhenSettingChanged();
       }
@@ -231,7 +232,7 @@ class ThreadDetailController extends BaseController {
         session != null &&
         accountId != null &&
         sentMailboxId != null &&
-        ownEmailAddress.isNotEmpty &&
+        ownerEmailAddresses.isNotEmpty &&
         networkConnected &&
         isThreadDetailEnabled;
   }

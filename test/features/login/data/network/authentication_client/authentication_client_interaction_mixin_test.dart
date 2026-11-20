@@ -1,6 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_appauth_platform_interface/flutter_appauth_platform_interface.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:model/oidc/oidc_configuration.dart';
+import 'package:model/oidc/response/oidc_discovery_response.dart';
+import 'package:model/oidc/token_id.dart';
 import 'package:tmail_ui_user/features/login/data/network/authentication_client/authentication_client_interaction_mixin.dart';
 import 'package:tmail_ui_user/features/login/domain/exceptions/oauth_authorization_error.dart';
 
@@ -102,6 +106,103 @@ void main() {
       );
 
       expect(authClient.handleException(error), same(error));
+    });
+  });
+
+  // The sign-out must run in the browser session the sign-in used, or it cannot
+  // see the SSO cookie it has to close (#5038). Twake Workplace signs in with a
+  // non-ephemeral session, organisation servers with an ephemeral one on iOS.
+  group('AuthenticationClientInteractionMixin::getEndSessionRequest '
+      '- external user agent', () {
+    final discovery = OIDCDiscoveryResponse(
+      'https://sso.example.com/oauth2/authorize',
+      'https://sso.example.com/oauth2/token',
+      'https://sso.example.com/oauth2/logout',
+      null,
+    );
+
+    OIDCConfiguration config({required bool isTWP}) => OIDCConfiguration(
+          authority: 'https://sso.example.com',
+          clientId: 'teammail-mobile',
+          scopes: const ['openid'],
+          isTWP: isTWP,
+        );
+
+    tearDown(() => debugDefaultTargetPlatformOverride = null);
+
+    test('iOS, Twake Workplace: non-ephemeral, like the sign-in', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+      final request = authClient.getEndSessionRequest(
+        TokenId('an-id-token'),
+        config(isTWP: true),
+        discovery,
+      );
+
+      expect(
+        request.externalUserAgent,
+        ExternalUserAgent.asWebAuthenticationSession,
+      );
+    });
+
+    test('iOS, organisation server: stays ephemeral (#3312)', () {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+
+      final request = authClient.getEndSessionRequest(
+        TokenId('an-id-token'),
+        config(isTWP: false),
+        discovery,
+      );
+
+      expect(
+        request.externalUserAgent,
+        ExternalUserAgent.ephemeralAsWebAuthenticationSession,
+      );
+    });
+  });
+
+  group('AuthenticationClientInteractionMixin::getTwakeWorkplaceEndSessionUrl',
+      () {
+    final config = OIDCConfiguration(
+      authority: 'https://sso.example.com',
+      clientId: 'teammail-mobile',
+      scopes: const ['openid'],
+      isTWP: true,
+    );
+
+    test('adds the id token hint and the post-logout redirect', () {
+      final url = Uri.parse(authClient.getTwakeWorkplaceEndSessionUrl(
+        TokenId('an-id-token'),
+        config,
+        'https://sso.example.com/oauth2/logout',
+      ));
+
+      expect(url.path, '/oauth2/logout');
+      expect(url.queryParameters, {
+        'id_token_hint': 'an-id-token',
+        'post_logout_redirect_uri': 'numberinbox.mobile://redirect',
+      });
+    });
+
+    test('keeps the query the endpoint already has', () {
+      final url = Uri.parse(authClient.getTwakeWorkplaceEndSessionUrl(
+        TokenId('an-id-token'),
+        config,
+        'https://sso.example.com/oauth2/logout?a=1',
+      ));
+
+      expect(url.queryParameters['a'], '1');
+      expect(url.queryParameters['id_token_hint'], 'an-id-token');
+    });
+
+    test('omits the id token hint when there is no id token', () {
+      final url = Uri.parse(authClient.getTwakeWorkplaceEndSessionUrl(
+        TokenId(''),
+        config,
+        'https://sso.example.com/oauth2/logout',
+      ));
+
+      expect(url.queryParameters.containsKey('id_token_hint'), isFalse);
     });
   });
 }

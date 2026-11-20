@@ -16,6 +16,7 @@ import 'package:tmail_ui_user/features/login/domain/repository/credential_reposi
 import 'package:core/data/utils/device_manager.dart';
 import 'package:tmail_ui_user/features/base/reloadable/reloadable_controller.dart';
 import 'package:tmail_ui_user/features/home/domain/state/get_session_state.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/dashboard_session_arguments.dart';
 import 'package:tmail_ui_user/features/numberinbox/auth/numberinbox_auth_client.dart';
 import 'package:tmail_ui_user/features/numberinbox/country.dart';
 import 'package:tmail_ui_user/features/numberinbox/jmap_session_manager.dart';
@@ -367,7 +368,7 @@ class TwakeWelcomeController extends ReloadableController {
     log('TwakeWelcomeController::handleReloaded: session fetched');
     pushAndPopAll(
       RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
-      arguments: session,
+      arguments: DashboardSessionArguments(session: session, fromCache: sessionLoadedFromCache),
     );
   }
 

@@ -1,5 +1,5 @@
-import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 import 'dart:async';
+
 
 import 'package:core/data/network/config/dynamic_url_interceptors.dart';
 import 'package:core/presentation/state/failure.dart';
@@ -45,9 +45,15 @@ import 'package:tmail_ui_user/features/push_notification/domain/usecases/store_e
 import 'package:tmail_ui_user/features/push_notification/presentation/action/push_notification_state_change_action.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/listener/change_listener.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/notification/local_notification_manager.dart';
+import 'package:tmail_ui_user/features/push_notification/presentation/notification/numberinbox_notification_target.dart';
 import 'package:tmail_ui_user/features/push_notification/presentation/utils/fcm_utils.dart';
 import 'package:tmail_ui_user/main/routes/route_navigation.dart';
 import 'package:tmail_ui_user/main/utils/ios_sharing_manager.dart';
+
+typedef PresentLocalPushEmails = Future<void> Function({
+  required UserName userName,
+  required List<PresentationEmail> emailList,
+});
 
 class EmailChangeListener extends ChangeListener {
 
@@ -62,14 +68,18 @@ class EmailChangeListener extends ChangeListener {
   GetListDetailedEmailByIdInteractor? _getListDetailedEmailByIdInteractor;
   DynamicUrlInterceptors? _dynamicUrlInterceptors;
   StoreListNewEmailInteractor? _storeListNewEmailInteractor;
+  final PresentLocalPushEmails? _presentLocalPush;
 
-  jmap.State? _newStateEmailDelivery;
+  final Map<String, jmap.State> _newStateEmailDeliveryByAccount = {};
+  final Map<String, Session?> _sessionByAccount = {};
+  final Map<String, List<PresentationEmail>> _emailsAvailablePushNotificationByAccount = {};
   AccountId? _accountId;
   Session? _session;
-  UserName? _userName;
-  List<PresentationEmail> _emailsAvailablePushNotification = [];
 
-  EmailChangeListener._internal() {
+  String _accountKey(AccountId accountId) => accountId.id.value;
+
+  EmailChangeListener._internal()
+      : _presentLocalPush = null {
     try {
       _dashBoardController = getBinding<MailboxDashBoardController>();
       _getStoredEmailStateInteractor = getBinding<GetStoredEmailStateInteractor>();
@@ -87,6 +97,27 @@ class EmailChangeListener extends ChangeListener {
     }
   }
 
+  @visibleForTesting
+  EmailChangeListener.forTesting({
+    required GetStoredEmailDeliveryStateInteractor
+        getStoredEmailDeliveryStateInteractor,
+    required StoreEmailDeliveryStateInteractor storeEmailDeliveryStateInteractor,
+    required GetEmailChangesToPushNotificationInteractor
+        getEmailChangesToPushNotificationInteractor,
+    required GetMailboxesNotPutNotificationsInteractor
+        getMailboxesNotPutNotificationsInteractor,
+    required PresentLocalPushEmails presentLocalPush,
+    MailboxDashBoardController? dashBoardController,
+  })  : _presentLocalPush = presentLocalPush,
+        _dashBoardController = dashBoardController,
+        _getStoredEmailDeliveryStateInteractor =
+            getStoredEmailDeliveryStateInteractor,
+        _storeEmailDeliveryStateInteractor = storeEmailDeliveryStateInteractor,
+        _getEmailChangesToPushNotificationInteractor =
+            getEmailChangesToPushNotificationInteractor,
+        _getMailboxesNotPutNotificationsInteractor =
+            getMailboxesNotPutNotificationsInteractor;
+
   static final EmailChangeListener _instance = EmailChangeListener._internal();
 
   static EmailChangeListener get instance => _instance;
@@ -100,6 +131,45 @@ class EmailChangeListener extends ChangeListener {
     _getStoredEmailDeliveryStateInteractor = interactor;
     if (changes != null) _getEmailChangesToPushNotificationInteractor = changes;
     if (store != null) _storeEmailDeliveryStateInteractor = store;
+  }
+
+  static Future<void> _presentWithSystemNotifications({
+    required UserName userName,
+    required List<PresentationEmail> emailList,
+    required AccountId accountId,
+    Future<bool> Function()? canDisplay,
+  }) async {
+    if (emailList.isEmpty) return;
+    final selectedEmails = emailList.selectEmailsForNotification();
+    log('EmailChangeListener::_presentWithSystemNotifications(): SELECTED = ${selectedEmails.length}');
+
+    for (var presentationEmail in selectedEmails) {
+      await LocalNotificationManager.instance.showPushNotification(
+        id: presentationEmail.id?.id.value ?? '',
+        title: presentationEmail.subject ?? '',
+        message: presentationEmail.preview,
+        emailAddress: presentationEmail.firstFromAddress,
+        payload: presentationEmail.id == null
+            ? NotificationPayload(emailId: presentationEmail.id).encodeToString
+            : NumberInboxNotificationTarget(
+                accountId: accountId.id.value,
+                emailId: presentationEmail.id!.id.value,
+              ).encode(),
+        canDisplay: canDisplay,
+        groupId: userName.value,
+        silent: PlatformInfo.isAndroid,
+      );
+    }
+
+    if (PlatformInfo.isAndroid && (canDisplay == null || await canDisplay())) {
+      final countNotifications = await LocalNotificationManager.instance
+          .getCountActiveNotificationByGroupOnAndroid(groupId: userName.value);
+
+      await LocalNotificationManager.instance.groupPushNotificationOnAndroid(
+        groupId: userName.value,
+        countNotifications: countNotifications,
+      );
+    }
   }
 
   @override
@@ -119,17 +189,15 @@ class EmailChangeListener extends ChangeListener {
   }
 
   void _onSynchronizeEmailOnForeground(SynchronizeEmailOnForegroundAction action) {
-    final userName = action.session?.username;
-    if (userName == null) {
-      _synchronizeEmailOnForegroundAction(action.newState);
-      return;
+    if (action.updateDeliveryAndNotifications) {
+      _updateDeliveryAndNotificationsOnForeground(action);
     }
-    unawaited(processForegroundPlatformPushNotification(
-      newState: action.newState,
-      accountId: action.accountId,
-      userName: userName,
-      session: action.session,
-    ));
+    if (action.refreshView) {
+      _synchronizeEmailOnForegroundAction(action.newState);
+    }
+    if (action.storeOfflineBodies && PlatformInfo.isMobile) {
+      _getNewReceiveEmailFromNotificationAction(action.session, action.accountId, action.newState);
+    }
   }
 
   /// Foreground platform push: syncs the UI and returns true only once the
@@ -142,15 +210,6 @@ class EmailChangeListener extends ChangeListener {
     required UserName userName,
     required Session? session,
   }) async {
-    // Synthetic foreground sync uses explicit arguments below. Its cursor
-    // work must wait on the chain before touching the shared background context.
-    if (!FcmUtils.isPlatformPushState(newState)) {
-      _newStateEmailDelivery = newState;
-      _accountId = accountId;
-      _session = session;
-      _userName = userName;
-    }
-
     if (PlatformInfo.isAndroid) {
       _handleRemoveNotificationWhenEmailMarkAsRead(newState, accountId, session);
     }
@@ -206,21 +265,7 @@ class EmailChangeListener extends ChangeListener {
     return completed;
   }
 
-  /// Background platform push: runs the delivery notification pipeline and
-  /// completes only once the JMAP fetch, the delivery-cursor update and the
-  /// local notification work have finished.
-  /// Serializes background platform pushes: the per-call shared session
-  /// fields would otherwise be overwritten while a previous push is still
-  /// running its stored-state lookup and Email/changes fetch, so a second
-  /// push would fetch mail for the wrong account. Each push is awaited to
-  /// completion (including its delivery-cursor write) before the next one
-  /// starts.
-  Future<void> _platformPushChain = Future<void>(() {});
-
-  /// Per-call display policy, protected by [_platformPushChain]. A legacy
-  /// notification+data push is already displayed by Android.
-  bool _displayPlatformPushNotification = true;
-  Future<bool> Function()? _isPlatformPushAccountActive;
+  Future<void> _platformPushChain = Future<void>.value();
 
   Future<bool> processPlatformPushNotification({
     required jmap.State newState,
@@ -230,71 +275,133 @@ class EmailChangeListener extends ChangeListener {
     bool displayNotification = true,
     Future<bool> Function()? isAccountStillActive,
   }) {
-    final processFuture = _processPlatformPushOnChain(
-      newState: newState,
-      accountId: accountId,
-      userName: userName,
-      session: session,
-      displayNotification: displayNotification,
-      isAccountStillActive: isAccountStillActive);
-    // A failed push must not poison the queue, otherwise the next pushes
-    // would never run.
-    _platformPushChain = processFuture.then<void>((_) {}, onError: (e, st) {
-      logError(
-        'EmailChangeListener::processPlatformPushNotification: platform push processing failed, continue with the next queued push',
-        exception: e,
-        stackTrace: st,
-      );
+    final result = _platformPushChain.then((_) async {
+      try {
+        if (PlatformInfo.isWeb ||
+            (PlatformInfo.isIOS && !FcmUtils.isPlatformPushState(newState))) {
+          return await _storeEmailDeliveryStateAction(accountId, userName, newState);
+        }
+        if (session == null) return false;
+        final changes = _getEmailChangesToPushNotificationInteractor;
+        if (changes == null) return false;
+
+        final sharing = PlatformInfo.isIOS ? getBinding<IOSSharingManager>() : null;
+        jmap.State? storedState;
+        if (PlatformInfo.isIOS) {
+          final stored = await sharing?.getKeychainSharingSession(accountId);
+          final value = stored?.emailDeliveryState ?? stored?.emailState;
+          storedState = value == null ? null : jmap.State(value);
+        } else {
+          final lookup = _getStoredEmailDeliveryStateInteractor;
+          if (lookup == null) return false;
+          final result = await lookup.execute(accountId, userName).last;
+          storedState = await result.fold<Future<jmap.State?>>(
+            (failure) async {
+              final fallback = _getStoredEmailStateInteractor;
+              if (failure is! GetStoredEmailDeliveryStateFailure ||
+                  failure.exception is! NotFoundEmailDeliveryStateException ||
+                  fallback == null) return null;
+              return (await fallback.execute(session, accountId).last).fold(
+                (_) => null,
+                (success) => success is GetStoredEmailStateSuccess ? success.state : null,
+              );
+            },
+            (success) async => success is GetStoredEmailDeliveryStateSuccess ? success.state : null,
+          );
+        }
+        if (storedState == null) return false;
+        if (storedState == newState) return true;
+
+        Future<bool> persist(jmap.State state) async {
+          if (isAccountStillActive != null && !await isAccountStillActive()) return false;
+          if (sharing != null) {
+            await sharing.updateEmailDeliveryStateInKeyChain(accountId, state.value);
+            return true;
+          }
+          return _storeEmailDeliveryStateAction(accountId, userName, state);
+        }
+
+        final result = await changes.execute(
+          session,
+          accountId,
+          userName,
+          storedState,
+          propertiesCreated: EmailUtils.getPropertiesForEmailGetMethod(session, accountId),
+        ).last;
+        return await result.fold<Future<bool>>(
+          (failure) async {
+            if (failure is GetEmailChangesToPushNotificationFailure && failure.recoveredState != null) {
+              await persist(failure.recoveredState!);
+            }
+            // A recovered cursor is useful for the next push. This one still
+            // needs the generic fallback because it could not show its mail.
+            return false;
+          },
+          (success) async {
+            if (success is! GetEmailChangesToPushNotificationSuccess ||
+                success.accountId != accountId || success.userName != userName) {
+              return false;
+            }
+            if (isAccountStillActive != null && !await isAccountStillActive()) return false;
+            if (PlatformInfo.isAndroid && displayNotification) {
+              final filter = _getMailboxesNotPutNotificationsInteractor;
+              final filterResult = await filter?.execute(session, accountId).last;
+              final excluded = filterResult?.fold(
+                (_) => null,
+                (success) => success is GetMailboxesNotPutNotificationsSuccess
+                    ? success.mailboxes.mailboxIds
+                    : null,
+              );
+              await _presentWithSystemNotifications(
+                accountId: accountId,
+                userName: userName,
+                emailList: success.emailList.toEmailsAvailablePushNotification(
+                  mailboxIdsNotPutNotifications: excluded,
+                ),
+                canDisplay: isAccountStillActive,
+              );
+            }
+            // Persist only after notification display has finished.
+            final realState = success.newState;
+            return realState != null && await persist(realState);
+          },
+        );
+      } catch (error, stackTrace) {
+        logError(
+          'EmailChangeListener::processPlatformPushNotification: push processing failed',
+          exception: error,
+          stackTrace: stackTrace,
+        );
+        return false;
+      }
     });
-    return processFuture;
+    _platformPushChain = result.then<void>((_) {});
+    return result;
   }
 
-  Future<bool> _processPlatformPushOnChain({
-    required jmap.State newState,
-    required AccountId accountId,
-    required UserName userName,
-    required Session? session,
-    bool displayNotification = true,
-    Future<bool> Function()? isAccountStillActive,
-  }) async {
-    // Await the previous push so its per-call handlers finish before this
-    // push overwrites the shared listener fields.
-    await _platformPushChain;
-    _displayPlatformPushNotification = displayNotification;
-    _isPlatformPushAccountActive = isAccountStillActive;
-    try {
-      _newStateEmailDelivery = newState;
-      _accountId = accountId;
-      _session = session;
-      _userName = userName;
-      log('EmailChangeListener::processPlatformPushNotification():newState: $newState');
-
-      if (PlatformInfo.isIOS && FcmUtils.isPlatformPushState(newState)) {
-        final sharing = getBinding<IOSSharingManager>();
-        final stored = await sharing?.getKeychainSharingSession(accountId);
-        final state = stored?.emailDeliveryState ?? stored?.emailState;
-        if (state == null) return false;
-        return await _getEmailChangesAction(jmap.State(state));
-      } else if (PlatformInfo.isWeb || PlatformInfo.isIOS) {
-        return await _storeEmailDeliveryStateAction(accountId, userName, newState);
-      } else if (PlatformInfo.isAndroid) {
-        return await _getStoredEmailDeliveryState(accountId, userName);
-      }
-      return true;
-    } finally {
-      _displayPlatformPushNotification = true;
-      _isPlatformPushAccountActive = null;
+  void _updateDeliveryAndNotificationsOnForeground(SynchronizeEmailOnForegroundAction action) {
+    if (!PlatformInfo.isAndroid) return;
+    _handleRemoveNotificationWhenEmailMarkAsRead(action.newState, action.accountId, action.session);
+    // Persist delivery state so the next background FCM push does not replay already-seen changes.
+    final userName = action.session?.username;
+    if (userName != null) {
+      _storeEmailDeliveryStateAction(action.accountId, userName, action.newState);
     }
   }
 
   void _onPushNotification(PushNotificationAction action) {
-    _pushNotificationAction(action.newState, action.accountId, action.userName, action.session);
-    if (PlatformInfo.isAndroid) {
-      unawaited(_getNewReceiveEmailFromNotificationAction(
-        action.session,
-        action.accountId,
-        action.newState,
+    if (FcmUtils.isPlatformPushState(action.newState)) {
+      unawaited(processPlatformPushNotification(
+        newState: action.newState,
+        accountId: action.accountId,
+        userName: action.userName,
+        session: action.session,
       ));
+      return;
+    }
+    _pushNotificationAction(action.newState, action.accountId, action.userName, action.session);
+    if (PlatformInfo.isAndroid && action.storeOfflineBodies) {
+      _getNewReceiveEmailFromNotificationAction(action.session, action.accountId, action.newState);
     }
   }
 
@@ -306,110 +413,87 @@ class EmailChangeListener extends ChangeListener {
   }
 
   void _pushNotificationAction(jmap.State newState, AccountId accountId, UserName userName, Session? session) {
-    _newStateEmailDelivery = newState;
+    final key = _accountKey(accountId);
+    _newStateEmailDeliveryByAccount[key] = newState;
+    _sessionByAccount[key] = session;
     _accountId = accountId;
     _session = session;
-    _userName = userName;
     log('EmailChangeListener::_pushNotificationAction():newState: $newState');
 
     if (PlatformInfo.isWeb) {
-      unawaited(_storeEmailDeliveryStateAction(accountId, userName, _newStateEmailDelivery!));
+      _storeEmailDeliveryStateAction(accountId, userName, newState);
     } else if (PlatformInfo.isIOS) {
-      unawaited(_storeEmailDeliveryStateAction(accountId, userName, _newStateEmailDelivery!));
+      _storeEmailDeliveryStateAction(accountId, userName, newState);
     } else if (PlatformInfo.isAndroid) {
-      unawaited(_getStoredEmailDeliveryState(accountId, userName));
+      _getStoredEmailDeliveryState(accountId, userName);
     }
   }
 
-  Future<bool> _getStoredEmailDeliveryState(AccountId accountId, UserName userName) async {
-    if (_getStoredEmailDeliveryStateInteractor == null) return false;
-    return _consumeStateAndWait(
-        _getStoredEmailDeliveryStateInteractor!.execute(accountId, userName));
-  }
-
-  Future<bool> _getStoredEmailState() async {
-    final canExecute = _getStoredEmailStateInteractor != null
-        && _session != null
-        && _accountId != null;
-    if (!canExecute) return false;
-    return _consumeStateAndWait(
-      _getStoredEmailStateInteractor!.execute(_session!, _accountId!));
-  }
-
-  Future<bool> _getEmailChangesAction(jmap.State state) async {
-    if (FcmUtils.isPlatformPushState(state)) {
-      logTrace('EmailChangeListener::_getEmailChangesAction: skip a non-server platform push state: $state');
-      return true;
+  void _getStoredEmailDeliveryState(AccountId accountId, UserName userName) {
+    if (_getStoredEmailDeliveryStateInteractor != null) {
+      consumeState(_getStoredEmailDeliveryStateInteractor!.execute(accountId, userName));
     }
-    final canExecute = _getEmailChangesToPushNotificationInteractor != null
-        && _accountId != null
-        && _session != null
-        && _userName != null;
-    if (!canExecute) return false;
-    return _consumeStateAndWait(_getEmailChangesToPushNotificationInteractor!.execute(
-      _session!,
-      _accountId!,
-      _userName!,
+  }
+
+  void _getStoredEmailState(AccountId accountId, Session session) {
+    if (_getStoredEmailStateInteractor == null) return;
+    consumeState(_getStoredEmailStateInteractor!.execute(session, accountId));
+  }
+
+  void _getEmailChangesAction(
+    jmap.State state,
+    AccountId? accountId,
+    Session? session,
+    UserName? userName, {
+    jmap.State? deliveryState,
+  }) {
+    final interactor = _getEmailChangesToPushNotificationInteractor;
+    if (interactor == null || accountId == null || session == null || userName == null) {
+      return;
+    }
+    consumeState(interactor.execute(
+      session,
+      accountId,
+      userName,
       state,
       propertiesCreated: EmailUtils.getPropertiesForEmailGetMethod(
-        _session!,
-        _accountId!,
+        session,
+        accountId,
       ),
+      deliveryState: deliveryState,
     ));
   }
 
-  /// Awaits the delivery-cursor write. The Android background FCM path
-  /// awaits this so the OS cannot tear the isolate down before the new
-  /// state is persisted; a premature callback return would let a later
-  /// push replay the same email changes.
   Future<bool> _storeEmailDeliveryStateAction(AccountId accountId, UserName userName, jmap.State state) async {
-    if (FcmUtils.isPlatformPushState(state)) {
-      logTrace('EmailChangeListener::_storeEmailDeliveryStateAction: skip persisting a non-server platform push state: $state');
-      return true;
-    }
-    if (_storeEmailDeliveryStateInteractor == null) return false;
-    return _consumeStateAndWait(
-      _storeEmailDeliveryStateInteractor!.execute(accountId, userName, state));
-  }
-
-  Future<void> _showLocalNotification({
-    required UserName userName,
-    required PresentationEmail presentationEmail,
-    bool silent = false,
-  }) async {
-    return await LocalNotificationManager.instance.showPushNotification(
-      id: presentationEmail.id?.id.value ?? '',
-      title: presentationEmail.subject ?? '',
-      message: presentationEmail.preview,
-      emailAddress: presentationEmail.firstFromAddress,
-      payload: _accountId != null && presentationEmail.id != null
-        ? NumberInboxNotificationTarget(accountId: _accountId!.id.value, emailId: presentationEmail.id!.id.value).encode()
-        : NotificationPayload(emailId: presentationEmail.id).encodeToString,
-      canDisplay: _isPlatformPushAccountActive,
-      groupId: userName.value,
-      silent: silent
-    );
+    if (FcmUtils.isPlatformPushState(state)) return true;
+    final interactor = _storeEmailDeliveryStateInteractor;
+    if (interactor == null) return false;
+    return _consumeStateAndWait(interactor.execute(accountId, userName, state));
   }
 
   @override
   Future<bool> handleFailureViewState(Failure failure) async {
     log('EmailChangeListener::_handleFailureViewState(): $failure');
-    if (failure is GetStoredEmailDeliveryStateFailure &&
-        failure.exception is NotFoundEmailDeliveryStateException) {
-      return _getStoredEmailState();
-    } else if (failure is GetNewReceiveEmailFromNotificationFailure &&
+    if (failure is GetNewReceiveEmailFromNotificationFailure &&
         failure.exception is EmailStateNoChangeException) {
       return true;
-    } else if (failure is GetEmailChangesToPushNotificationFailure &&
-        failure.recoveredState != null) {
-      await _recoverExpiredDeliveryCursor(failure.recoveredState!);
-      // This mail was not announced: stay incomplete so the fallback runs.
-      return false;
+    }
+    if (failure is GetStoredEmailDeliveryStateFailure &&
+        failure.exception is NotFoundEmailDeliveryStateException) {
+      final accountId = failure.accountId ?? _accountId;
+      final session = accountId == null
+          ? _session
+          : _sessionByAccount[_accountKey(accountId)] ?? _session;
+      if (accountId != null && session != null) {
+        _getStoredEmailState(accountId, session);
+      }
     } else if (failure is GetMailboxesNotPutNotificationsFailure) {
-      final listEmails = _emailsAvailablePushNotification.toEmailsAvailablePushNotification();
+      final key = _accountKey(failure.accountId);
+      final pending = _emailsAvailablePushNotificationByAccount.remove(key) ?? const [];
       await _handleLocalPushNotification(
+        accountId: failure.accountId,
         userName: failure.userName,
-        emailList: listEmails
+        emailList: pending.toEmailsAvailablePushNotification(),
       );
       return true;
     }
@@ -420,25 +504,32 @@ class EmailChangeListener extends ChangeListener {
   Future<bool> handleSuccessViewState(Success success) async {
     log('EmailChangeListener::_handleSuccessViewState(): $success');
     if (success is GetStoredEmailDeliveryStateSuccess) {
-      return _handleGetStoredEmailDeliveryStateSuccess(success);
+      _handleGetStoredEmailDeliveryStateSuccess(success);
     } else if (success is GetStoredEmailStateSuccess) {
-      return _getEmailChangesAction(success.state);
-    } else if (success is GetEmailChangesToPushNotificationSuccess) {
-      return _handleGetEmailChangesToPushNotificationSuccess(success);
-    } else if (success is GetMailboxesNotPutNotificationsSuccess) {
-      final listEmails = _emailsAvailablePushNotification.toEmailsAvailablePushNotification(
-        mailboxIdsNotPutNotifications: success.mailboxes.mailboxIds);
-      await _handleLocalPushNotification(
-        userName: success.userName,
-        emailList: listEmails
+      _getEmailChangesAction(
+        success.state,
+        success.accountId,
+        _sessionByAccount[_accountKey(success.accountId)] ?? _session,
+        success.userName,
+        deliveryState: _newStateEmailDeliveryByAccount[_accountKey(success.accountId)],
       );
-      return true;
+    } else if (success is GetEmailChangesToPushNotificationSuccess) {
+      _handleGetEmailChangesToPushNotificationSuccess(success);
+    } else if (success is GetMailboxesNotPutNotificationsSuccess) {
+      final key = _accountKey(success.accountId);
+      final pending = _emailsAvailablePushNotificationByAccount.remove(key) ?? const [];
+      await _handleLocalPushNotification(
+        accountId: success.accountId,
+        userName: success.userName,
+        emailList: pending.toEmailsAvailablePushNotification(
+          mailboxIdsNotPutNotifications: success.mailboxes.mailboxIds,
+        ),
+      );
     } else if (success is GetEmailChangesToRemoveNotificationSuccess) {
-      await _handleRemoveLocalNotification(
+      _handleRemoveLocalNotification(
         userName: success.userName,
         emailIds: success.emailIds
       );
-      return true;
     } else if (success is GetNewReceiveEmailFromNotificationSuccess) {
       return _getListDetailedEmailByIdAction(success.session, success.accountId, success.emailIds);
     } else if (success is GetDetailedEmailByIdSuccess) {
@@ -450,116 +541,102 @@ class EmailChangeListener extends ChangeListener {
     return true;
   }
 
-  Future<bool> _handleGetStoredEmailDeliveryStateSuccess(GetStoredEmailDeliveryStateSuccess success) async {
-    if (_newStateEmailDelivery != success.state) {
-      return _getEmailChangesAction(success.state);
-    }
-    return true;
+  void _handleGetStoredEmailDeliveryStateSuccess(GetStoredEmailDeliveryStateSuccess success) {
+    final key = _accountKey(success.accountId);
+    final newState = _newStateEmailDeliveryByAccount[key];
+    if (newState == null || newState == success.state) return;
+    _getEmailChangesAction(
+      success.state,
+      success.accountId,
+      _sessionByAccount[key] ?? _session,
+      success.userName,
+      deliveryState: newState,
+    );
   }
 
-  Future<bool> _handleGetEmailChangesToPushNotificationSuccess(GetEmailChangesToPushNotificationSuccess success) async {
-    if (_newStateEmailDelivery == null) return true;
+  void _handleGetEmailChangesToPushNotificationSuccess(GetEmailChangesToPushNotificationSuccess success) {
+    final key = _accountKey(success.accountId);
+    final latest = _newStateEmailDeliveryByAccount[key];
+    final reached = success.deliveryState ?? latest;
+    if (reached == null) return;
 
-    // Credentials can be removed while Email/changes is in flight. Never
-    // expose rich content from that completed request after logout/switch.
-    if (_isPlatformPushAccountActive != null && !await _isPlatformPushAccountActive!()) {
-      return false;
-    }
-    // Display first. A crash before persistence may replace the same ID on
-    // retry, but must never advance the cursor past an undisplayed message.
-    if (PlatformInfo.isAndroid && _displayPlatformPushNotification) {
-      if (!await _handleListEmailToPushNotification(
-        userName: success.userName, emailList: success.emailList)) {
-        return false;
-      }
-    }
-    final realNewState = success.newState;
-    if (realNewState == null) return false;
-    return _persistDeliveryCursor(success.accountId, success.userName, realNewState);
-  }
-
-  Future<bool> _persistDeliveryCursor(AccountId accountId, UserName userName, jmap.State state) async {
-    final newState = _newStateEmailDelivery;
-    if (PlatformInfo.isIOS && newState != null && FcmUtils.isPlatformPushState(newState)) {
-      final sharing = getBinding<IOSSharingManager>();
-      if (sharing == null) return false;
-      await sharing.updateEmailDeliveryStateInKeyChain(accountId, state.value);
-      return true;
-    }
-    return _storeEmailDeliveryStateAction(accountId, userName, state);
-  }
-
-  /// A cursor older than the server's change history can never succeed again,
-  /// so without this every later push would stay on the generic notification.
-  Future<void> _recoverExpiredDeliveryCursor(jmap.State state) async {
-    final accountId = _accountId;
-    final userName = _userName;
-    if (accountId == null || userName == null) return;
-    if (_isPlatformPushAccountActive != null && !await _isPlatformPushAccountActive!()) return;
-    if (!await _persistDeliveryCursor(accountId, userName, state)) {
-      logWarning('EmailChangeListener::_recoverExpiredDeliveryCursor: delivery cursor not updated');
-    }
-  }
-
-  Future<bool> _handleListEmailToPushNotification({
-    required UserName userName,
-    required List<PresentationEmail> emailList
-  }) async {
-    _emailsAvailablePushNotification = emailList;
-    final canFilterByMailbox = _getMailboxesNotPutNotificationsInteractor != null
-        && _accountId != null
-        && _session != null;
-    if (canFilterByMailbox) {
-      return _consumeStateAndWait(
-        _getMailboxesNotPutNotificationsInteractor!.execute(_session!, _accountId!));
-    } else {
-      final listEmails = _emailsAvailablePushNotification.toEmailsAvailablePushNotification();
-      await _handleLocalPushNotification(
-        userName: userName,
-        emailList: listEmails,
+    final newerPushOwnsCursor = success.deliveryState != null &&
+        latest != null &&
+        success.deliveryState != latest;
+    if (!newerPushOwnsCursor) {
+      _storeEmailDeliveryStateAction(
+        success.accountId,
+        success.userName,
+        reached,
       );
-      return true;
+    }
+
+    if (PlatformInfo.isAndroid) {
+      _handleListEmailToPushNotification(
+        accountId: success.accountId,
+        userName: success.userName,
+        emailList: success.emailList,
+      );
+    }
+  }
+
+  void _rememberEmailsAwaitingMailboxFilter(
+    String key,
+    List<PresentationEmail> emailList,
+  ) {
+    final existing = _emailsAvailablePushNotificationByAccount[key];
+    if (existing == null) {
+      _emailsAvailablePushNotificationByAccount[key] = List.of(emailList);
+      return;
+    }
+    final knownIds = existing.map((email) => email.id).whereType<EmailId>().toSet();
+    for (final email in emailList) {
+      final id = email.id;
+      if (id != null && !knownIds.add(id)) continue;
+      existing.add(email);
+    }
+  }
+
+  void _handleListEmailToPushNotification({
+    required AccountId accountId,
+    required UserName userName,
+    required List<PresentationEmail> emailList,
+  }) {
+    final key = _accountKey(accountId);
+    _rememberEmailsAwaitingMailboxFilter(key, emailList);
+    final session = _sessionByAccount[key] ?? _session;
+    final interactor = _getMailboxesNotPutNotificationsInteractor;
+    if (interactor != null && session != null) {
+      consumeState(interactor.execute(session, accountId));
+    } else {
+      final pending = _emailsAvailablePushNotificationByAccount.remove(key) ?? const [];
+      _handleLocalPushNotification(
+        accountId: accountId,
+        userName: userName,
+        emailList: pending.toEmailsAvailablePushNotification(),
+      );
     }
   }
 
   Future<void> _handleLocalPushNotification({
+    required AccountId accountId,
     required UserName userName,
     required List<PresentationEmail> emailList
   }) async {
     log('EmailChangeListener::_handleLocalPushNotification(): EMAIL_LENGTH = ${emailList.length}');
     if (emailList.isEmpty) {
-      _emailsAvailablePushNotification = [];
       return;
     }
-
-    final selectedEmails = emailList.selectEmailsForNotification();
-    log('EmailChangeListener::_handleLocalPushNotification(): SELECTED = ${selectedEmails.length}');
-
-    for (var presentationEmail in selectedEmails) {
-      await _showLocalNotification(
-        userName: userName,
-        presentationEmail: presentationEmail,
-        silent: PlatformInfo.isAndroid
-      );
+    final present = _presentLocalPush;
+    if (present == null) {
+      await _presentWithSystemNotifications(accountId: accountId, userName: userName, emailList: emailList);
+    } else {
+      await present(userName: userName, emailList: emailList);
     }
-
-    if (PlatformInfo.isAndroid) {
-      final countNotifications = await LocalNotificationManager.instance
-        .getCountActiveNotificationByGroupOnAndroid(groupId: userName.value);
-
-      await LocalNotificationManager.instance.groupPushNotificationOnAndroid(
-        groupId: userName.value,
-        countNotifications: countNotifications);
-    }
-
-    _emailsAvailablePushNotification = [];
   }
 
   void _handleRemoveNotificationWhenEmailMarkAsRead(jmap.State newState, AccountId accountId, Session? session) {
-    if (FcmUtils.isPlatformPushState(newState)) {
-      logTrace('EmailChangeListener::_handleRemoveNotificationWhenEmailMarkAsRead: skip a non-server platform push state: $newState');
-      return;
-    }
+    if (FcmUtils.isPlatformPushState(newState)) return;
     if (_getEmailChangesToRemoveNotificationInteractor != null && session != null) {
       consumeState(_getEmailChangesToRemoveNotificationInteractor!.execute(
         session,
@@ -570,7 +647,7 @@ class EmailChangeListener extends ChangeListener {
     }
   }
 
-  Future<void> _handleRemoveLocalNotification({
+  void _handleRemoveLocalNotification({
     required UserName userName,
     required List<EmailId> emailIds
   }) async {

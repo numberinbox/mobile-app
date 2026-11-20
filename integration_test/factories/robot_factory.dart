@@ -1,3 +1,4 @@
+import '../robots/abstract/abstract_hardware_keyboard_robot.dart';
 import '../robots/abstract/abstract_app_grid_robot.dart';
 import '../robots/abstract/abstract_composer_robot.dart';
 import '../robots/abstract/abstract_email_rules_setting_robot.dart';
@@ -7,6 +8,7 @@ import '../robots/abstract/abstract_login_robot.dart';
 import '../robots/abstract/abstract_mailbox_menu_robot.dart';
 import '../robots/abstract/abstract_rules_filter_creator_robot.dart';
 import '../robots/abstract/abstract_search_robot.dart';
+import '../robots/abstract/abstract_account_switcher_robot.dart';
 import '../robots/abstract/abstract_settings_robot.dart';
 import '../robots/abstract/abstract_thread_robot.dart';
 
@@ -22,4 +24,8 @@ abstract class RobotFactory {
   AbstractEmailRobot emailRobot();
   AbstractSearchRobot searchRobot();
   AbstractSettingsRobot settingsRobot();
+  AbstractAccountSwitcherRobot accountSwitcherRobot();
+
+  /// Web only: real key presses. Null where no host keyboard is wired.
+  AbstractHardwareKeyboardRobot? hardwareKeyboardRobot();
 }

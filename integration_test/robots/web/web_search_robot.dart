@@ -43,6 +43,16 @@ class WebSearchRobot extends SearchRobot implements AbstractSearchRobot {
         desktopAction: _tapOnDesktopSearchField,
       );
 
+  // The responsive layout opens SearchEmailView, whose input has its own focus
+  // node and no Escape shortcut, so only the desktop search bar is supported.
+  @override
+  Future<void> tapOnSearchInput() async {
+    if (_isResponsiveSearchLayout) {
+      throw StateError('tapOnSearchInput supports the desktop search bar only');
+    }
+    await $(SearchInputFormWidget).$(TextField).tap();
+  }
+
   Future<void> _tapOnDesktopSearchField() async {
     await $(SearchInputFormWidget).$(TextField).tap();
     // Tap the search icon button so isSearchEmailRunning becomes true and filter
@@ -91,7 +101,13 @@ class WebSearchRobot extends SearchRobot implements AbstractSearchRobot {
     // the "Showing results for:" InkWell unreliable to tap. Pressing Enter on the
     // focused search field triggers onSubmitted → _invokeSearchEmailAction which
     // commits the search and sets isSearchEmailRunning = true.
-    await $.platformAutomator.web.pressKeyCombo(keys: ['Enter']);
+    // Profile builds keep the mock text input registered, which swallows the browser's Enter.
+    if ($.tester.testTextInput.isRegistered) {
+      await $.tester.testTextInput.receiveAction(TextInputAction.done);
+    } else {
+      await $.platformAutomator.web.pressKeyCombo(keys: ['Enter']);
+    }
+    await $.pump();
   }
 
   bool get _isResponsiveSearchLayout =>
@@ -227,6 +243,7 @@ class WebSearchRobot extends SearchRobot implements AbstractSearchRobot {
         return email.evaluate().isNotEmpty;
       },
       timeout: TestTimeouts.medium,
+      reason: 'an email with subject containing "$subject" is listed',
     );
   }
 
@@ -250,6 +267,7 @@ class WebSearchRobot extends SearchRobot implements AbstractSearchRobot {
         return $(EmailTileBuilder).evaluate().length >= count;
       },
       timeout: TestTimeouts.medium,
+      reason: 'at least $count emails are listed',
     );
     expect($(EmailTileBuilder).evaluate().length, greaterThanOrEqualTo(count));
   }

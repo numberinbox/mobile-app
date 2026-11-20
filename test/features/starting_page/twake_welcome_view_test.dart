@@ -390,6 +390,8 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('otp_code_field')), findsOneWidget);
+      await tester.pumpWidget(const SizedBox.shrink());
+      await Get.delete<TwakeWelcomeController>(force: true);
     });
 
     testWidgets(

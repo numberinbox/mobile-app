@@ -1,6 +1,7 @@
 import 'package:core/presentation/resources/numberinbox_palette.dart';
 import 'package:core/presentation/views/dialog/confirm_dialog_button.dart';
 import 'package:flutter/material.dart';
+import 'package:tmail_ui_user/features/base/model/ui_keys.dart';
 import 'package:tmail_ui_user/main/localizations/app_localizations.dart';
 
 class VacationListActionWidget extends StatelessWidget {
@@ -35,6 +36,7 @@ class VacationListActionWidget extends StatelessWidget {
             constraints: const BoxConstraints(minWidth: 139),
             height: 48,
             child: ConfirmDialogButton(
+              key: const ValueKey(UiKeys.vacationSaveButton),
               label: appLocalizations.saveChanges,
               backgroundGradient: NumberInboxPalette.primaryActionGradient,
               textColor: NumberInboxPalette.primaryActionForeground,

@@ -1,5 +1,5 @@
 {
-  "@@last_modified": "2026-10-20T08:30:54.020246",
+  "@@last_modified": "2026-11-15T21:20:38.097319",
   "categoryCorrectGrammar": "Correct",
   "@categoryCorrectGrammar": {
     "type": "text",
@@ -86,6 +86,30 @@
   },
   "languageVietnamese": "Vietnamese",
   "@languageVietnamese": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageMongolian": "Mongolian",
+  "@languageMongolian": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageGerman": "German",
+  "@languageGerman": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageSpanish": "Spanish",
+  "@languageSpanish": {
+    "type": "text",
+    "placeholders_order": [],
+    "placeholders": {}
+  },
+  "languageItalian": "Italian",
+  "@languageItalian": {
     "type": "text",
     "placeholders_order": [],
     "placeholders": {}

@@ -16,6 +16,7 @@ workspace:
   - server_settings
   - scribe
   - labels
+  - delegation
   - cozy
   - workplace
 
@@ -32,7 +33,7 @@ workspace:
 version: 1.0.0+2
 
 environment:
-  sdk: ">=3.10.0 <4.0.0"
+  sdk: ">=3.13.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -74,6 +75,9 @@ dependencies:
   labels:
     path: labels
 
+  delegation:
+    path: delegation
+
   workplace:
     path: workplace
 
@@ -98,7 +102,7 @@ dependencies:
   receive_sharing_intent:
     git:
       url: https://github.com/linagora/receive_sharing_intent.git
-      ref: main
+      ref: 871522932827b5716d7906551cf5000a61106584
 
   flutter_appauth_web:
     git:
@@ -115,7 +119,7 @@ dependencies:
   intl_generator:
 
   ### Dependencies from pub.dev ###
-  super_tag_editor: 1.1.0
+  super_tag_editor: 1.1.1
 
   super_dns_client: 0.3.8
 
@@ -123,7 +127,9 @@ dependencies:
 
   external_app_launcher: 4.0.3
 
-  cupertino_icons: 1.0.6
+  # Pinned enough_platform_widgets (see dependency_overrides) pulls
+  # flutter_platform_widgets 9.0.0, which needs cupertino_icons ^1.0.8.
+  cupertino_icons: 1.0.8
 
   get: 4.6.6
 
@@ -167,7 +173,7 @@ dependencies:
 
   pointer_interceptor: 0.10.1+2
 
-  rxdart: 0.27.7
+  rxdart: 0.28.0
 
   connectivity_plus: 4.0.0
 
@@ -189,7 +195,7 @@ dependencies:
 
   async: 2.13.0
 
-  html: 0.15.3
+  html: 0.15.6
 
   custom_pop_up_menu: 1.2.4
 
@@ -197,7 +203,7 @@ dependencies:
 
   json_annotation: ^4.9.0
 
-  url_launcher: 6.3.1
+  url_launcher: 6.3.2
 
   firebase_core: 4.8.0
 
@@ -217,7 +223,7 @@ dependencies:
 
   flutter_appauth_platform_interface: 9.0.0
 
-  intl: 0.20.2
+  intl: 0.20.3
 
   flutter_typeahead: 5.0.2
 
@@ -251,7 +257,7 @@ dependencies:
 
   file_picker: 13.1.0
 
-  file_picker_web: ^4.0.0
+  file_picker_web: ^4.0.1
 
   app_settings: 5.1.1
 
@@ -274,15 +280,15 @@ dependencies:
       url: https://github.com/linagora/twake-previewer-flutter.git
       ref: main
 
-  pdfrx: 2.1.5
+  pdfrx: 2.4.8
 
   lottie_native: 0.1.2
 
   flutter_custom_tab_bar: 1.2.1
 
-  sentry_flutter: 9.8.0
+  sentry_flutter: 9.10.0
 
-  sentry_dio: 9.8.0
+  sentry_dio: 9.10.0
 
   flutter_riverpod: ^3.3.1
 
@@ -303,15 +309,17 @@ dev_dependencies:
 
   mockito: 5.6.4
 
+  fake_async: 1.3.3
+
   hive_ce_generator: 1.11.2
 
   flutter_lints: 2.0.1
 
-  flutter_native_splash: 2.2.18
+  flutter_native_splash: 2.4.8
 
   flutter_launcher_icons: 0.12.0
 
-  xml: 6.6.1
+  xml: 7.0.1
 
   json_serializable: ^6.11.3
 
@@ -327,14 +335,13 @@ dev_dependencies:
 
   patrol_finders: 3.2.0
 
+  vm_service: 15.0.0
+
   plugin_platform_interface: 2.1.8
 
   sentry_dart_plugin: ^3.2.1
 
 dependency_overrides:
-  # Pin enough_platform_widgets — 1.1.0 breaks on Dart 3.13 bool?→bool
-  enough_platform_widgets: 1.0.0
-
   # Canonical git sources — declared once here, propagate to all workspace members.
   # Sub-packages simply write the package name with no git spec.
   jmap_dart_client:
@@ -345,7 +352,7 @@ dependency_overrides:
   linagora_design_flutter:
     git:
       url: https://github.com/linagora/linagora-design-flutter.git
-      ref: 38b7be01cdd11e473be6249c4d5ac2f5e8f7cf34
+      ref: bdc3dc62e885805fd352b259c0f2c59a7dfc5701
 
   ### Original dependency is abandoned, so we use fork
   intl_generator:
@@ -355,7 +362,7 @@ dependency_overrides:
 
   # jmap_dart_client incorrectly declares build_runner and json_serializable
   # as regular dependencies. Override here so the workspace can resolve.
-  build_runner: 2.15.0 # 2.15.2 requires Dart 3.11; Flutter 3.38.9 ships Dart 3.10.
+  build_runner: ^2.15.0
   json_serializable: ^6.11.3
   json_annotation: ^4.9.0
 
@@ -375,6 +382,13 @@ dependency_overrides:
   # but super_dns_client 0.3.8 pins ^2.4.4. freezed_annotation is annotation-only
   # (no behavioral difference between 2.x and 3.x) so overriding is safe.
   freezed_annotation: ^3.0.0
+  # linagora/enough_html_editor pulls enough_platform_widgets; pub 1.1.2 breaks on
+  # Flutter 3.47 (bool? autofocus). Pin upstream 1843df5 (v1.1.2 + `?? false` fix).
+  # Remove once pub.dev has enough_platform_widgets > 1.1.2.
+  enough_platform_widgets:
+    git:
+      url: https://github.com/Enough-Software/enough_platform_widgets.git
+      ref: 1843df56aa78236e4eb3483e3b1a9447855fbd20
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

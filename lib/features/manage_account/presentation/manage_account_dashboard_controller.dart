@@ -36,7 +36,12 @@ import 'package:tmail_ui_user/features/manage_account/presentation/extensions/ha
 import 'package:tmail_ui_user/features/manage_account/presentation/extensions/handle_vacation_response_extension.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/extensions/vacation_response_extension.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/extensions/validate_setting_capability_supported_extension.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/providers/delegation_enabled_provider.dart';
+import 'package:tmail_ui_user/features/delegation/presentation/utils/delegation_settings_entry.dart';
+import 'package:tmail_ui_user/features/mailbox_dashboard/presentation/model/dashboard_session_arguments.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/extensions/validate_storage_menu_visible_extension.dart';
+import 'package:tmail_ui_user/main/providers/app_provider_container.dart';
+import 'package:tmail_ui_user/main/providers/settings/local_settings_notifier.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/forward/bindings/forward_bindings.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/identities/identity_bindings.dart';
 import 'package:tmail_ui_user/features/manage_account/presentation/language_and_region/language_and_region_bindings.dart';
@@ -74,6 +79,7 @@ class ManageAccountDashBoardController extends ReloadableController
 
   Uri? previousUri;
   AccountMenuItem? selectedMenu;
+  bool _delegationRequestedWhileHidden = false;
   int minInputLengthAutocomplete = AppConfig.defaultMinInputLengthAutocomplete;
 
   @override
@@ -138,10 +144,7 @@ class ManageAccountDashBoardController extends ReloadableController
     final arguments = Get.arguments;
     if (arguments is ManageAccountArguments) {
       previousUri = arguments.previousUri;
-      _setUpComponentsFromSession(
-        session: arguments.session,
-        quota: arguments.quota,
-      );
+      _setUpComponentsFromSession(session: arguments.session);
       selectedMenu = arguments.menuSettingCurrent;
       if (selectedMenu != null && selectedMenu != AccountMenuItem.storage) {
         selectAccountMenuItem(selectedMenu!);
@@ -152,10 +155,7 @@ class ManageAccountDashBoardController extends ReloadableController
     }
   }
 
-  void _setUpComponentsFromSession({
-    Session? session,
-    Quota? quota,
-  }) {
+  void _setUpComponentsFromSession({Session? session}) {
     sessionCurrent = session;
     accountId.value = session?.accountId;
     synchronizeOwnEmailAddress(session?.getOwnEmailAddressOrEmpty() ?? '');
@@ -176,9 +176,7 @@ class ManageAccountDashBoardController extends ReloadableController
     _getVacationResponse();
     injectAIScribeBindings(sessionCurrent, accountId.value);
 
-    if (quota != null) {
-      octetsQuota.value = quota;
-    } else if (isStorageCapabilitySupported) {
+    if (isStorageCapabilitySupported) {
       getQuotas(accountId.value);
     }
 
@@ -190,17 +188,35 @@ class ManageAccountDashBoardController extends ReloadableController
     log('ManageAccountDashBoardController::_getParametersRouter:parameters: $parameters');
     final navigationRouter = RouteUtils.parsingRouteParametersToNavigationRouter(parameters);
     log('ManageAccountDashBoardController::_getParametersRouter:navigationRouter: $navigationRouter');
-    if (navigationRouter.accountMenuItem == AccountMenuItem.none &&
+    final requestedMenuItem = shownSettingsMenuItemOrNone(
+      navigationRouter.accountMenuItem,
+      isDelegationEntryShown: isDelegationSettingDisplayed,
+    );
+    _delegationRequestedWhileHidden = navigationRouter.accountMenuItem == AccountMenuItem.delegation &&
+        requestedMenuItem == AccountMenuItem.none;
+    if (requestedMenuItem == AccountMenuItem.none &&
         currentContext != null &&
         responsiveUtils.isWebDesktop(currentContext!)
     ) {
       selectAccountMenuItem(AccountMenuItem.profiles);
     } else {
-      selectedMenu = navigationRouter.accountMenuItem;
+      selectedMenu = requestedMenuItem;
       if (selectedMenu != null && selectedMenu != AccountMenuItem.storage) {
         selectAccountMenuItem(selectedMenu!);
       }
     }
+  }
+
+  bool get isDelegationSettingDisplayed => isDelegationEnabled(
+        sessionCurrent,
+        appProviderContainer.read(localSettingsProvider),
+      );
+
+  /// A page load can read a `type=delegation` link before the local settings load, so the menu opens it once they do.
+  bool takeDelegationRequestedWhileHidden() {
+    final requested = _delegationRequestedWhileHidden;
+    _delegationRequestedWhileHidden = false;
+    return requested;
   }
 
   void _initialPageLevel() {
@@ -293,11 +309,20 @@ class ManageAccountDashBoardController extends ReloadableController
       popBack(result: Tuple2(vacationResponse.value, previousUri));
     } else {
       log('ManageAccountDashBoardController::backToMailboxDashBoard(): canBack: FALSE');
+      final session = sessionCurrent;
       pushAndPopAll(
         RouteUtils.generateNavigationRoute(AppRoutes.dashboard),
-        arguments: sessionCurrent);
+        arguments: session == null
+            ? null
+            : DashboardSessionArguments(
+                session: session,
+                fromCache: sessionLoadedFromCache,
+              ));
     }
   }
+
+  /// Keeps the session re-read after "Remove your access" for the dashboard that closing Settings rebuilds. A popped dashboard already reads the switcher from activeAccountProvider.
+  void applyReloadedSession(Session session) => sessionCurrent = session;
 
   bool get isLanguageSettingDisplayed {
     if (!isServerSettingsCapabilitySupported) return true;
@@ -415,6 +440,7 @@ class ManageAccountDashBoardController extends ReloadableController
 
   void selectSettings(AccountMenuItem accountMenuItem) {
     log('ManageAccountDashBoardController::selectSettings(): $accountMenuItem');
+    _delegationRequestedWhileHidden = false;
     selectAccountMenuItem(accountMenuItem);
     settingsPageLevel.value = SettingsPageLevel.level1;
   }
