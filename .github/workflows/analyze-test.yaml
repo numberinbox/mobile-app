@@ -10,13 +10,8 @@ on:
   push:
     branches:
       - master
+      - main
     paths-ignore: *docs_only
-
-# One analyze+test run per ref at a time: a newer push supersedes the run for
-# the previous commit instead of queueing behind it.
-concurrency:
-  group: analyze-test-${{ github.ref }}
-  cancel-in-progress: true
 
 name: Analyze and test
 
@@ -28,7 +23,7 @@ env:
   FLUTTER_INSTALL_ATTEMPTS: "3"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:

@@ -3,7 +3,7 @@ on:
   workflow_run:
     workflows: [Analyze and test]
     types: [completed]
-    branches: [master]
+    branches: [master, main]
 permissions: {}
 jobs:
   dispatch:
